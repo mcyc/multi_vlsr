@@ -11,6 +11,8 @@ from pyspeckit.spectrum.models import ammonia
 from spectral_cube import SpectralCube
 from astropy.utils.console import ProgressBar
 
+from skimage.morphology import remove_small_objects,closing,disk,opening
+
 import ammonia_hf_multiv as amhf
 
 #=======================================================================================================================
@@ -173,9 +175,17 @@ def cubefit(cube11name, paraname = None, modname = None, guesses = None, errmap1
     snr = cube.filled_data[:].value/errmap11
     peaksnr = np.max(snr,axis=0)
 
+    # the following function is copied directly from GAS
+    def default_masking(snr,snr_min=5.0):
+        planemask = (snr>snr_min)
+        planemask = remove_small_objects(planemask,min_size=40)
+        planemask = opening(planemask,disk(1))
+        return(planemask)
+
     if mask_function is None:
-        from GAS import PropertyMaps as pm
-        planemask = pm.default_masking(peaksnr,snr_min = snr_min)
+        #from GAS import PropertyMaps as pm
+        #planemask = pm.default_masking(peaksnr,snr_min = snr_min)
+        planemask = default_masking(peaksnr,snr_min = snr_min)
     else:
         planemask = mask_function(peaksnr,snr_min = snr_min)
 

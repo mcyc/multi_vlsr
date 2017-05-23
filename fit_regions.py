@@ -6,12 +6,12 @@ import multi_v_fit as mvf
 
 def run():
     # copiapo and lascar should be able to support up to 12 cores
-    return cubefit_mc(region='NGC1333', multicore = 10)
+    return cubefit_uvic(region='NGC1333', multicore = 10)
 
 def cubefit_uvic(region='NGC1333', snr_min=5.0, multicore=1, mask_function = None):
     # runnint the cubefit on the UVic server
-    paraDir = '~/Documents/GAS_Project/data/DR1_paraMaps/NGC1333'
-    cubeDir = '~/Documents/GAS_Project/data/DR1_rebase3/NGC1333'
+    paraDir = '/nfs/lican13/home/mcychen/Documents/GAS_Project/data/DR1_paraMaps'
+    cubeDir = '/nfs/lican13/home/mcychen/Documents/GAS_Project/data/DR1_rebase3'
     root = 'DR1_rebase3'
     rootPara = 'DR1_rebase3'
 
