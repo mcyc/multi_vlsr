@@ -99,3 +99,8 @@ def nh3_multi_v_model_generator(n_comp):
             fitunits='Hz')
 
     return mod
+
+
+def nh3_vtau_singlemodel(xarr, Tex, tau, xoff_v, width, linename = 'oneone'):
+    # the parameters are in the order of vel, width, tex, tau for each velocity component
+    return nh3_vtau[linename].hyperfine(xarr, Tex=Tex, tau=tau, xoff_v=xoff_v, width=width)

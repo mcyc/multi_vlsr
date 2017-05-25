@@ -43,7 +43,7 @@ def run():
 
     if False:
         # generate a fake cube
-        #fake_cube(fname = cubename, paraname = realparaname)
+        #fname = cubename, paraname = realparaname)
         #fake_cube(fname = None, paraname = realparaname)
         fake_cube(peakname=peakname)
 
@@ -61,7 +61,7 @@ def run():
         model = fits.getdata(modname)
         return make_chi_tea(cubename, modname, savename = chiname)
 
-    if True:
+    if False:
         return plot_para_check(realparaname, paraname, chiname, peakname)
 
     return None
@@ -101,7 +101,7 @@ def plot_para_check(name_realp, name_fitp, name_chi, peaktname):
     plt.plot(para_rl[3], para_rl[3], c="0.5", zorder = 5)
     '''
 
-    if True:
+    if False:
         #plt.scatter(para_rl[2], para_rl[2] - para_ft[4], zorder = 20, s=1, c=chi, vmin=0.8, vmax=1.3)
         #plt.colorbar()
 
@@ -116,7 +116,7 @@ def plot_para_check(name_realp, name_fitp, name_chi, peaktname):
         plt.xlabel(r"Peak signal-to-noise ratio")
         plt.ylabel(r"Real v$_{lsr}$ - Fitted v$_{lsr}$ (km s$^{-1}$)")
 
-    if False:
+    if True:
         gmask = snr[1] > 3.0
         plt.hist((para_rl[2] - para_ft[4])[gmask].ravel(), 50, range=(-0.2,0.2), normed=True, histtype = "step")
         plt.hist((para_rl[0] - para_ft[0]).ravel(), 50, range=(-0.2,0.2), normed=True, histtype = "step")
@@ -127,9 +127,7 @@ def plot_para_check(name_realp, name_fitp, name_chi, peaktname):
 
     return para_rl, para_ft
 
-def get_SNR(paraname):
-    # output the signal to noise ratio of the two components
-    return None
+
 
 
 
