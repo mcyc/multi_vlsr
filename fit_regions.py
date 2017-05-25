@@ -1,7 +1,6 @@
 __author__ = 'mcychen'
 
 import multi_v_fit as mvf
-reload(mvf)
 
 #=======================================================================================================================
 
@@ -24,8 +23,8 @@ def cubefit_orion(region='OrionA', snr_min=5.0, multicore=1, mask_function = Non
     rootPara = 'DR1_rebase3_flag'
 
     OneOneFile = '{2}/{0}/{0}_NH3_11_{1}.fits'.format(region,root,cubeDir)
-    RMSFile = '{2}/{0}/{0}_NH3_11_{1}_rms_QA_trim.fits'.format(region,root,cubeDir)
-    SingVParaFile = '{2}/{0}/{0}_parameter_maps_{1}_flag.fits'.format(region, rootPara, paraDir)
+    RMSFile = '{2}/{0}/{0}_NH3_11_DR1_rebase3_rms_QA_trim.fits'.format(region,root,cubeDir)
+    SingVParaFile = '{2}/{0}/{0}_parameter_maps_{1}.fits'.format(region, rootPara, paraDir)
     NewParaFile = '{2}/{0}/{0}_2vcomp_parameter_maps_{1}.fits'.format(region, rootPara, paraDir)
 
     ModelFile = '{2}/{0}/{0}_NH3_11_{1}_model.fits'.format(region,root,cubeDir)

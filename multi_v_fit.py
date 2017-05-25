@@ -421,7 +421,7 @@ def cubefit(cube11name, paraname = None, modname = None, chisqname = None, guess
     # set some of the fiteach() inputs to that used in GAS DR1 reduction
     kwargs = {'integral':False, 'verbose_level':3, 'signal_cut':2}
 
-
+    '''
     if True:
         # for testing purpose, mask out most of the cube
         # these codes can be removed once the code has been proven to be stable
@@ -431,6 +431,7 @@ def cubefit(cube11name, paraname = None, modname = None, chisqname = None, guess
         y,x = np.ogrid[-a:n-a, -b:m-b]
         mask = x*x + y*y <= r*r
         pcube.cube[:, ~mask] = np.nan
+    '''
 
 
     # Now fit the cube. (Note: the function inputs are consistent with GAS DR1 whenever possible)

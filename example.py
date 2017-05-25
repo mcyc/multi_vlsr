@@ -21,7 +21,6 @@ from astropy import wcs
 from spectral_cube import SpectralCube
 
 import ammonia_hf_multiv as amhf
-reload(amhf)
 
 #=======================================================================================================================
 

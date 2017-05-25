@@ -4,7 +4,6 @@ import numpy as np
 import astropy.io.fits as fits
 from matplotlib import pyplot as plt
 import multi_v_fit as mvf
-reload(mvf)
 
 """
 ===================================================
@@ -14,6 +13,7 @@ For cleaning up multi_v_parameters
 Module API
 ^^^^^^^^^^
 """
+#=======================================================================================================================
 
 def run():
     workDir = "/Users/mcychen/Documents/Data/GAS_NH3/DR1_paraMaps/NGC1333/"
