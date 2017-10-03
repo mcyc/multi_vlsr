@@ -146,7 +146,7 @@ def get_SNR(paraname, savename = None, rms = 0.15, n_comp = 2):
     return peakT/rms
 
 
-def get_chisq(cube, model, expand=20):
+def get_chisq(cube, model, expand=20, reduced = True, usemask = True, mask = None):
     '''
     cube : SpectralCube
 
@@ -154,13 +154,29 @@ def get_chisq(cube, model, expand=20):
 
     expand : int
         Expands the region where the residual is evaluated by this many channels in the spectral dimension
+
+    reduced : boolean
+        Whether or not to return the reduced chi-squared value or not
+
+    usemask: boolean
+        Whether or not to mask out some parts of the data.
+        If no mask is provided, it masks out samples with model values of zero.
+
+    mask: boolean array
+        A mask stating which array elements the chi-squared values are calculated from
     '''
 
     import scipy.ndimage as nd
     #model = np.zeros(cube.shape)
     cube = cube.with_spectral_unit(u.Hz, rest_value = freq_dict['oneone']*u.Hz)
 
-    mask = model > 0
+    if usemask:
+        if mask is None:
+            mask = model > 0
+    else:
+        mask = ~np.isnan(model)
+
+
     residual = cube.filled_data[:].value-model
 
     # This calculates chisq over the region where the fit is non-zero
@@ -170,7 +186,10 @@ def get_chisq(cube, model, expand=20):
     selem.shape += (1,1,)
     mask = nd.binary_dilation(mask, selem)
     mask = mask.astype(np.float)
-    chisq = np.sum((residual * mask)**2, axis=0) / np.sum(mask, axis=0)
+    chisq = np.sum((residual * mask)**2, axis=0)
+
+    if reduced:
+        chisq /= np.sum(mask, axis=0)
 
     # This produces a robust estimate of the RMS along every line of sight:
     diff = residual - np.roll(residual, 2, axis=0)
@@ -178,8 +197,13 @@ def get_chisq(cube, model, expand=20):
 
     chisq /= rms**2
 
-    return chisq
+    if reduced:
+        # return the reduce chi-squares values
+        return chisq
 
+    else:
+        # return the ch-squared values and the number of data points used
+        return chisq, np.sum(mask, axis=0)
 
 
 def make_guesses(sigv_para_name, tex_guess =10.0, tau_guess = 0.5):
@@ -364,8 +388,19 @@ def cubefit(cube11name, paraname = None, modname = None, chisqname = None, guess
 
     # Find the velocity of peak emission in the integrated spectrum over all the pixels
     # to estimate where the main hyperfine structures are in the cube
-    idx_peak = np.nanargmax(maskcube.sum(axis=(1,2)))
+    #idx_peak = np.nanargmax(maskcube.sum(axis=(1,2)))
+    #tot_spec = maskcube.sum(axis=(1,2))
+    tot_spec = cube.sum(axis=(1,2))
+    #tot_spec[np.isnan(tot_spec)] = 0.0
+    print "yo"
+    print len(tot_spec)
+    print tot_spec[~np.isnan(tot_spec)]
+    print "ha"
+    idx_peak = np.nanargmax(tot_spec)
+    print "peak T_B: {0}".format(np.nanmax(tot_spec))
+
     v_atpeak = maskcube.spectral_axis[idx_peak].to(u.km/u.s).value
+    print "v_atpeak: {0}".format(v_atpeak)
 
     # Setup a window around the main hyperfine components
     v_peak_hwidth = 3.0
@@ -381,6 +416,7 @@ def cubefit(cube11name, paraname = None, modname = None, chisqname = None, guess
 
     # find the location of the peak signal (to determine the first pixel to fit)
     m0 = slab.moment0(axis=0).value
+    m0[np.isnan(m0)] = 0.0 # I'm not sure if this is a good way to get around the sum vs nansum issue
     peakloc = np.nanargmax(m0)
     ymax,xmax = np.unravel_index(peakloc, m0.shape)
 
@@ -403,7 +439,7 @@ def cubefit(cube11name, paraname = None, modname = None, chisqname = None, guess
     gg[6,:,:] = tex_guess          # v1 T_ex
     gg[7,:,:] = tau_guess*0.2      # v1 tau
 
-    if guesses == None:
+    if guesses is None:
         guesses = gg
 
     else:
@@ -467,6 +503,215 @@ def cubefit(cube11name, paraname = None, modname = None, chisqname = None, guess
         fitcubefile.header.set('PLANE14','eSIGMA_1')
         fitcubefile.header.set('PLANE15','eTEX_1')
         fitcubefile.header.set('PLANE16','eTAU_1')
+
+        fitcubefile.header.set('CDELT3',1)
+        fitcubefile.header.set('CTYPE3','FITPAR')
+        fitcubefile.header.set('CRVAL3',0)
+        fitcubefile.header.set('CRPIX3',1)
+        fitcubefile.writeto(paraname ,overwrite=True)
+
+    if modname != None:
+        model = SpectralCube(pcube.get_modelcube(), pcube.wcs, header=cube.header)
+        model.write(modname, overwrite=True)
+
+    if chisqname != None:
+        chisq = get_chisq(cube, pcube.get_modelcube(), expand=20)
+        chisqfile = fits.PrimaryHDU(data=chisq, header=cube.wcs.celestial.to_header())
+        chisqfile.writeto(chisqname, overwrite=True)
+
+    return pcube
+
+def cubefit_gen(cube11name, ncomp=2, paraname = None, modname = None, chisqname = None, guesses = None, errmap11name = None,
+            multicore = 1, mask_function = None, snr_min=3.0):
+    '''
+    Perform n velocity component fit on the GAS ammonia 1-1 data.
+    (This should be the function to call for all future codes if it has been proven to be reliable)
+    Parameters
+    ----------
+    cube11name : str
+        The file name of the ammonia 1-1 cube
+    ncomp : int
+        The number of components one wish to fit. Default is 2
+    paraname: str
+        The output file name of the
+    Returns
+    -------
+    pcube : 'pyspeckit.cubes.SpectralCube.Cube'
+        Pyspeckit cube object containing both the fit and the original data cube
+    '''
+
+    cube = SpectralCube.read(cube11name)
+
+    pcube = pyspeckit.Cube(cube11name)
+    pcube.unit="K"
+
+    # the following check on rest-frequency may not be necessarily for GAS, but better be safe than sorry
+    if cube._wcs.wcs.restfrq != np.nan:
+        # Specify the rest frequency not present
+        cube = cube.with_spectral_unit(u.Hz, rest_value = freq_dict['oneone']*u.Hz)
+        cube = cube.with_spectral_unit(u.km/u.s,velocity_convention='radio')
+
+    if pcube.wcs.wcs.restfrq != np.nan:
+        # Specify the rest frequency not present
+        pcube.xarr.refX = freq_dict['oneone']*u.Hz
+
+    # Register the 2 velocity component fitter
+    if not 'nh3_2v_11' in pcube.specfit.Registry.multifitters:
+        fitter = amhf.nh3_multi_v_model_generator(n_comp = ncomp)
+        pcube.specfit.Registry.add_fitter('nh3_2v_11', fitter, fitter.npars)
+        print "number of parameters is {0}".format(fitter.npars)
+
+
+    errmap11 = fits.getdata(errmap11name)
+    snr = cube.filled_data[:].value/errmap11
+    peaksnr = np.max(snr,axis=0)
+
+    # the following function is copied directly from GAS
+    def default_masking(snr,snr_min=5.0):
+        planemask = (snr>snr_min)
+        planemask = remove_small_objects(planemask,min_size=40)
+        planemask = opening(planemask,disk(1))
+        return(planemask)
+
+    if mask_function is None:
+        #from GAS import PropertyMaps as pm
+        #planemask = pm.default_masking(peaksnr,snr_min = snr_min)
+        planemask = default_masking(peaksnr,snr_min = snr_min)
+    else:
+        planemask = mask_function(peaksnr,snr_min = snr_min)
+
+    mask = (snr>3)*planemask
+    maskcube = cube.with_mask(mask.astype(bool))
+    maskcube = maskcube.with_spectral_unit(u.km/u.s,velocity_convention='radio')
+
+    # set the fit parameter limits (consistent with GAS DR1)
+    Tbg = 2.8
+    sigmin = 0.04
+
+    # Find the velocity of peak emission in the integrated spectrum over all the pixels
+    # to estimate where the main hyperfine structures are in the cube
+    #idx_peak = np.nanargmax(maskcube.sum(axis=(1,2)))
+    #tot_spec = maskcube.sum(axis=(1,2))
+    # the mask sometimes could mask out more things than intended... we'll just use the total, unmasked spectrum for now
+    tot_spec = cube.sum(axis=(1,2))
+    idx_peak = np.nanargmax(tot_spec)
+    print "peak T_B: {0}".format(np.nanmax(tot_spec))
+
+    v_atpeak = maskcube.spectral_axis[idx_peak].to(u.km/u.s).value
+    print "v_atpeak: {0}".format(v_atpeak)
+
+    # Setup a window around the main hyperfine components
+    v_peak_hwidth = 3.0
+    vmax = v_atpeak + v_peak_hwidth
+    vmin = v_atpeak - v_peak_hwidth
+
+    # Extract the spectrum within the window defined around the main hyperfine components and take moments
+    slab = maskcube.spectral_slab(vmin*u.km/u.s, vmax*u.km/u.s)
+    m1 = slab.moment1(axis=0).to(u.km/u.s).value
+    m2 = (np.abs(slab.moment2(axis=0))**0.5).to(u.km/u.s).value
+    # note:  the unit conversion above may fail for spectral_cube version < 0.4.0 (e.g., 0.3.2)
+    # Note: due to the hyperfine structures, the NH3 moment 2 overestimates linewidth
+
+    # find the location of the peak signal (to determine the first pixel to fit)
+    m0 = slab.moment0(axis=0).value
+    m0[np.isnan(m0)] = 0.0 # I'm not sure if this is a good way to get around the sum vs nansum issue
+    peakloc = np.nanargmax(m0)
+    ymax,xmax = np.unravel_index(peakloc, m0.shape)
+
+    # Make parameter guesses based on the moments [vel, width, tex, tau]
+    tex_guess = 10.0
+    tau_guess = 0.5
+
+    # Guess linewidth (the current recipe works okay, but potential improvements can be made.
+    gs_sig = m2/ncomp
+    gs_sig[gs_sig < sigmin] = 0.08 # narrow enough to be purely thermal @ ~10 K
+
+    # there are 4 parameters for each v-component
+    gg = np.zeros((ncomp*4,)+pcube.cube.shape[1:])
+
+    if ncomp == 1:
+        gg[0,:,:] = m1                 # v0 centriod
+        gg[1,:,:] = gs_sig             # v0 width
+        gg[2,:,:] = tex_guess          # v0 T_ex
+        gg[3,:,:] = tau_guess          # v0 tau
+
+    # using a working recipe (assuming a bright and a faint componet)
+    if ncomp == 2:
+        gg[0,:,:] = m1 - 0.25*m2       # v0 centriod
+        gg[1,:,:] = gs_sig             # v0 width
+        gg[2,:,:] = tex_guess          # v0 T_ex
+        gg[3,:,:] = tau_guess*0.8      # v0 tau
+        gg[4,:,:] = m1 + 0.25*m2       # v1 centriod
+        gg[5,:,:] = gs_sig             # v1 width
+        gg[6,:,:] = tex_guess          # v1 T_ex
+        gg[7,:,:] = tau_guess*0.2      # v1 tau
+
+    # using a generalized receipe that I have not tested clearly could use improvement
+    if ncomp > 2:
+        for i in range (0, ncomp):
+            gg[i,  :,:] = m1+(-1.0+i*1.0/ncomp)*0.5*m2 # v0 centriod (step through a range fo velocities within sigma_v)
+            gg[i+1,:,:] = gs_sig             # v0 width
+            gg[i+2,:,:] = tex_guess          # v0 T_ex
+            gg[i+3,:,:] = tau_guess*0.2      # v0 tau
+
+    if guesses is None:
+        guesses = gg
+
+    else:
+        # fill in the blanks in the 'guesses'
+        # (the two sets of operations below may be a little redundant, but better be safe than sorry I guess)
+        has_sigm = guesses[1] > sigmin  + 0.001
+        guesses[:,~has_sigm] = gg[:,~has_sigm]
+        has_v = guesses[0] != 0.0
+        guesses[:,~has_v] = gg[:,~has_v]
+
+    # The guesses should be fine in the first case, but just in case
+    guesses[::4][guesses[::4] > vmax] = vmax
+    guesses[::4][guesses[::4] < vmin] = vmin
+
+    # set some of the fiteach() inputs to that used in GAS DR1 reduction
+    kwargs = {'integral':False, 'verbose_level':3, 'signal_cut':2}
+
+    '''
+    if True:
+        # for testing purpose, mask out most of the cube
+        # these codes can be removed once the code has been proven to be stable
+        a, b = ymax, xmax
+        n, m = m1.shape
+        r = 1
+        y,x = np.ogrid[-a:n-a, -b:m-b]
+        mask = x*x + y*y <= r*r
+        pcube.cube[:, ~mask] = np.nan
+    '''
+
+
+    # Now fit the cube. (Note: the function inputs are consistent with GAS DR1 whenever possible)
+    print('start fit')
+
+    pcube.fiteach(fittype='nh3_2v_11', guesses=guesses,
+                  start_from_point=(xmax,ymax),
+                  use_neighbor_as_guess=False,
+                  #[v,s,t,t,v,s,t,t]
+                  limitedmax=[True,False,False,False]*ncomp,
+                  maxpars=[vmax,0,0,0]*ncomp,
+                  limitedmin=[True,True,True,True]*ncomp,
+                  minpars=[vmin, sigmin, Tbg, 0]*ncomp,
+                  multicore=multicore,
+                  **kwargs
+                  )
+    # Note: use_neighbor_as_guess is currently set to False to ensure the guesses assumes 2 components
+
+    if paraname != None:
+        fitcubefile = fits.PrimaryHDU(data=np.concatenate([pcube.parcube,pcube.errcube]), header=pcube.header)
+        for i in range (0, ncomp):
+            fitcubefile.header.set('PLANE{0}','VELOCITY_{1}'.format(ncomp +1, ncomp))
+            fitcubefile.header.set('PLANE{0}','SIGMA_{1}'.format(ncomp +2, ncomp))
+            fitcubefile.header.set('PLANE{0}','TEX_{1}'.format(ncomp +3, ncomp))
+            fitcubefile.header.set('PLANE{0}','TAU_{1}'.format(ncomp +4, ncomp))
+            fitcubefile.header.set('PLANE{0}','eVELOCITY_{1}'.format(ncomp +5, ncomp))
+            fitcubefile.header.set('PLANE{0}','eSIGMA_{1}'.format(ncomp +6, ncomp))
+            fitcubefile.header.set('PLANE{0}','eTEX_{1}'.format(ncomp +7, ncomp))
+            fitcubefile.header.set('PLANE{0}','eTAU_{1}'.format(ncomp +8, ncomp))
 
         fitcubefile.header.set('CDELT3',1)
         fitcubefile.header.set('CTYPE3','FITPAR')
