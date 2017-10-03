@@ -206,7 +206,7 @@ def get_chisq(cube, model, expand=20, reduced = True, usemask = True, mask = Non
         return chisq, np.sum(mask, axis=0)
 
 
-def make_guesses(sigv_para_name, tex_guess =10.0, tau_guess = 0.5):
+def make_guesses(sigv_para_name, n_comp = 2, tex_guess =10.0, tau_guess = 0.5):
     '''
     Make 2 velocity component fit guesses based on the GAS DR1 parameter maps
     Parameters
@@ -246,24 +246,41 @@ def make_guesses(sigv_para_name, tex_guess =10.0, tau_guess = 0.5):
     tau11 = get_singv_tau11(para.copy())
 
     # construct guesses
-    guesses = np.zeros((8,)+para.shape[1:])
+    guesses = np.zeros((4*n_comp,)+para.shape[1:])
 
-    # provide guesses for where vlsr and sigma has been fitted in DR1 (has a larger footprint than the full 5 para fit)
-    guesses[0,:,:] = vlsr - 0.25*sigma      # v0 centriod
-    guesses[1,:,:] = gs_sig                 # v0 width
-    guesses[2,:,:] = tex_guess              # v0 T_ex
-    guesses[3,:,:] = tau_guess*0.75         # v0 tau
-    guesses[4,:,:] = vlsr + 0.25*sigma      # v1 centriod
-    guesses[5,:,:] = gs_sig                 # v1 width
-    guesses[6,:,:] = tex_guess              # v1 T_ex
-    guesses[7,:,:] = tau_guess*0.25         # v1 tau
+    if n_comp == 1:
+        # provide guesses for where vlsr and sigma has been fitted in DR1 (has a larger footprint than the full 5 para fit)
+        guesses[0,:,:] = vlsr           # v centriod
+        guesses[1,:,:] = sigma          # linewidth
+        guesses[2,:,:] = tex_guess      # T_ex
+        guesses[3,:,:] = tau_guess      # tau
 
-    # provide guesses for where tex and tau (and other parameters) has been fitted in DR1
-    has_col = para[2] > 0
-    guesses[2,has_col] = tex[has_col]                    # v0 T_ex
-    guesses[3,has_col] = tau11[has_col]*0.75             # v0 tau
-    guesses[6,has_col] = tex[has_col]                    # v1 T_ex
-    guesses[7,has_col] = tau11[has_col]*0.25             # v1 tau
+        # provide guesses for where tex and tau (and other parameters) has been fitted in DR1
+        has_col = para[2] > 0
+        guesses[2,has_col] = tex[has_col]               # T_ex
+        guesses[3,has_col] = tau11[has_col]             # tau
+
+    if n_comp == 2:
+        # provide guesses for where vlsr and sigma has been fitted in DR1 (has a larger footprint than the full 5 para fit)
+        guesses[0,:,:] = vlsr - 0.25*sigma      # v0 centriod
+        guesses[1,:,:] = gs_sig                 # v0 width
+        guesses[2,:,:] = tex_guess              # v0 T_ex
+        guesses[3,:,:] = tau_guess*0.75         # v0 tau
+        guesses[4,:,:] = vlsr + 0.25*sigma      # v1 centriod
+        guesses[5,:,:] = gs_sig                 # v1 width
+        guesses[6,:,:] = tex_guess              # v1 T_ex
+        guesses[7,:,:] = tau_guess*0.25         # v1 tau
+
+        # provide guesses for where tex and tau (and other parameters) has been fitted in DR1
+        has_col = para[2] > 0
+        guesses[2,has_col] = tex[has_col]                    # v0 T_ex
+        guesses[3,has_col] = tau11[has_col]*0.75             # v0 tau
+        guesses[6,has_col] = tex[has_col]                    # v1 T_ex
+        guesses[7,has_col] = tau11[has_col]*0.25             # v1 tau
+
+    if n_comp > 2:
+        print "guesses for > 2 components have not been implemented!"
+        return None
 
     return guesses
 

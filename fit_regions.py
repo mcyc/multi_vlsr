@@ -82,7 +82,7 @@ def cubefit_uvic(region='NGC1333', snr_min=5.0, multicore=1, mask_function = Non
     SepVModelFile = '{2}/{0}/{0}_NH3_11_{1}_{3}VModel.fits'.format(region,root,cubeDir, n_comp)
 
 
-    guesses = mvf.make_guesses(SingVParaFile)
+    guesses = mvf.make_guesses(SingVParaFile, n_comp = n_comp)
 
     pcubes = mvf.cubefit_gen(cube11name = OneOneFile, ncomp = n_comp , paraname = NewParaFile, modname = ModelFile, chisqname = ChisqFile,
                          guesses = guesses, errmap11name = RMSFile, multicore = multicore, snr_min=snr_min,
