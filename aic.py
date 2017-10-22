@@ -23,27 +23,13 @@ import multi_v_fit as mvf
 #=======================================================================================================================
 
 
-def cmb():
-    # quick recover,
-    f1 = "/Users/mcychen/Documents/Data/GAS_NH3/DR1_rebase3/NGC1333/NGC1333_NH3_11_DR1_rebase3_sepVModel_v0_.fits"
-    f2 = "/Users/mcychen/Documents/Data/GAS_NH3/DR1_rebase3/NGC1333/NGC1333_NH3_11_DR1_rebase3_sepVModel_v1_.fits"
-    fout = "/Users/mcychen/Documents/Data/GAS_NH3/DR1_rebase3/NGC1333/two_v_comp/NGC1333_NH3_11_DR1_rebase3_2comp_model.fits"
-
-    data1, hdr1 = fits.getdata(f1, header = True)
-    data2, hdr2 = fits.getdata(f2, header = True)
-
-    data = np.nansum([data1, data2], axis = 0)
-    fits.writeto(filename=fout, data=data, header=hdr1, overwrite = True)
-
-
-
 def run():
     # generate aic maps
 
     baseDir = "/Users/mcychen/Documents/Data/GAS_NH3/DR1_rebase3/NGC1333"
 
-    cubename = "{0}/NGC1333_NH3_11_DR1_rebase3_trim.fits".format(baseDir)
-    #cubename = "{0}/NGC1333_NH3_11_DR1_rebase3.fits".format(baseDir)
+    #cubename = "{0}/NGC1333_NH3_11_DR1_rebase3_trim.fits".format(baseDir)
+    cubename = "{0}/NGC1333_NH3_11_DR1_rebase3.fits".format(baseDir)
     model1name = "{0}/one_v_comp/NGC1333_NH3_11_DR1_rebase3_1comp_model.fits".format(baseDir)
     model2name = "{0}/two_v_comp/NGC1333_NH3_11_DR1_rebase3_2comp_model.fits".format(baseDir)
     aiccname = "{0}/two_v_comp/NGC1333_2v1comp_aicc.fits".format(baseDir)
