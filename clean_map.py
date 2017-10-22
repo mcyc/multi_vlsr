@@ -18,34 +18,63 @@ Module API
 #=======================================================================================================================
 
 def tt():
+    # a quick test run to see what the AIC maps look like
     baseDir = "/Users/mcychen/Documents/Data/GAS_NH3/DR1_rebase3/NGC1333"
-    #aiccname = "{0}/two_v_comp/NGC1333_2v1comp_aicc.fits".format(baseDir)
-    aiccname = "{0}/two_v_comp/NGC1333_2v1comp_chisq.fits".format(baseDir)
+    aiccname = "{0}/two_v_comp/NGC1333_2v1comp_aicc.fits".format(baseDir)
+    #aiccname = "{0}/two_v_comp/NGC1333_2v1comp_chisq.fits".format(baseDir)
 
     aicc = fits.getdata(aiccname)
+    aicc[aicc == 0.0] = np.nan
+
     #mask = aicc[0] < aicc[1]
-    plt.imshow(aicc[0]-aicc[1], origin="lower", interpolation="nearest")
+    # True where the second model is 2 times as probable as the first model to minimize the information loss
+    #mask = np.exp(aicc[0] - aicc[1])/2.0 > 1.0
+    mask = aicc[0] > aicc[1]
+
+    #plt.imshow(aicc[0]-aicc[1], origin="lower", interpolation="nearest")
     #plt.imshow(aicc[0]/aicc[1], origin="lower", interpolation="nearest")
-    #plt.imshow(aicc[1, mask], origin="lower", interpolation="nearest")
 
-    ratio = (aicc[0]/aicc[1]).ravel()
-    ratio = ratio[~np.isnan(ratio)]
+    plt.imshow(mask, origin="lower", interpolation="nearest")
 
-    #plt.hist(ratio)
+
+    if False:
+        map = np.exp(aicc[0] - aicc[1])/2.0
+        plt.imshow(np.log10(map), origin="lower", interpolation="nearest", clim=(0.0, 3))
+        plt.colorbar()
+
+    if False:
+        yo = aicc[1].copy()
+        yo[~mask] = np.nan
+        yo[yo == 0] = np.nan
+
+        plt.imshow(yo, origin="lower", interpolation="nearest")
+
+    if False:
+        ratio = (aicc[0]/aicc[1]).ravel()
+        ratio = ratio[~np.isnan(ratio)]
+        plt.hist(ratio, bins=100, cumulative=True, normed=True)
+
     plt.show()
+
 
 def clean_reg(reg = "NGC1333"):
     # clean the 2 component fit of a region using the defaults
 
-    workDir = "/Users/mcychen/Documents/Data/GAS_NH3/DR1_paraMaps/{0}/two_v_comp".format(reg)
+    baseDir = "/Users/mcychen/Documents/Data/GAS_NH3"
+    workDir = "{0}/DR1_paraMaps/{1}/two_v_comp".format(baseDir, reg)
     if not os.path.exists(workDir):
         os.makedirs(workDir)
 
     oriname = "{0}/{1}_2vcomp_parameter_maps_DR1_rebase3.fits".format(workDir, reg)
     newname = "{0}/{1}_2vcomp_SNR_eachV_DR1_rebase3_clean.fits".format(workDir, reg)
+    #newname = "{0}/{1}_2vcomp_DR1_rebase3_clean.fits".format(workDir, reg)
     snrname = "{0}/{1}_2vcomp_SNR_eachV_DR1_rebase3.fits".format(workDir, reg)
 
-    clean(oriname, newname, snrname)
+    aicname = "{0}/DR1_rebase3/{1}/two_v_comp/{1}_2v1comp_aicc.fits".format(baseDir, reg)
+    one_v_name = "{0}/DR1_paraMaps/{1}/one_v_comp/{1}_1vcomp_parameter_maps_DR1_rebase3_clean.fits".format(baseDir, reg)
+
+    clean(oriname, newname, snrname = snrname, one_v_map = one_v_name, aic_maps = aicname,
+          fill_plane1 = False, mergesim = False, rm_sml_obj = True, sort_method = "None")
 
 def run(reg = "NGC1333"):
     # run some cleaning test runs
@@ -124,17 +153,17 @@ def test(fname, snrname = None):
     #plt.scatter(sig1, sig1_err, s=1)
     plt.show()
 
-def clean(readname, savename, snrname, fill_plane1 = False, mergesim = False, rm_sml_obj = True, sort_method = "None"):
+def clean(readname, savename, snrname = None, one_v_map = None, aic_maps = None,
+          fill_plane1 = False, mergesim = False, rm_sml_obj = True, sort_method = "None"):
     '''
+    Cleaning a two velocity component parameter map
     A good recipe so far:
     1. SNR culling
     2. Place larger line width component on the second plane
     3. Merge pixels with similar velocity and linewdiths into one, and place it on the 1st plane
     '''
 
-
     para, hdr_para = fits.getdata(readname, header = True)
-    snr, hdr_snr = fits.getdata(snrname, header = True)
 
     v1, sig1, tex1, tau1 = para[:4]
     v2, sig2, tex2, tau2 = para[4:8]
@@ -145,13 +174,15 @@ def clean(readname, savename, snrname, fill_plane1 = False, mergesim = False, rm
     mask_all = np.logical_or(v1 == 0, v2 == 0)
 
     # remove pixels with low SNR
-    snr_min = 3.0
-    mask_1 = snr[0] < snr_min
-    mask_2 = snr[1] < snr_min
-    # mask out first velocity component
-    para[:4, mask_1], para[8:12, mask_1] = np.nan, np.nan
-    # mask out second velocity component
-    para[4:8, mask_2], para[12:, mask_2] = np.nan, np.nan
+    if not snrname is None:
+        snr, hdr_snr = fits.getdata(snrname, header = True)
+        snr_min = 3.0
+        mask_1 = snr[0] < snr_min
+        mask_2 = snr[1] < snr_min
+        # mask out first velocity component
+        para[:4, mask_1], para[8:12, mask_1] = np.nan, np.nan
+        # mask out second velocity component
+        para[4:8, mask_2], para[12:, mask_2] = np.nan, np.nan
 
 
     # remove pixels with line width that are outside the expected physical range
@@ -166,6 +197,11 @@ def clean(readname, savename, snrname, fill_plane1 = False, mergesim = False, rm
     mask_1 = np.logical_or(mask_1, sig1 <= sig1_err)
     mask_2 = np.logical_or(mask_2, sig2 <= sig2_err)
 
+    # remove pixels where the vlsr error is above a certain threshhold
+    evlsr_thr = 0.08 # about the GAS spectral channel width
+    mask_1 = np.logical_or(mask_1, v1_err >= evlsr_thr)
+    mask_2 = np.logical_or(mask_2, v2_err >= evlsr_thr)
+
     # mask out all maps
     para[:, mask_all] = np.nan
 
@@ -174,6 +210,41 @@ def clean(readname, savename, snrname, fill_plane1 = False, mergesim = False, rm
 
     # mask out second velocity component
     para[4:8, mask_2], para[12:, mask_2] = np.nan, np.nan
+
+    # use the 1-component model whenever the 1-comp model is better based on AIC
+    if not one_v_map is None:
+        para_1v, hdr_1v = fits.getdata(one_v_map, header = True)
+        para_1v[para_1v == 0.0] = np.nan
+
+        # leave pixels where both v1 and v2 are NaN untouched
+        mask_all = np.logical_and(v1 == np.nan, v2 == np.nan)
+        para_1v[:,mask_all] = np.nan
+
+        if not aic_maps is None:
+            aic, hdr_aic = fits.getdata(aic_maps, header = True)
+            # True where the single component fit is better than the two component fit
+
+            # likelyhood factor thershold
+            lk_factor = 1.0
+
+            #mask_sg = aic[0] < aic[1]
+
+            # where the second model is lk_factor times as probable as the first model to minimize the information loss
+            likelyhood = np.exp((aic[0] - aic[1])/2.0)
+            mask_sg = likelyhood > lk_factor
+
+            # replace the first components with the single component values, and set the second component to zero
+            para[:4, ~mask_sg] = para_1v[:4, ~mask_sg]
+            para[4:8, ~mask_sg] = np.nan
+
+            para[8:12, ~mask_sg] = para_1v[4:, ~mask_sg]
+            para[12:, ~mask_sg] = np.nan
+
+
+        else:
+            print "warning: no one component fit parameter is provided, no action will take place."
+            return None
+
 
     '''
     # place components with larger (f_sig times) linewidths
@@ -189,7 +260,8 @@ def clean(readname, savename, snrname, fill_plane1 = False, mergesim = False, rm
 
     #if SNRSort:
     if sort_method == "SNR":
-        swap = snr[0] < snr[1]
+        if not snrname is None:
+            swap = snr[0] < snr[1]
 
     #elif purewidthSort:
     elif sort_method == "pure_width":
@@ -241,7 +313,7 @@ def clean(readname, savename, snrname, fill_plane1 = False, mergesim = False, rm
         mask = mask.astype(bool)
         #plt.imshow(mask, origin="lower")
         #plt.show()
-        clean_mask = morphology.remove_small_objects(mask, min_size=3, connectivity=1, in_place=False)
+        clean_mask = morphology.remove_small_objects(mask, min_size=5, connectivity=1, in_place=False)
         #plt.imshow(clean_mask, origin="lower")
         #plt.show()
         print clean_mask.dtype
@@ -252,6 +324,85 @@ def clean(readname, savename, snrname, fill_plane1 = False, mergesim = False, rm
     newfits.writeto(savename ,overwrite=True)
 
     return para
+
+
+
+def clean_1v():
+    workDir = "/Users/mcychen/Documents/Data/GAS_NH3/DR1_paraMaps/NGC1333/one_v_comp"
+    readname = "{0}/NGC1333_1vcomp_parameter_maps_DR1_rebase3.fits".format(workDir)
+    savename = "{0}/NGC1333_1vcomp_parameter_maps_DR1_rebase3_clean.fits".format(workDir)
+    clean_onecomp(readname, savename, snrname = None, rm_sml_obj = True)
+
+
+
+def clean_onecomp(readname, savename, snrname = None, rm_sml_obj = True):
+    '''
+    Cleaning a single component parameter map
+    A good recipe so far:
+    1. SNR culling
+    '''
+
+    para, hdr_para = fits.getdata(readname, header = True)
+
+    # replace all zero values with nans
+    para[para == 0.0] = np.nan
+
+    v1, sig1, tex1, tau1 = para[:4]
+    v1_err, sig1_err, tex1_err, tau1_err = para[4:8]
+
+    # remove pixels with low SNR
+    if not snrname is None:
+        snr, hdr_snr = fits.getdata(snrname, header = True)
+        snr_min = 3.0
+        mask_1 = snr[0] < snr_min
+        # mask out first velocity component
+        para[:4, mask_1], para[4:8, mask_1] = np.nan, np.nan
+
+
+    # remove pixels with line width that are outside the expected physical range
+    sig_min = 0.05
+    mask_1 = sig1 <= sig_min
+
+    sig_max = 5.0           # all the hyperfines starts to blend together at this point
+    mask_1 = np.logical_or(mask_1, sig1 >= sig_max)
+
+
+    # remove pixels where the error in the line width is larger than linewidth itself
+    mask_1 = np.logical_or(mask_1, sig1 <= sig1_err)
+
+    # remove pixels where the vlsr error is above a certain threshhold
+    evlsr_thr = 0.08 # about the GAS spectral channel width
+    mask_1 = np.logical_or(mask_1, v1_err >= evlsr_thr)
+
+
+
+    # mask out first velocity component
+    para[:4, mask_1], para[4:8, mask_1] = np.nan, np.nan
+
+
+    if rm_sml_obj:
+        # remove islated pixels of a certain size
+        mask = ~np.isnan(para)
+        mask = mask.sum(axis=0)
+        mask = mask/mask
+        mask = mask.astype(bool)
+        #plt.imshow(mask, origin="lower")
+        #plt.show()
+        clean_mask = morphology.remove_small_objects(mask, min_size=5, connectivity=1, in_place=False)
+        #plt.imshow(clean_mask, origin="lower")
+        #plt.show()
+        print clean_mask.dtype
+        para[:,~clean_mask] = np.nan
+
+    # write the "cleaned" parameters
+    newfits = fits.PrimaryHDU(data=para, header=hdr_para)
+    newfits.writeto(savename ,overwrite=True)
+
+    return para
+
+
+
+
 
 def make_SNR_map(paraname, savename):
     return mvf.get_SNR(paraname, savename = savename, rms = 0.15, n_comp = 2)
