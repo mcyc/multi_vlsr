@@ -8,17 +8,17 @@ import os, errno
 #=======================================================================================================================
 
 
-def run_on_gb(multicore=8):
+def run_on_gb(region='L1448', multicore=8):
     # fourier has 8 cores
     start_time = time.time()
     print("fitting 1 component")
-    cubefit_gb(region='L1448', snr_min=5.0, multicore=multicore, n_comp = 1)
+    cubefit_gb(region=region, snr_min=5.0, multicore=multicore, n_comp = 1)
     print("--- %s seconds ---" % (time.time() - start_time))
 
 
     start_time = time.time()
     print("fitting 2 component")
-    cubefit_gb(region='L1448', snr_min=5.0, multicore=multicore, n_comp = 2)
+    cubefit_gb(region=region, snr_min=5.0, multicore=multicore, n_comp = 2)
     print("--- %s seconds ---" % (time.time() - start_time))
 
 
@@ -101,11 +101,10 @@ def cubefit_gb(region='NGC1333', snr_min=5.0, multicore=1, mask_function = None,
     # defining paths to imaged data
     OneOneFile = '{2}/{0}/{0}_NH3_11_{1}.fits'.format(region,root,cubeDir)
     RMSFile = '{2}/{0}/{0}_NH3_11_{1}_rms.fits'.format(region,root,cubeDir)
+    SingVParaFile = '{2}/{0}/{0}_parameter_maps_{1}.fits'.format(region, rootPara, cubeDir)
 
     # defining paths to the imaged data
-    SingVParaFile = '{2}/{0}/{0}_parameter_maps_{1}.fits'.format(region, rootPara, cubeDir)
-    NewParaFile = '{2}/{0}/{0}_{3}vcomp_parameter_maps_{1}.fits'.format(region, rootPara, paraDir, n_comp)
-
+    NewParaFile = '{2}/{0}_{3}vcomp_parameter_maps_{1}.fits'.format(region, rootPara, paraDir, n_comp)
     ModelFile = '{2}/{0}_NH3_11_{1}_{3}comp_model.fits'.format(region, root, modelDir, n_comp)
     ChisqFile = '{2}/{0}_{3}vcomp_chisq_{1}.fits'.format(region, rootPara, paraDir, n_comp)
 
