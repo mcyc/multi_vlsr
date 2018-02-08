@@ -8,7 +8,6 @@ import os, errno
 #=======================================================================================================================
 
 
-
 def run_on_gb(multicore=8):
     # fourier has 8 cores
     start_time = time.time()
@@ -16,12 +15,12 @@ def run_on_gb(multicore=8):
     cubefit_gb(region='L1448', snr_min=5.0, multicore=multicore, n_comp = 1)
     print("--- %s seconds ---" % (time.time() - start_time))
 
-    '''
+
     start_time = time.time()
-    print("fitting 1 component")
+    print("fitting 2 component")
     cubefit_gb(region='L1448', snr_min=5.0, multicore=multicore, n_comp = 2)
     print("--- %s seconds ---" % (time.time() - start_time))
-    '''
+
 
 
 
@@ -87,10 +86,11 @@ def cubefit_gb(region='NGC1333', snr_min=5.0, multicore=1, mask_function = None,
     # defining directories
     rootDir = "/lustre/pipeline/scratch/GAS"
     cubeDir = "{0}/images".format(rootDir)
-    paraDir = "{0}/paraMaps_MChen".format(cubeDir)
-    modelDir = "{0}/multi_v_models_MChen".format(cubeDir)
+    paraDir = "{0}/{1}/paraMaps_MChen".format(cubeDir, region)
+    modelDir = "{0}/{1}/multi_v_models_MChen".format(cubeDir, region)
     try:
         os.makedirs(paraDir)
+        os.makedirs(modelDir)
     except OSError as e:
         if e.errno != errno.EEXIST:
             raise
@@ -106,11 +106,11 @@ def cubefit_gb(region='NGC1333', snr_min=5.0, multicore=1, mask_function = None,
     SingVParaFile = '{2}/{0}/{0}_parameter_maps_{1}.fits'.format(region, rootPara, cubeDir)
     NewParaFile = '{2}/{0}/{0}_{3}vcomp_parameter_maps_{1}.fits'.format(region, rootPara, paraDir, n_comp)
 
-    ModelFile = '{2}/{0}/{0}_NH3_11_{1}_{3}comp_model.fits'.format(region, root, modelDir, n_comp)
-    ChisqFile = '{2}/{0}/{0}_{3}vcomp_chisq_{1}.fits'.format(region, rootPara, paraDir, n_comp)
+    ModelFile = '{2}/{0}_NH3_11_{1}_{3}comp_model.fits'.format(region, root, modelDir, n_comp)
+    ChisqFile = '{2}/{0}_{3}vcomp_chisq_{1}.fits'.format(region, rootPara, paraDir, n_comp)
 
-    SNRFile = '{2}/{0}/{0}_{3}vcomp_SNR_eachV_{1}.fits'.format(region, rootPara, paraDir, n_comp)
-    SepVModelFile = '{2}/{0}/{0}_NH3_11_{1}_{3}VModel.fits'.format(region, root, modelDir, n_comp)
+    SNRFile = '{2}/{0}_{3}vcomp_SNR_eachV_{1}.fits'.format(region, rootPara, paraDir, n_comp)
+    SepVModelFile = '{2}/{0}_NH3_11_{1}_{3}VModel.fits'.format(region, root, modelDir, n_comp)
 
 
     if os.path.exists(SingVParaFile):
