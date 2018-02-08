@@ -62,8 +62,8 @@ def get_multiV_models(paraname, refcubename, n_comp = 2, savename = None, snrnam
 
     if snrname != None:
         # calculate the peak temperature
-        Tpeak = [np.nanmax(cube, axis=0)
-                 for cube in cubes]
+        Tpeak = np.array([np.nanmax(cube, axis=0)
+                 for cube in cubes])
 
         if rmspath is not None:
             rmsdata = fits.getdata(rmspath)
@@ -73,7 +73,7 @@ def get_multiV_models(paraname, refcubename, n_comp = 2, savename = None, snrnam
                 print "[WARNING]: The shape of the rms map does not match the shape of the emission map." \
                       " An uniform rms value of: {0} has been adopted instead".format(rms)
 
-        snr = np.array(Tpeak)/rms
+        snr = Tpeak/rms
         snrfile = fits.PrimaryHDU(data=snr, header=pcube.header)
 
         for i in np.arange(n_comp*8)+1:

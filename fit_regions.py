@@ -125,7 +125,7 @@ def cubefit_gb(region='NGC1333', snr_min=5.0, multicore=1, mask_function = None,
     # determine the signal to noise ratio
     # mchen: a way to determine the average rms based on the RMSFile for individual regions will be better
     mvf.get_multiV_models(paraname=NewParaFile, refcubename=OneOneFile, n_comp = n_comp, savename = SepVModelFile,
-                                     snrname = SNRFile, rms = 0.15, rmspath=SNRFile)
+                                     snrname = SNRFile, rms = 0.15, rmspath=RMSFile)
 
     return pcubes
 
