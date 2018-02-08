@@ -13,13 +13,13 @@ def run_on_gb(multicore=8):
     # fourier has 8 cores
     start_time = time.time()
     print("fitting 1 component")
-    cubefit_uvic(region='L1448', snr_min=5.0, multicore=multicore, n_comp = 1)
+    cubefit_gb(region='L1448', snr_min=5.0, multicore=multicore, n_comp = 1)
     print("--- %s seconds ---" % (time.time() - start_time))
 
     '''
     start_time = time.time()
     print("fitting 1 component")
-    cubefit_uvic(region='L1448', snr_min=5.0, multicore=multicore, n_comp = 2)
+    cubefit_gb(region='L1448', snr_min=5.0, multicore=multicore, n_comp = 2)
     print("--- %s seconds ---" % (time.time() - start_time))
     '''
 
