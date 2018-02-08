@@ -21,7 +21,7 @@ import ammonia_hf_multiv as amhf
 
 
 
-def get_multiV_models(paraname, refcubename, n_comp = 2, savename = None, snrname = None, rms = 0.15):
+def get_multiV_models(paraname, refcubename, n_comp = 2, savename = None, snrname = None, rms = 0.15, rmspath = None):
     para, hdr = fits.getdata(paraname, header = True)
 
     pcube = pyspeckit.Cube(refcubename)
@@ -64,6 +64,14 @@ def get_multiV_models(paraname, refcubename, n_comp = 2, savename = None, snrnam
         # calculate the peak temperature
         Tpeak = [np.nanmax(cube, axis=0)
                  for cube in cubes]
+
+        if rmspath is not None:
+            rmsdata = fits.getdata(rmspath)
+            if rmsdata.shape == Tpeak.shape:
+                rms = rmsdata
+            else:
+                print "[WARNING]: The shape of the rms map does not match the shape of the emission map." \
+                      " An uniform rms value of: {0} has been adopted instead".format(rms)
 
         snr = np.array(Tpeak)/rms
         snrfile = fits.PrimaryHDU(data=snr, header=pcube.header)
