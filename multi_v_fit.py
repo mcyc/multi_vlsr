@@ -67,11 +67,11 @@ def get_multiV_models(paraname, refcubename, n_comp = 2, savename = None, snrnam
 
         if rmspath is not None:
             rmsdata = fits.getdata(rmspath)
-            if rmsdata.shape == Tpeak.shape:
+            if rmsdata.shape == Tpeak[0].shape:
                 rms = rmsdata
             else:
-                print "[WARNING]: The shape of the rms map does not match the shape of the emission map." \
-                      " An uniform rms value of: {0} has been adopted instead".format(rms)
+                print "[WARNING]: The shape of the rms map ({0}) does not match the shape of the emission map {1}." \
+                      " An uniform rms value of: {2} has been adopted instead".format(rmsdata.shape, Tpeak[0].shape, rms)
 
         snr = Tpeak/rms
         snrfile = fits.PrimaryHDU(data=snr, header=pcube.header)
