@@ -78,7 +78,8 @@ def get_multiV_models(paraname, refcubename, n_comp = 2, savename = None, snrnam
 
         for i in np.arange(n_comp*8)+1:
             key = 'PLANE{0}'.format(i)
-            hdr.remove(key)
+            if key in hdr:
+                hdr.remove(key)
 
         snrfile.header.set('CDELT3',1)
         snrfile.header.set('CTYPE3','FITPAR')
@@ -141,7 +142,8 @@ def get_SNR(paraname, savename = None, rms = 0.15, n_comp = 2):
 
         for i in np.arange(n_comp*8)+1:
             key = 'PLANE{0}'.format(i)
-            hdr.remove(key)
+            if key in hdr:
+                hdr.remove(key)
 
         newfits = fits.PrimaryHDU(data=peakT/rms, header=hdr)
         newfits.header.set('CDELT3',1)
