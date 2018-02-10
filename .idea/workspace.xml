@@ -38,8 +38,8 @@
       <file leaf-file-name="run_on_gb.py" pinned="false" current="true" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/run/run_on_gb.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state vertical-scroll-proportion="2.2270741" vertical-offset="0" max-vertical-offset="2880">
-              <caret line="102" column="81" selection-start-line="102" selection-start-column="81" selection-end-line="102" selection-end-column="81" />
+            <state vertical-scroll-proportion="0.6331878" vertical-offset="90" max-vertical-offset="2880">
+              <caret line="35" column="41" selection-start-line="35" selection-start-column="41" selection-end-line="35" selection-end-column="41" />
               <folding />
             </state>
           </provider>
@@ -845,8 +845,8 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/run/run_on_gb.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state vertical-scroll-proportion="2.2270741" vertical-offset="0" max-vertical-offset="2880">
-          <caret line="102" column="81" selection-start-line="102" selection-start-column="81" selection-end-line="102" selection-end-column="81" />
+        <state vertical-scroll-proportion="0.6331878" vertical-offset="90" max-vertical-offset="2880">
+          <caret line="35" column="41" selection-start-line="35" selection-start-column="41" selection-end-line="35" selection-end-column="41" />
           <folding />
         </state>
       </provider>
