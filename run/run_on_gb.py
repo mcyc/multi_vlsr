@@ -95,6 +95,7 @@ class Region(object):
         aiccpath = "{0}/{1}_NH3_11_{2}v{3}comp_aicc.fits".format(self.cleanParaDir, self.region, n_comp2, n_comp1)
         aic.fits_comp_AICc(self.OneOneFile, modpath1, modpath2, aiccpath)
 
+
     def calc_chisq(self, n_comp1=1, n_comp2=2):
         # calculate the reduced chi-squared values over the same spectral windows two given models
         modpath1 = '{2}/{0}_NH3_11_{1}_{3}comp_model.fits'.format(self.region, self.root, self.modelDir, n_comp1)
@@ -102,7 +103,8 @@ class Region(object):
         chisqpath = "{0}/{1}_NH3_11_{2}v{3}comp_redchisq.fits".format(self.cleanParaDir, self.region, n_comp2, n_comp1)
         aic.fits_comp_chisq(self.OneOneFile, modpath1, modpath2, chisqpath, reduced = True)
 
-    def clean(self):
+
+    def clean_paramap(self):
         return None
 
 
@@ -122,7 +124,20 @@ def make_dir(dirpath):
 
 #=======================================================================================================================
 
+def run_reg():
+    reg = "HC2"
+    run(region=reg)
+
 def run(region='L1448', multicore=8):
+
+    regOb = Region(region)
+    regOb.fit_cube(n_comp=1, multicore=multicore, snr_min=5.0, mask_function = None)
+    regOb.fit_cube(n_comp=2, multicore=multicore, snr_min=5.0, mask_function = None)
+    regOb.calc_aic()
+    regOb.calc_chisq()
+
+
+def runOld(region='L1448', multicore=8):
     # fourier has 8 cores
     start_time = time.time()
     print("fitting 1 component")
