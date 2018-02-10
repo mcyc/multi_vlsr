@@ -30,13 +30,9 @@ class Region(object):
         self.cleanParaDir = "{0}/clean_maps".format(self.paraDir)
 
         # create directories if they don't exist
-        try:
-            os.makedirs(self.paraDir)
-            os.makedirs(self.modelDir)
-            os.makedirs(self.cleanParaDir)
-        except OSError as e:
-            if e.errno != errno.EEXIST:
-                raise
+        make_dir(self.paraDir)
+        make_dir(self.modelDir)
+        make_dir(self.cleanParaDir)
 
         self.root = root
         if rootPara is None:
@@ -114,6 +110,13 @@ class Region(object):
 #=======================================================================================================================
 # here are some quick utilities functions
 
+def make_dir(dirpath):
+    # create directories if they don't exist
+    try:
+        os.makedirs(dirpath)
+    except OSError as e:
+        if e.errno != errno.EEXIST:
+            raise
 
 
 
