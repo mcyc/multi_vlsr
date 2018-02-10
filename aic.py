@@ -23,6 +23,24 @@ import multi_v_fit as mvf
 #=======================================================================================================================
 
 
+def fits_comp_AICc(cubepath, modpath1, modpath2, aiccpath):
+    # a wrapper around fits_comp_AICc() to work with fits files
+
+    cube = SpectralCube.read(cubepath)
+    mod1, hdr1 = fits.getdata(modpath1, header = True)
+    mod2, hdr2 = fits.getdata(modpath2, header = True)
+
+    aicc1, aicc2 = get_comp_AICc(cube, mod1, mod2, p1 = 4, p2 = 8)
+
+    hdr_new = cube.wcs.celestial.to_header()
+    hdr_new['PLANE1'] = "AICc values for the 1 component fit model"
+    hdr_new['PLANE2'] = "AICc values for the 2 component fit model"
+
+    aicccube = fits.PrimaryHDU(data=np.array([aicc1, aicc2]), header=cube.wcs.celestial.to_header())
+    aicccube.writeto(aiccpath, overwrite=True)
+
+
+
 def run():
     # generate aic maps
 
@@ -34,6 +52,8 @@ def run():
     model2name = "{0}/two_v_comp/NGC1333_NH3_11_DR1_rebase3_2comp_model.fits".format(baseDir)
     aiccname = "{0}/two_v_comp/NGC1333_2v1comp_aicc.fits".format(baseDir)
 
+    fits_comp_AICc(cubename, model1name, model2name, aiccname)
+    '''
     cube = SpectralCube.read(cubename)
     mod1, hdr1 = fits.getdata(model1name, header = True)
     mod2, hdr2 = fits.getdata(model2name, header = True)
@@ -46,6 +66,27 @@ def run():
 
     aicccube = fits.PrimaryHDU(data=np.array([aicc1, aicc2]), header=cube.wcs.celestial.to_header())
     aicccube.writeto(aiccname, overwrite=True)
+    '''
+
+def fits_comp_chisq(cubepath, modpath1, modpath2, savepath, reduced = True):
+    cube = SpectralCube.read(cubepath)
+    mod1, hdr1 = fits.getdata(modpath1, header = True)
+    mod2, hdr2 = fits.getdata(modpath2, header = True)
+
+    hdr_new = cube.wcs.celestial.to_header()
+    hdr_new['PLANE1'] = "reduced chi-squared values for the 1 component fit model"
+    hdr_new['PLANE2'] = "reduced chi-squared values for the 2 component fit model"
+
+    mask1 = mod1 > 0
+    mask2 = mod2 > 0
+    mask = np.logical_or(mask1, mask2)
+
+    # expand of 20 is same as that used to calculate aic value
+    chi1 = mvf.get_chisq(cube, mod1, expand=20, reduced = reduced, usemask = True, mask = mask)
+    chi2 = mvf.get_chisq(cube, mod2, expand=20, reduced = reduced, usemask = True, mask = mask)
+
+    chicube = fits.PrimaryHDU(data=np.array([chi1, chi2]), header=cube.wcs.celestial.to_header())
+    chicube.writeto(savepath, overwrite=True)
 
 
 def chi():
@@ -59,6 +100,9 @@ def chi():
     model2name = "{0}/two_v_comp/NGC1333_NH3_11_DR1_rebase3_2comp_model.fits".format(baseDir)
     chi_name = "{0}/two_v_comp/NGC1333_2v1comp_chisq.fits".format(baseDir)
 
+
+    fits_comp_chisq(cubename, model1name, model2name, chi_name, reduced = True)
+    '''
     cube = SpectralCube.read(cubename)
     mod1, hdr1 = fits.getdata(model1name, header = True)
     mod2, hdr2 = fits.getdata(model2name, header = True)
@@ -76,8 +120,7 @@ def chi():
 
     chicube = fits.PrimaryHDU(data=np.array([chi1, chi2]), header=cube.wcs.celestial.to_header())
     chicube.writeto(chi_name, overwrite=True)
-
-
+    '''
 
 
 def get_comp_AICc(cube, model1, model2, p1, p2):

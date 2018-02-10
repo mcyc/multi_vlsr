@@ -159,7 +159,7 @@ def clean(readname, savename, snrname = None, one_v_map = None, aic_maps = None,
     Cleaning a two velocity component parameter map
     A good recipe so far:
     1. SNR culling
-    2. Place larger line width component on the second plane
+    2. Place larger-line width component on the second plane
     3. Merge pixels with similar velocity and linewdiths into one, and place it on the 1st plane
     '''
 

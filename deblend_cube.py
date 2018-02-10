@@ -178,7 +178,7 @@ def go(res_boost = 2.0):
     paraFile = "{0}/DR1_paraMaps/NGC1333/two_v_comp/NGC1333_2vcomp_SNR_eachV_DR1_rebase3_clean.fits".format(workDir)
     cubeFile = "{0}/DR1_rebase3/NGC1333/NGC1333_NH3_11_DR1_rebase3_trim.fits".format(workDir)
     #deblendFile = "{0}/DR1_rebase3/NGC1333/deblended/NGC1333_NH3_11_DR1_rebase3_2vcomp_deblended.fits".format(workDir)
-    deblendFile = "{0}/DR1_rebase3/NGC1333/deblended/NGC1333_NH3_11_DR1_rebase3_2vcomp_deblended_fixsigv2xRes.fits".format(workDir)
+    deblendFile = "{0}/DR1_rebase3/NGC1333/deblended/NGC1333_NH3_11_DR1_rebase3_2vcomp_deblended_fixsigv70mps_2xRes.fits".format(workDir)
 
     # the velocity resolution of each channel
     v_rez = 0.0724
@@ -192,13 +192,18 @@ def go(res_boost = 2.0):
 
     # sigv = 0.1
     # fixed the linewidth at the narrowest allowed by the nyquist sampling
-    # the following value is ~0.0769 km/s
+    # the following value is ~0.0769 km/s if n_pix_nyq_samp = 2.5
     sigv = v_rez*n_pix_nyq_samp/fwhm_per_sig
+    sigv/res_boost
 
-    deblend_cube(paraFile, cubeFile, deblendFile, vmin=4.0, vmax=11.0, T_bg=0.0, sigv_fixed=sigv/res_boost, f_spcsamp=res_boost)
+    # note: the manual sigma_v has to be above Nyquest sampling theorem
+    sigv = 0.07 # km/s ; the thermal linewidth of ammonia at 10 K, i.e., 0.0698 km/s (res_boost = 2.0 is needed)
 
-    #deblendFile = "{0}/DR1_rebase3/NGC1333/deblended/NGC1333_NH3_11_DR1_rebase3_2vcomp_deblended.fits".format(workDir)
-    #deblend_cube(paraFile, cubeFile, deblendFile, vmin=4.0, vmax=11.0, T_bg=0.0)
+    #deblend_cube(paraFile, cubeFile, deblendFile, vmin=4.0, vmax=11.0, T_bg=0.0, sigv_fixed=sigv, f_spcsamp=res_boost)
+
+    # make a deblended cube at the native resolution
+    deblendFile = "{0}/DR1_rebase3/NGC1333/deblended/NGC1333_NH3_11_DR1_rebase3_2vcomp_deblended_nativeSig_2xRes.fits".format(workDir)
+    deblend_cube(paraFile, cubeFile, deblendFile, vmin=4.0, vmax=11.0, T_bg=0.0, f_spcsamp=res_boost)
 
     return None
 

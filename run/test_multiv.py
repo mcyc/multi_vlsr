@@ -1,5 +1,7 @@
 __author__ = 'mcychen'
 
+
+
 """
 ===================================================
 Test the robustness of the multiple components fit
@@ -8,6 +10,9 @@ Test the robustness of the multiple components fit
 ^^^^^^^^^^
 """
 
+import sys, os
+# add the parent directory to the paths
+sys.path.insert(1, os.path.join(sys.path[0], '..'))
 
 import numpy as np
 import pyspeckit
