@@ -124,6 +124,14 @@ def make_dir(dirpath):
 
 #=======================================================================================================================
 
+def super_run():
+    run(region='OrionA')
+    run(region='IC5146')
+    run(region='OrionB_NGC2068-2071')
+    run(region='Serpens_Aquila')
+    run(region='L1688')
+
+
 def run_reg():
     reg = "HC2"
     run(region=reg)
