@@ -2,10 +2,17 @@ __author__ = 'mcychen'
 
 #=======================================================================================================================
 
+# import external library
 import numpy as np
 import astropy.io.fits as fits
 from spectral_cube import SpectralCube
 import astropy.units as u
+from astropy.utils.console import ProgressBar
+import pyspeckit
+import gc
+
+# import from this directory
+import ammonia_hf_multiv as amhf
 
 #=======================================================================================================================
 
@@ -207,9 +214,68 @@ def go(res_boost = 2.0):
 
     return None
 
+
 def deblend_cube(paraFile, cubeRefFile, deblendFile, vmin=4.0, vmax=11.0, T_bg = 0.0, sigv_fixed = None, f_spcsamp = None):
+
+    para, hdr_para = fits.getdata(paraFile, header = True)
+    n_comp = hdr_para['NAXIS3']/8
+
+    # open the reference cube file
+    cube = SpectralCube.read(cubeRefFile)
+    cube = cube.with_spectral_unit(u.km/u.s, velocity_convention='radio')
+
+    # trim the cube to the specified velocity range
+    cube = cube.spectral_slab(vmin*u.km/u.s,vmax*u.km/u.s)
+
+    # generate an empty SpectralCube to house the deblended cube
+    deblend = np.zeros(cube.shape)
+    hdr = cube.wcs.to_header()
+    mcube = SpectralCube(deblend, cube.wcs, header=hdr)
+
+    # change the spectral sampling relative to the reference cube
+    if f_spcsamp is not None:
+        spaxis = mcube.spectral_axis.value
+        spaxis = np.interp(np.arange(0, len(spaxis), 1.0/f_spcsamp), np.arange(0, len(spaxis)), spaxis)
+        mcube.spectral_interpolate(spectral_grid=spaxis, suppress_smooth_warning=False, fill_value=0.0)
+
+    # convert back to an unit that the ammonia hf model can handle (i.e. Hz) without having to create a
+    # pyspeckit.spectrum.units.SpectroscopicAxis object
+    mcube = mcube.with_spectral_unit(u.Hz, velocity_convention='radio')
+    xarr = mcube.spectral_axis
+
+    # remove the error components
+    n_para = n_comp*4
+    para = para[:n_para]
+    assert para.shape[0] == n_para
+
+    yy,xx = np.indices(para.shape[1:])
+    # a pixel is valid as long as it has a single finite value
+    isvalid = np.any(np.isfinite(para),axis=0)
+    valid_pixels = zip(xx[isvalid], yy[isvalid])
+
+    def model_a_pixel(xy):
+        x,y = int(xy[0]), int(xy[1])
+        models = [amhf.nh3_vtau_singlemodel_deblended(xarr, Tex=tex, tau=tau, xoff_v=vel, width=width)
+                  for vel, width, tex, tau in zip(para[::4, y,x], para[1::4, y,x], para[2::4, y,x], para[3::4, y,x])]
+        mcube.base[:,y,x] = np.nansum(np.array(models), axis=0)
+
+    for xy in ProgressBar(list(valid_pixels)):
+        model_a_pixel(xy)
+
+    # convert back to km/s in units before saving
+    mcube = mcube.with_spectral_unit(u.km/u.s, velocity_convention='radio')
+
+    if deblendFile != None:
+        mcube.write(deblendFile, overwrite=True)
+
+    gc.collect()
+    return mcube
+
+
+def deblend_cube_v1(paraFile, cubeRefFile, deblendFile, vmin=4.0, vmax=11.0, T_bg = 0.0, sigv_fixed = None, f_spcsamp = None):
     '''
     generated a deblended, two component NH3 (1,1) emission cube assuming the emission is optically thin
+    note this version has some trouble handling background emission
     :param T_bg:
         The backgorund Temperature (default 0 K so there are not background emission in the deblended cube)
     :param f_spcsamp:
@@ -253,11 +319,13 @@ def deblend_cube(paraFile, cubeRefFile, deblendFile, vmin=4.0, vmax=11.0, T_bg =
         #deblend[np.isnan(deblend)] = 0.0
 
         for plane in np.arange(deblend.shape[0]):
-            # nansum the emission from multiple velocity components
             if sigv_fixed is not None:
                 T_v = T_mb(spaxis[plane], tex, tau, vlsr, sigv_fixed, T_bg)
+                #T_v =amhf.nh3_vtau_singlemodel_deblended(spaxis[plane], tex, tau, vlsr, sigv_fixed, linename = 'oneone')
             else:
                 T_v = T_mb(spaxis[plane], tex, tau, vlsr, sigv, T_bg)
+                #T_v =amhf.nh3_vtau_singlemodel_deblended(spaxis[plane], tex, tau, vlsr, sigv, linename = 'oneone')
+            # nansum the emission from multiple velocity components
             T_v[np.isnan(T_v)] = 0.0
             deblend[plane,:] += T_v
 
@@ -265,73 +333,6 @@ def deblend_cube(paraFile, cubeRefFile, deblendFile, vmin=4.0, vmax=11.0, T_bg =
     newcube.write(deblendFile, overwrite=True)
 
 
-def deblend_cube_old(paraFile, cubeRefFile, deblendFile, vmin=4.0, vmax=11.0, T_bg = 0.0, sigv_fixed = None, f_spcsamp = None):
-    '''
-    This version can be retired once the new version has proven to be bug-free
-    generated a deblended, two component NH3 (1,1) emission cube assuming the emission is optically thin
-    :param T_bg:
-        The backgorund Temperature (default 0 K so there are not background emission in the deblended cube)
-    :param f_spcsamp:
-        The factor to increase the spectral sampling by
-
-    '''
-
-    # open the parameter file
-    data_para, hdr_para = fits.getdata(paraFile, header = True)
-    n_comp = hdr_para['NAXIS3']/8
-    n_para = 4
-
-    # open the reference cube file
-    cube = SpectralCube.read(cubeRefFile)
-    cube = cube.with_spectral_unit(u.km/u.s,velocity_convention='radio')
-
-
-    hdr = cube.wcs.to_header()
-    deblend = np.zeros(cube.shape)
-    spaxis = cube.spectral_axis.value
-
-    # note, the following lines are highly dependent on how the parameter planes are organized
-    for j in range (0, n_comp):
-    #for j in range (1,2):
-        i = j*n_para
-        vlsr = data_para[i,:]
-        sigv = data_para[i+1,:]
-        tex = data_para[i+2,:]
-        tau = data_para[i+3,:]
-        #deblend[np.isnan(deblend)] = 0.0
-
-        for plane in np.arange(deblend.shape[0]):
-            # nansum the emission from multiple velocity components
-            if sigv_fixed is not None:
-                T_v = T_mb(spaxis[plane], tex, tau, vlsr, sigv_fixed, T_bg)
-            else:
-                T_v = T_mb(spaxis[plane], tex, tau, vlsr, sigv, T_bg)
-            T_v[np.isnan(T_v)] = 0.0
-            deblend[plane,:] += T_v
-
-    newcube = SpectralCube(deblend,cube.wcs,header=hdr)
-    slab = newcube.spectral_slab(vmin*u.km/u.s,vmax*u.km/u.s)
-    slab.write(deblendFile, overwrite=True)
-
-def trim_cube():
-    # trim a deblended cube for testing purpose
-    inFile = "/Users/mcychen/Documents/Data/GAS_NH3/DR1_rebase3/NGC1333/deblended/NGC1333_NH3_11_DR1_rebase3_2vcomp_deblended_fixsigv.fits"
-    data, hdr = fits.getdata(inFile, header = True)
-
-    if False:
-        # the north east filament
-        outFile = "/Users/mcychen/Documents/Data/GAS_NH3/DR1_rebase3/test_data/NGC1333_2vcomp_deblended_fixsigv_trim.fits"
-        data = data[:,195:240,63:92]
-
-    if True:
-        # the main cluster
-        outFile = "/Users/mcychen/Documents/Data/GAS_NH3/DR1_rebase3/test_data/NGC1333_2vcomp_deblended_fixsigv_trim_MainCluster.fits"
-        data = data[:, 108:150, 85:123]
-
-        #85, 108
-        #123, 150
-
-    fits.writeto(outFile, data, hdr)
 
 def test(tex=10.0, tau=0.3, vlsr=0.0, sigv=5.0):
     import matplotlib.pyplot as plt

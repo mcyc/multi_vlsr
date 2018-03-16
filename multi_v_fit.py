@@ -22,6 +22,18 @@ import ammonia_hf_multiv as amhf
 
 
 def get_multiV_models(paraname, refcubename, n_comp = 2, savename = None, snrname = None, rms = 0.15, rmspath = None):
+    '''
+    Creates a fits file containing the model cubes of individual components stacked into a hypercube
+    :param paraname:
+    :param refcubename:
+    :param n_comp:
+    :param savename:
+    :param snrname:
+    :param rms:
+    :param rmspath:
+    :return:
+    '''
+
     para, hdr = fits.getdata(paraname, header = True)
 
     pcube = pyspeckit.Cube(refcubename)
