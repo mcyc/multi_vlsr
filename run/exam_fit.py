@@ -9,12 +9,12 @@ import pyspeckit
 import aplpy
 import astropy.units as u
 from spectral_cube import SpectralCube
+from pyspeckit.spectrum.units import SpectroscopicAxis
 
 # import from parent directory
 import sys
 sys.path.insert(1, os.path.join(sys.path[0], '..'))
 import ammonia_hf_multiv as amhf
-
 
 
 def test():
@@ -87,9 +87,9 @@ def plotMultiSpec(parapath, n_comp, obspath, chipath, yxList, savepath, showSpec
     if vZoomLims is not None:
         cube_o = cube_o.spectral_slab(vZoomLims[0]*u.km/u.s, vZoomLims[1]*u.km/u.s)
 
-    xarr = cube_o.spectral_axis
-    # obtain the spectral axis in the unit compatible with amhf model (i.e., Hz)
-    xarr_Hz = cube_o.with_spectral_unit(u.Hz, velocity_convention='radio').spectral_axis
+    # SpectroscopicAxis has the advantage of being able to performed unit conversion automatically
+    xarr = SpectroscopicAxis(cube_o.spectral_axis.value, unit = cube_o.spectral_axis.unit,
+                             refX=cube_o._header['RESTFRQ'], velocity_convention='radio')
 
     # remove the error components
     n_para = n_comp*4
@@ -97,7 +97,7 @@ def plotMultiSpec(parapath, n_comp, obspath, chipath, yxList, savepath, showSpec
     assert para.shape[0] == n_para
 
     def model_a_pixel(y,x):
-        models = [amhf.nh3_vtau_singlemodel(xarr_Hz, Tex=tex, tau=tau, xoff_v=vel, width=width)
+        models = [amhf.nh3_vtau_singlemodel(xarr, Tex=tex, tau=tau, xoff_v=vel, width=width)
                   for vel, width, tex, tau in zip(para[::4, y,x], para[1::4, y,x], para[2::4, y,x], para[3::4, y,x])]
         return models
 
@@ -133,7 +133,6 @@ def plotMultiSpec(parapath, n_comp, obspath, chipath, yxList, savepath, showSpec
 
 
 ########################################################################################################################
-
 
 # this funciton can be updated to give a more general projection input
 def multiPlotTemp(numplots, ncols=2, figsize = None, polar = False, hspace=0.20, wspace=0.25, xlab=None, ylab=None,
