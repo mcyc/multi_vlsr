@@ -10,11 +10,14 @@ import aplpy
 import astropy.units as u
 from spectral_cube import SpectralCube
 from pyspeckit.spectrum.units import SpectroscopicAxis
+from pyspeckit.spectrum.models import ammonia
 
 # import from parent directory
 import sys
 sys.path.insert(1, os.path.join(sys.path[0], '..'))
 import ammonia_hf_multiv as amhf
+import ammonia_multiv as ammv
+reload(ammv)
 
 
 def test():
@@ -96,9 +99,19 @@ def plotMultiSpec(parapath, n_comp, obspath, chipath, yxList, savepath, showSpec
     para = para[:n_para]
     assert para.shape[0] == n_para
 
+    linename = "oneone"
+
     def model_a_pixel(y,x):
-        models = [amhf.nh3_vtau_singlemodel(xarr, Tex=tex, tau=tau, xoff_v=vel, width=width)
+        # model individual components
+        models = [ammonia._ammonia_spectrum(xarr.as_unit('GHz'), tex=tex, tau_dict={linename:tau}, width=width, xoff_v=vel, fortho=0.0,
+                                            line_names = [linename])
                   for vel, width, tex, tau in zip(para[::4, y,x], para[1::4, y,x], para[2::4, y,x], para[3::4, y,x])]
+        '''
+
+        models = [ammv.ammonia_multi_v(xarr.as_unit('GHz'), vel, width, tex, tau)
+                  for vel, width, tex, tau in zip(para[::4, y,x], para[1::4, y,x], para[2::4, y,x], para[3::4, y,x])]
+        '''
+
         return models
 
     # plot spectra
@@ -119,7 +132,10 @@ def plotMultiSpec(parapath, n_comp, obspath, chipath, yxList, savepath, showSpec
 
         # plot the spectrum, the individual components of the model, and the collective model
         axarr[i].plot(xarr.value, spc, c = "0.3", **kwargs)
-        axarr[i].plot(xarr.value, np.array(models).sum(axis=0), c = "0.0", **kwargs)
+
+        tot_model = ammv.ammonia_multi_v(xarr, *para[:,y,x].tolist())
+        axarr[i].plot(xarr.value, tot_model, c = "0.0", **kwargs)
+
         for mod in models:
             axarr[i].plot(xarr.value, mod, **kwargs)
 
@@ -157,8 +173,6 @@ def multiPlotTemp(numplots, ncols=2, figsize = None, polar = False, hspace=0.20,
         f, axarr = plt.subplots(nrows, ncols, subplot_kw=dict(projection='polar'), figsize = figsize)
     else:
         f, axarr = plt.subplots(nrows, ncols, figsize = figsize)
-        #f = plt.figure(figsize = figsize)
-        #axarr = f.subplots(nrows=nrows, ncols=ncols)
 
     f.subplots_adjust(hspace=hspace, wspace=wspace)
 
