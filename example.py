@@ -66,11 +66,11 @@ def example_cube_fit(cubename = None, paraname = None, modname = None):
     # (WCSLIB automatically converts to m/s even if you give it km/s)
     pcube.xarr.convert_to_unit(u.km/u.s)
 
-    if not 'nh3_2v_11' in pcube.specfit.Registry.multifitters:
+    if not 'nh3_multi_v' in pcube.specfit.Registry.multifitters:
         # Use the multi-v model generator to build up a 2 velocity-component model function
         fitter = amhf.nh3_multi_v_model_generator(n_comp = 2)
         # Register the fitter - i.e., tell pyspeckit where it is and how to use it
-        pcube.specfit.Registry.add_fitter('nh3_2v_11', fitter, fitter.npars)
+        pcube.specfit.Registry.add_fitter('nh3_multi_v', fitter, fitter.npars)
         print "number of parameters is {0}".format(fitter.npars)
 
 
@@ -112,7 +112,7 @@ def example_cube_fit(cubename = None, paraname = None, modname = None):
             #start_from_point=(1,1),
             # Paralellize the fits?
             multicore=4,
-            fittype='nh3_2v_11',
+            fittype='nh3_multi_v',
             )
 
     '''
