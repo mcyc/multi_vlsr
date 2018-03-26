@@ -10,18 +10,22 @@ from pyspeckit.spectrum.models import ammonia
 
 from spectral_cube import SpectralCube
 from astropy.utils.console import ProgressBar
+from skimage.morphology import remove_small_objects,disk,opening #, closing
 
-from skimage.morphology import remove_small_objects,closing,disk,opening
 
 from os import path
 
-import ammonia_hf_multiv as amhf
+#import ammonia_hf_multiv as amhf
+import ammonia_multiv as ammv
+
+#=======================================================================================================================
+# the current implementation only fits the 1-1 lines
+line_names = ["oneone"]
 
 #=======================================================================================================================
 
-
-
-def get_multiV_models(paraname, refcubename, n_comp = 2, savename = None, snrname = None, rms = 0.15, rmspath = None):
+def get_multiV_models(paraname, refcubename, n_comp = 2, savename = None, snrname = None, rms = 0.15, rmspath = None,
+                      linename = "oneone"):
     '''
     Creates a fits file containing the model cubes of individual components stacked into a hypercube
     :param paraname:
@@ -56,8 +60,12 @@ def get_multiV_models(paraname, refcubename, n_comp = 2, savename = None, snrnam
 
     def model_a_pixel(xy):
         x,y = int(xy[0]), int(xy[1])
-
+        '''
         models = [amhf.nh3_vtau_singlemodel(xarr, Tex=tex, tau=tau, xoff_v=vel, width=width)
+                  for vel, width, tex, tau in zip(para[::4, y,x], para[1::4, y,x], para[2::4, y,x], para[3::4, y,x])]
+        '''
+        models = [ammonia._ammonia_spectrum(xarr.as_unit('GHz'), tex=tex, tau_dict={linename:tau}, width=width, xoff_v=vel, fortho=0.0,
+                                            line_names = [linename])
                   for vel, width, tex, tau in zip(para[::4, y,x], para[1::4, y,x], para[2::4, y,x], para[3::4, y,x])]
         cubes[:,:,y,x] = models
 
@@ -104,7 +112,7 @@ def get_multiV_models(paraname, refcubename, n_comp = 2, savename = None, snrnam
 
 
 
-def get_SNR(paraname, savename = None, rms = 0.15, n_comp = 2):
+def get_SNR(paraname, savename = None, rms = 0.15, n_comp = 2, linename='oneone'):
     '''
     Take a multiple velocity componet fit and produce a signal to noise ratio of the two velocity components
     :param paraname:
@@ -135,14 +143,18 @@ def get_SNR(paraname, savename = None, rms = 0.15, n_comp = 2):
     n_samp = (vmax - vmin)/vres
 
     xarr = np.linspace(vmin, vmax, int(n_samp) + 1, endpoint = True)
-    xarr = SpectroscopicAxis(xarr*u.km/u.s, velocity_convention='radio', refX=freq_dict['oneone']*u.Hz).as_unit(u.GHz)
+    xarr = SpectroscopicAxis(xarr*u.km/u.s, velocity_convention='radio', refX=freq_dict[linename]*u.Hz).as_unit(u.GHz)
 
     peakT = np.zeros((n_comp, para.shape[1], para.shape[2]))
 
     def model_a_pixel(xy):
         x,y = int(xy[0]), int(xy[1])
-
+        '''
         models = [amhf.nh3_vtau_singlemodel(xarr, Tex=tex, tau=tau, xoff_v=vel, width=width)
+                  for vel, width, tex, tau in zip(para[::4, y,x], para[1::4, y,x], para[2::4, y,x], para[3::4, y,x])]
+        '''
+        models = [ammonia._ammonia_spectrum(xarr.as_unit('GHz'), tex=tex, tau_dict={linename:tau}, width=width,
+                                            xoff_v=vel, fortho=0.0,line_names = [linename])
                   for vel, width, tex, tau in zip(para[::4, y,x], para[1::4, y,x], para[2::4, y,x], para[3::4, y,x])]
         peakT[:,y,x] = np.nanmax(models, axis = 1)
 
@@ -306,6 +318,7 @@ def make_guesses(sigv_para_name, n_comp = 2, tex_guess =10.0, tau_guess = 0.5):
 
     return guesses
 
+
 def get_singv_tau11(singv_para):
     '''
     Take a GAS DR1 parameter maps and return optical depth of the 1-1 line.
@@ -362,10 +375,12 @@ def get_singv_tau11(singv_para):
 
 
 def cubefit_gen(cube11name, ncomp=2, paraname = None, modname = None, chisqname = None, guesses = None, errmap11name = None,
-            multicore = 1, mask_function = None, snr_min=3.0):
+            multicore = 1, mask_function = None, snr_min=3.0, linename="oneone"):
     '''
     Perform n velocity component fit on the GAS ammonia 1-1 data.
     (This should be the function to call for all future codes if it has been proven to be reliable)
+    # note: the method can probably be renamed to cubefit()
+
     Parameters
     ----------
     cube11name : str
@@ -388,17 +403,18 @@ def cubefit_gen(cube11name, ncomp=2, paraname = None, modname = None, chisqname 
     # the following check on rest-frequency may not be necessarily for GAS, but better be safe than sorry
     if cube._wcs.wcs.restfrq != np.nan:
         # Specify the rest frequency not present
-        cube = cube.with_spectral_unit(u.Hz, rest_value = freq_dict['oneone']*u.Hz)
+        cube = cube.with_spectral_unit(u.Hz, rest_value = freq_dict[linename]*u.Hz)
         cube = cube.with_spectral_unit(u.km/u.s,velocity_convention='radio')
 
     if pcube.wcs.wcs.restfrq != np.nan:
         # Specify the rest frequency not present
-        pcube.xarr.refX = freq_dict['oneone']*u.Hz
+        pcube.xarr.refX = freq_dict[linename]*u.Hz
 
     # Register the 2 velocity component fitter
-    if not 'nh3_2v_11' in pcube.specfit.Registry.multifitters:
-        fitter = amhf.nh3_multi_v_model_generator(n_comp = ncomp)
-        pcube.specfit.Registry.add_fitter('nh3_2v_11', fitter, fitter.npars)
+    if not 'nh3_multi_v' in pcube.specfit.Registry.multifitters:
+        #fitter = amhf.nh3_multi_v_model_generator(n_comp = ncomp)
+        fitter = ammv.nh3_multi_v_model_generator(n_comp = ncomp)
+        pcube.specfit.Registry.add_fitter('nh3_multi_v', fitter, fitter.npars)
         print "number of parameters is {0}".format(fitter.npars)
 
 
@@ -528,7 +544,7 @@ def cubefit_gen(cube11name, ncomp=2, paraname = None, modname = None, chisqname 
     # Now fit the cube. (Note: the function inputs are consistent with GAS DR1 whenever possible)
     print('start fit')
 
-    pcube.fiteach(fittype='nh3_2v_11', guesses=guesses,
+    pcube.fiteach(fittype='nh3_multi_v', guesses=guesses,
                   start_from_point=(xmax,ymax),
                   use_neighbor_as_guess=False,
                   #[v,s,t,t,v,s,t,t]
