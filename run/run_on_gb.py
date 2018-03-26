@@ -127,9 +127,11 @@ def make_dir(dirpath):
 
 #=======================================================================================================================
 
+
+
 def super_run():
-    run(region='L1448', root='all_rebase_multi')
-    run(region='OrionB_NGC2023-2024', root='all_rebase_multi')
+    special_run(region='L1448')
+    special_run(region='OrionB_NGC2023-2024')
     '''
     run(region='OrionA')
     run(region='IC5146')
@@ -138,6 +140,16 @@ def super_run():
     run(region='L1688')
     '''
 
+def special_run(region='L1448', multicore=8):
+    # for rebase that does not have other first look properties
+    regOb = Region(region, root='all_rebase3')
+    # use Jared's multi-rebased file
+    regOb.OneOneFile = '{2}/{0}/{0}_NH3_11_{1}.fits'.format(regOb.region, 'all_rebase_multi', regOb.cubeDir)
+
+    regOb.fit_cube(n_comp=1, multicore=multicore, snr_min=5.0, mask_function = None)
+    regOb.fit_cube(n_comp=2, multicore=multicore, snr_min=5.0, mask_function = None)
+    regOb.calc_aic()
+    regOb.calc_chisq()
 
 def run(region='L1448', multicore=8, root='all_rebase3'):
     # wrapper to run individual regions on a go
