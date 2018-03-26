@@ -299,18 +299,21 @@ def make_guesses(sigv_para_name, n_comp = 2, tex_guess =10.0, tau_guess = 0.5):
         guesses[0,:,:] = vlsr - 0.25*sigma      # v0 centriod
         guesses[1,:,:] = gs_sig                 # v0 width
         guesses[2,:,:] = tex_guess              # v0 T_ex
-        guesses[3,:,:] = tau_guess*0.75         # v0 tau
+        guesses[3,:,:] = tau_guess*0.25         # v0 tau
         guesses[4,:,:] = vlsr + 0.25*sigma      # v1 centriod
         guesses[5,:,:] = gs_sig                 # v1 width
         guesses[6,:,:] = tex_guess              # v1 T_ex
-        guesses[7,:,:] = tau_guess*0.25         # v1 tau
+        guesses[7,:,:] = tau_guess*0.75         # v1 tau
 
         # provide guesses for where tex and tau (and other parameters) has been fitted in DR1
+        # note: the initial guess for the 1st component tau (i.e., the background component) is lower than the 2nd
+        # component tau by design to give the fit a better chance of not falling into a local chi-squared minimum where
+        # the second component is unphysically thick.
         has_col = para[2] > 0
         guesses[2,has_col] = tex[has_col]                    # v0 T_ex
-        guesses[3,has_col] = tau11[has_col]*0.75             # v0 tau
+        guesses[3,has_col] = tau11[has_col]*0.25             # v0 tau
         guesses[6,has_col] = tex[has_col]                    # v1 T_ex
-        guesses[7,has_col] = tau11[has_col]*0.25             # v1 tau
+        guesses[7,has_col] = tau11[has_col]*0.75             # v1 tau
 
     if n_comp > 2:
         print "guesses for > 2 components have not been implemented!"
