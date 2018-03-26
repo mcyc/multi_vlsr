@@ -6,7 +6,6 @@ __author__ = 'mcychen'
 import numpy as np
 
 from pyspeckit.spectrum.models import model
-from pyspeckit.spectrum.models import ammonia
 from pyspeckit.spectrum.models.ammonia_constants import (line_names, freq_dict, aval_dict, ortho_dict,
                                 voff_lines_dict, tau_wts_dict)
 from pyspeckit.spectrum.models.ammonia_constants import (ckms, h, kb)
@@ -78,11 +77,6 @@ def ammonia_multi_v(xarr, *args):
 
         for linename in line_names:
             tau_dict[linename] = tau
-
-        '''
-        model_spectrum = ammonia._ammonia_spectrum(xarr, tex=tex, tau_dict=tau_dict, width=width, xoff_v=vel,
-                                                   fortho=fortho, line_names = line_names, background_tb=T_back)
-        '''
 
         model_spectrum = _ammonia_spectrum(xarr, tex=tex, tau_dict=tau_dict, width=width, xoff_v=vel,
                                            line_names=line_names, background_ta=background_ta)
@@ -167,15 +161,24 @@ def _ammonia_spectrum(xarr, tex, tau_dict, width, xoff_v, line_names, background
                        + runspec)
 
 
-    # the return_componets are currently disabled
-    if False:
-    #if return_components:
+    if return_components:
+        components = np.array(components)
+
         if isinstance(tex, dict):
-            term1 = [(T0/(np.exp(T0/tex[linename])-1)-T0/(np.exp(T0/background_tb)-1))
+            '''
+            term1 = [(T0/(np.exp(T0/tex[linename])-1)-background_ta)
                      for linename in line_names]
+            '''
+            term1 = [(T0/(np.exp(T0/tex[linename])-1)*(1-np.exp(-1*components)) + background_ta*np.exp(-1*components))
+                     for linename in line_names]
+
         else:
-            term1 = (T0/(np.exp(T0/tex)-1)-T0/(np.exp(T0/background_tb)-1))
-        return term1*(1-np.exp(-1*np.array(components)))
+            #term1 = (T0/(np.exp(T0/tex)-1)-background_ta)
+            term1 = (T0/(np.exp(T0/tex)-1)*(1-np.exp(-1*components)) + background_ta*np.exp(-1*components))
+
+        #return term1*(1-np.exp(-1*np.array(components)))
+        # Is fillingfraction needed here?
+        return term1
     else:
         return runspec
 
