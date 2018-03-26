@@ -444,8 +444,11 @@ def cubefit_gen(cube11name, ncomp=2, paraname = None, modname = None, chisqname 
     maskcube = maskcube.with_spectral_unit(u.km/u.s,velocity_convention='radio')
 
     # set the fit parameter limits (consistent with GAS DR1)
-    Tbg = 2.8
-    sigmin = 0.04
+    Tbg = 2.8       # K
+    sigmin = 0.04   # km/s
+    # other parameter limits
+    sigmax = 3.0    # km/s; for Larson's law, a 10pc cloud has sigma = 2.6 km/s
+    taumax = 100.0  # a reasonable upper limit for GAS data. May have to double check for VLA or KEYSTONE data.
 
     # Find the velocity of peak emission in the integrated spectrum over all the pixels
     # to estimate where the main hyperfine structures are in the cube
@@ -551,8 +554,8 @@ def cubefit_gen(cube11name, ncomp=2, paraname = None, modname = None, chisqname 
                   start_from_point=(xmax,ymax),
                   use_neighbor_as_guess=False,
                   #[v,s,t,t,v,s,t,t]
-                  limitedmax=[True,False,False,False]*ncomp,
-                  maxpars=[vmax,0,0,0]*ncomp,
+                  limitedmax=[True,True,False,True]*ncomp,
+                  maxpars=[vmax,sigmax,0,taumax]*ncomp,
                   limitedmin=[True,True,True,True]*ncomp,
                   minpars=[vmin, sigmin, Tbg, 0]*ncomp,
                   multicore=multicore,
