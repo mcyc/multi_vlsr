@@ -131,7 +131,7 @@ def make_dir(dirpath):
 
 def super_run():
     special_run(region='L1448')
-    special_run(region='OrionB_NGC2023-2024')
+    #special_run(region='OrionB_NGC2023-2024')
     '''
     run(region='OrionA')
     run(region='IC5146')
@@ -146,7 +146,7 @@ def special_run(region='L1448', multicore=8):
     # use Jared's multi-rebased file
     regOb.OneOneFile = '{2}/{0}/{0}_NH3_11_{1}.fits'.format(regOb.region, 'all_rebase_multi', regOb.cubeDir)
 
-    #regOb.fit_cube(n_comp=1, multicore=multicore, snr_min=5.0, mask_function = None)
+    regOb.fit_cube(n_comp=1, multicore=multicore, snr_min=5.0, mask_function = None)
     regOb.fit_cube(n_comp=2, multicore=multicore, snr_min=5.0, mask_function = None)
     regOb.calc_aic()
     regOb.calc_chisq()
