@@ -15,7 +15,6 @@ from skimage.morphology import remove_small_objects,disk,opening #, closing
 
 from os import path
 
-#import ammonia_hf_multiv as amhf
 import ammonia_multiv as ammv
 
 #=======================================================================================================================
@@ -415,7 +414,6 @@ def cubefit_gen(cube11name, ncomp=2, paraname = None, modname = None, chisqname 
 
     # Register the 2 velocity component fitter
     if not 'nh3_multi_v' in pcube.specfit.Registry.multifitters:
-        #fitter = amhf.nh3_multi_v_model_generator(n_comp = ncomp)
         fitter = ammv.nh3_multi_v_model_generator(n_comp = ncomp)
         pcube.specfit.Registry.add_fitter('nh3_multi_v', fitter, fitter.npars)
         print "number of parameters is {0}".format(fitter.npars)
@@ -433,8 +431,6 @@ def cubefit_gen(cube11name, ncomp=2, paraname = None, modname = None, chisqname 
         return(planemask)
 
     if mask_function is None:
-        #from GAS import PropertyMaps as pm
-        #planemask = pm.default_masking(peaksnr,snr_min = snr_min)
         planemask = default_masking(peaksnr,snr_min = snr_min)
     else:
         planemask = mask_function(peaksnr,snr_min = snr_min)
@@ -449,6 +445,7 @@ def cubefit_gen(cube11name, ncomp=2, paraname = None, modname = None, chisqname 
     # other parameter limits
     sigmax = 3.0    # km/s; for Larson's law, a 10pc cloud has sigma = 2.6 km/s
     taumax = 100.0  # a reasonable upper limit for GAS data. May have to double check for VLA or KEYSTONE data.
+    eps = 0.001 # a small perturbation that can be used in guesses
 
     # Find the velocity of peak emission in the integrated spectrum over all the pixels
     # to estimate where the main hyperfine structures are in the cube
@@ -471,7 +468,6 @@ def cubefit_gen(cube11name, ncomp=2, paraname = None, modname = None, chisqname 
     slab = maskcube.spectral_slab(vmin*u.km/u.s, vmax*u.km/u.s)
     m1 = slab.moment1(axis=0).to(u.km/u.s).value
     m2 = (np.abs(slab.moment2(axis=0))**0.5).to(u.km/u.s).value
-    # note:  the unit conversion above may fail for spectral_cube version < 0.4.0 (e.g., 0.3.2)
     # Note: due to the hyperfine structures, the NH3 moment 2 overestimates linewidth
 
     # find the location of the peak signal (to determine the first pixel to fit)
@@ -522,30 +518,23 @@ def cubefit_gen(cube11name, ncomp=2, paraname = None, modname = None, chisqname 
     else:
         # fill in the blanks in the 'guesses'
         # (the two sets of operations below may be a little redundant, but better be safe than sorry I guess)
-        has_sigm = guesses[1] > sigmin  + 0.001
+        has_sigm = guesses[1] > sigmin  + eps
         guesses[:,~has_sigm] = gg[:,~has_sigm]
         has_v = guesses[0] != 0.0
         guesses[:,~has_v] = gg[:,~has_v]
 
-    # The guesses should be fine in the first case, but just in case
+    # The guesses should be fine in the first case, but just in case, make sure the guesses are confined within the
+    # appropriate limits
     guesses[::4][guesses[::4] > vmax] = vmax
     guesses[::4][guesses[::4] < vmin] = vmin
+    guesses[1::4][guesses[1::4] > sigmax] = sigmax
+    guesses[1::4][guesses[1::4] < sigmin] = sigmin + eps
+    guesses[2::4][guesses[2::4] < Tbg] = Tbg
+    guesses[3::4][guesses[3::4] > taumax] = taumax
+    guesses[3::4][guesses[3::4] < 0] = eps
 
     # set some of the fiteach() inputs to that used in GAS DR1 reduction
     kwargs = {'integral':False, 'verbose_level':3, 'signal_cut':2}
-
-    '''
-    if True:
-        # for testing purpose, mask out most of the cube
-        # these codes can be removed once the code has been proven to be stable
-        a, b = ymax, xmax
-        n, m = m1.shape
-        r = 1
-        y,x = np.ogrid[-a:n-a, -b:m-b]
-        mask = x*x + y*y <= r*r
-        pcube.cube[:, ~mask] = np.nan
-    '''
-
 
     # Now fit the cube. (Note: the function inputs are consistent with GAS DR1 whenever possible)
     print('start fit')
@@ -555,7 +544,7 @@ def cubefit_gen(cube11name, ncomp=2, paraname = None, modname = None, chisqname 
                   use_neighbor_as_guess=False,
                   #[v,s,t,t,v,s,t,t]
                   limitedmax=[True,True,False,True]*ncomp,
-                  maxpars=[vmax,sigmax,0,taumax]*ncomp,
+                  maxpars=[vmax, sigmax, 0, taumax]*ncomp,
                   limitedmin=[True,True,True,True]*ncomp,
                   minpars=[vmin, sigmin, Tbg, 0]*ncomp,
                   multicore=multicore,
