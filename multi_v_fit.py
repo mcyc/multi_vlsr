@@ -541,7 +541,7 @@ def cubefit_gen(cube11name, ncomp=2, paraname = None, modname = None, chisqname 
 
     pcube.fiteach(fittype='nh3_multi_v', guesses=guesses,
                   start_from_point=(xmax,ymax),
-                  use_neighbor_as_guess=False,
+                  use_neighbor_as_guess=True,
                   #[v,s,t,t,v,s,t,t]
                   limitedmax=[True,True,False,True]*ncomp,
                   maxpars=[vmax, sigmax, 0, taumax]*ncomp,
@@ -550,7 +550,6 @@ def cubefit_gen(cube11name, ncomp=2, paraname = None, modname = None, chisqname 
                   multicore=multicore,
                   **kwargs
                   )
-    # Note: use_neighbor_as_guess is currently set to False to ensure the guesses assumes 2 components
 
     if paraname != None:
         fitcubefile = fits.PrimaryHDU(data=np.concatenate([pcube.parcube,pcube.errcube]), header=pcube.header)
