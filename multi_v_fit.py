@@ -531,7 +531,7 @@ def cubefit_gen(cube11name, ncomp=2, paraname = None, modname = None, chisqname 
     guesses[::4][guesses[::4] < vmin] = vmin
     guesses[1::4][guesses[1::4] > sigmax] = sigmax
     guesses[1::4][guesses[1::4] < sigmin] = sigmin + eps
-    guesses[2::4][guesses[2::4] < Texmax] = Texmax
+    guesses[2::4][guesses[2::4] > Texmax] = Texmax
     guesses[2::4][guesses[2::4] < Texmin] = Texmin
     guesses[3::4][guesses[3::4] > taumax] = taumax
     guesses[3::4][guesses[3::4] < taumin] = taumin
