@@ -440,11 +440,13 @@ def cubefit_gen(cube11name, ncomp=2, paraname = None, modname = None, chisqname 
     maskcube = maskcube.with_spectral_unit(u.km/u.s,velocity_convention='radio')
 
     # set the fit parameter limits (consistent with GAS DR1)
-    Tbg = 2.8       # K
+    #Tbg = 2.8       # K
+    Texmin = 3.0    # K; a more reasonable lower limit (5 K T_kin, 1e3 cm^-3 density, 1e13 cm^-2 column, 3km/s sigma)
+    Texmax = 100    # K; only possible for high column density (1e8? cm^-3, 1e16 cm^-2, 0.1 km/s sig, and ~100 K T_kin)
     sigmin = 0.04   # km/s
-    # other parameter limits
     sigmax = 3.0    # km/s; for Larson's law, a 10pc cloud has sigma = 2.6 km/s
     taumax = 100.0  # a reasonable upper limit for GAS data. May have to double check for VLA or KEYSTONE data.
+    taumin = 0.01   # it's hard to get lower than this even at 1e3 cm^-3, 1e13 cm^-2, 3 km/s linewidth, and high Tkin
     eps = 0.001 # a small perturbation that can be used in guesses
 
     # Find the velocity of peak emission in the integrated spectrum over all the pixels
@@ -529,9 +531,10 @@ def cubefit_gen(cube11name, ncomp=2, paraname = None, modname = None, chisqname 
     guesses[::4][guesses[::4] < vmin] = vmin
     guesses[1::4][guesses[1::4] > sigmax] = sigmax
     guesses[1::4][guesses[1::4] < sigmin] = sigmin + eps
-    guesses[2::4][guesses[2::4] < Tbg] = Tbg
+    guesses[2::4][guesses[2::4] < Texmax] = Texmax
+    guesses[2::4][guesses[2::4] < Texmin] = Texmin
     guesses[3::4][guesses[3::4] > taumax] = taumax
-    guesses[3::4][guesses[3::4] < 0] = eps
+    guesses[3::4][guesses[3::4] < taumin] = taumin
 
     # set some of the fiteach() inputs to that used in GAS DR1 reduction
     kwargs = {'integral':False, 'verbose_level':3, 'signal_cut':2}
@@ -543,10 +546,10 @@ def cubefit_gen(cube11name, ncomp=2, paraname = None, modname = None, chisqname 
                   start_from_point=(xmax,ymax),
                   use_neighbor_as_guess=True,
                   #[v,s,t,t,v,s,t,t]
-                  limitedmax=[True,True,False,True]*ncomp,
-                  maxpars=[vmax, sigmax, 0, taumax]*ncomp,
+                  limitedmax=[True,True,True,True]*ncomp,
+                  maxpars=[vmax, sigmax, Texmin, taumax]*ncomp,
                   limitedmin=[True,True,True,True]*ncomp,
-                  minpars=[vmin, sigmin, Tbg, 0]*ncomp,
+                  minpars=[vmin, sigmin, Texmin, taumin]*ncomp,
                   multicore=multicore,
                   **kwargs
                   )
