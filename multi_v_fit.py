@@ -547,7 +547,7 @@ def cubefit_gen(cube11name, ncomp=2, paraname = None, modname = None, chisqname 
                   use_neighbor_as_guess=True,
                   #[v,s,t,t,v,s,t,t]
                   limitedmax=[True,True,True,True]*ncomp,
-                  maxpars=[vmax, sigmax, Texmin, taumax]*ncomp,
+                  maxpars=[vmax, sigmax, Texmax, taumax]*ncomp,
                   limitedmin=[True,True,True,True]*ncomp,
                   minpars=[vmin, sigmin, Texmin, taumin]*ncomp,
                   multicore=multicore,
