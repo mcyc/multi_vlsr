@@ -6,21 +6,23 @@ __author__ = 'mcychen'
 import numpy as np
 
 from pyspeckit.spectrum.models import model
-from pyspeckit.spectrum.models.ammonia_constants import (line_names, freq_dict, aval_dict, ortho_dict,
-                                voff_lines_dict, tau_wts_dict)
+from pyspeckit.spectrum.models.ammonia_constants import (line_names, freq_dict,
+                                                         voff_lines_dict, tau_wts_dict) # ortho_dict, aval_dict
 from pyspeckit.spectrum.models.ammonia_constants import (ckms, h, kb)
 
 #=======================================================================================================================
 
 TCMB = 2.7315 # K
 
-def nh3_multi_v_model_generator(n_comp):
+def nh3_multi_v_model_generator(n_comp, linenames = None):
     """
     My attempt to implement 2 componet fits
     Parameters
     ----------
     n_comp : int
         The number of velocity componets to fit
+    linenames : list
+        A list of line names from the set ('oneone', ..., 'eighteight'); default is just 'oneone'
     Returns
     -------
     model : `model.SpectralModel`
@@ -30,10 +32,19 @@ def nh3_multi_v_model_generator(n_comp):
     n_para = n_comp*4
     idx_comp = np.arange(n_comp)
 
+    if linenames is None:
+        linenames = ['oneone']
+
+    nlines = len(linenames)
+
+    if nlines > 1:
+        print "[ERROR]: modeling more than a line yet to be implemented. Please only use one line for the time being"
+        return None
+
     def nh3_vtau_multimodel(xarr, *args):
         # the parameters are in the order of vel, width, tex, tau for each velocity component
         assert len(args) == n_para
-        return ammonia_multi_v(xarr, *args)
+        return ammonia_multi_v(xarr, *args, line_names=linenames)
 
     mod = model.SpectralModel(nh3_vtau_multimodel, n_para,
             parnames=[x
@@ -55,19 +66,23 @@ def nh3_multi_v_model_generator(n_comp):
     return mod
 
 
-def ammonia_multi_v(xarr, *args):
+def ammonia_multi_v(xarr, *args, **kwargs):#, line_names = None):
     # the parameters are in the order of vel, width, tex, tau for each velocity component
 
-    line_names = None
+    # note: it may be worth while replacing *args with a single list like keyword called parameters
+    #args = parameters
 
     if xarr.unit.to_string() != 'GHz':
         xarr = xarr.as_unit('GHz')
 
-    if line_names is None:
-        line_names = ["oneone"]
-    else:
-        print "[ERROR]: modeling beyond using just the 1-1 line has yet to be implemented."
-        return None
+    line_names = ["oneone"]
+
+    if kwargs is not None:
+        if kwargs["line_names"] is not None:
+            line_names = kwargs["line_names"]
+            if len(line_names) > 1:
+                print "[ERROR]: modeling more than a line yet to be implemented. Please only use one line for the time being"
+                return None
 
     background_ta = T_antenna(TCMB, xarr.value)
     tau_dict = {}
@@ -189,3 +204,4 @@ def T_antenna(Tbright, nu):
     """
     T0 = (h*nu*1e9/kb)
     return T0/(np.exp(T0/Tbright)-1)
+
