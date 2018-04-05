@@ -13,21 +13,22 @@ import numpy as np
 import pyspeckit
 import astropy.io.fits as fits
 from astropy import units as u
-from pyspeckit.spectrum.units import SpectroscopicAxis, SpectroscopicAxes
+from pyspeckit.spectrum.units import SpectroscopicAxis
 from pyspeckit.spectrum.models.ammonia_constants import freq_dict
-from pyspeckit.spectrum.models import ammonia_constants, ammonia
+from pyspeckit.spectrum.models import ammonia
 
 from astropy import wcs
 from spectral_cube import SpectralCube
 
-import ammonia_hf_multiv as amhf
-
-#=======================================================================================================================
-
+import ammonia_multiv as ammv
+reload(ammv)
 import multi_v_fit as mvf
 reload(mvf)
 
-def run():
+#=======================================================================================================================
+
+
+def run(linename='oneone'):
     #example_spec_fit()
 
     baseDir = "/Users/mcychen/Documents/Data/GAS_NH3"
@@ -36,17 +37,17 @@ def run():
 
     # generate a fake cube
     cubename = "{0}/{1}/mock_2vcomp_cube.fits".format(baseDir, cubeDir)
-    fake_cube(fname = cubename)
+    fake_cube(fname=cubename, linename=linename)
 
     # fit the fake cube with 2 velocity component models
     paraname = "{0}/{1}/mock_2vcomp_parameter_maps.fits".format(baseDir, paraDir)
     modname = "{0}/{1}/mock_2vcomp_modelcube.fits".format(baseDir, cubeDir)
-    pcube = example_cube_fit(cubename = cubename, paraname = paraname, modname = modname)
+    pcube = example_cube_fit(cubename=cubename, paraname=paraname, modname=modname, linename=linename)
 
     return pcube
 
 
-def example_cube_fit(cubename = None, paraname = None, modname = None):
+def example_cube_fit(cubename = None, paraname = None, modname = None, linename = 'oneone'):
     # an example to generate a spectral cube with two velocity components at each pixels
 
     # generate a fakecube if no cube is provided for the fit
@@ -58,8 +59,8 @@ def example_cube_fit(cubename = None, paraname = None, modname = None):
     # Create a pyspeckit cube
     # the redefinition of xarr is a work-around way of making pyspeckit convention compatible with spectral_cube
     # (see https://github.com/pyspeckit/pyspeckit/issues/86)
-    freq11 = freq_dict['oneone']*u.Hz
-    xarr = SpectroscopicAxis(cube.spectral_axis, refX=freq11, velocity_convention='radio')
+    freq = freq_dict[linename]*u.Hz
+    xarr = SpectroscopicAxis(cube.spectral_axis, refX=freq, velocity_convention='radio')
     pcube = pyspeckit.Cube(cube=cube, xarr=xarr)
 
     # For convenience, convert the X-axis to km/s
@@ -68,7 +69,7 @@ def example_cube_fit(cubename = None, paraname = None, modname = None):
 
     if not 'nh3_multi_v' in pcube.specfit.Registry.multifitters:
         # Use the multi-v model generator to build up a 2 velocity-component model function
-        fitter = amhf.nh3_multi_v_model_generator(n_comp = 2)
+        fitter = ammv.nh3_multi_v_model_generator(n_comp=2, linenames=[linename])
         # Register the fitter - i.e., tell pyspeckit where it is and how to use it
         pcube.specfit.Registry.add_fitter('nh3_multi_v', fitter, fitter.npars)
         print "number of parameters is {0}".format(fitter.npars)
@@ -113,6 +114,7 @@ def example_cube_fit(cubename = None, paraname = None, modname = None):
             # Paralellize the fits?
             multicore=4,
             fittype='nh3_multi_v',
+            signal_cut= 3
             )
 
     '''
@@ -154,7 +156,7 @@ def example_cube_fit(cubename = None, paraname = None, modname = None):
     return pcube
 
 
-def fake_cube(fname = None):
+def fake_cube(fname = None, linename='oneone'):
     # Create a fake spectral ammonia (1-1) cube with GAS spectral resolution
 
     # Create a new WCS object so we can instantiate the SpectralCube
@@ -177,7 +179,7 @@ def fake_cube(fname = None):
 
     # Create a synthetic X-dimension in km/s
     xarr = np.linspace(spc_llim, spc_ulim, int(n_samp) + 1, endpoint = True)
-    xarr = SpectroscopicAxis(xarr*u.km/u.s, velocity_convention='radio', refX=freq_dict['oneone']*u.Hz).as_unit(u.GHz)
+    xarr = SpectroscopicAxis(xarr*u.km/u.s, velocity_convention='radio', refX=freq_dict[linename]*u.Hz).as_unit(u.GHz)
 
     # First velocity component
     sigm0 = 0.1
@@ -203,8 +205,15 @@ def fake_cube(fname = None):
     # ammonia.ammonia doens't take numpy array, so I'm just going to loop through the values....
     for i, sig in enumerate(sigm1):
         for j, v in enumerate(vlsr1):
-            spectrum = ammonia.ammonia(xarr, trot=10, ntot=15, fortho=0.5, xoff_v=vlsr0, width=sigm0) +\
-                       ammonia.ammonia(xarr, trot=20, ntot=14, fortho=0.5, xoff_v=v, width=sig)
+
+            '''
+            # optically thin assumption
+            spectrum = ammonia.ammonia(xarr, trot=10, ntot=15, fortho=0.5, xoff_v=vlsr0, width=sigm0, line_names=[linename]) +\
+                       ammonia.ammonia(xarr, trot=20, ntot=14, fortho=0.5, xoff_v=v, width=sig, line_names=[linename])
+            '''
+
+            # for 2-2
+            spectrum = ammv.ammonia_multi_v(xarr, vlsr0, sigm0, 7.0, 3.0, v, sig, 7.6, 0.4, line_names=[linename])
             data[:,j,i] = spectrum
 
     # now add noise
@@ -221,7 +230,7 @@ def fake_cube(fname = None):
 
 
 
-def example_spec_fit(show = True):
+def example_spec_fit(show = True, linename='oneone'):
     # An example to generate a NH3 (1-1) spectrum with two velocity components
     # and fit a two velocity components model to it
 
@@ -234,7 +243,7 @@ def example_spec_fit(show = True):
 
     xarr = SpectroscopicAxis(np.linspace(spc_llim, spc_ulim, n_samp)*u.km/u.s,
                              velocity_convention='radio',
-                             refX=freq_dict['oneone']).as_unit(u.GHz)
+                             refX=freq_dict[linename]).as_unit(u.GHz)
 
 
     # Compute a synthetic model made of two velocity components with different properties
@@ -268,7 +277,8 @@ def example_spec_fit(show = True):
 
     return fit
 
-def tt():
+
+def tt(linename='oneone'):
     # An example to generate a NH3 (1-1) spectrum with two velocity components
     # and fit a two velocity components model to it
 
@@ -281,8 +291,7 @@ def tt():
 
     xarr = SpectroscopicAxis(np.linspace(spc_llim, spc_ulim, n_samp)*u.km/u.s,
                              velocity_convention='radio',
-                             refX=freq_dict['oneone']).as_unit(u.GHz)
-
+                             refX=freq_dict[linename]).as_unit(u.GHz)
 
     synthspec = ammonia.ammonia(xarr, trot=10, ntot=15, fortho=0.5, xoff_v=0.0, width=0.2, return_tau = True)
 
