@@ -42,7 +42,10 @@ def run(linename='oneone'):
     # fit the fake cube with 2 velocity component models
     paraname = "{0}/{1}/mock_2vcomp_parameter_maps.fits".format(baseDir, paraDir)
     modname = "{0}/{1}/mock_2vcomp_modelcube.fits".format(baseDir, cubeDir)
-    pcube = example_cube_fit(cubename=cubename, paraname=paraname, modname=modname, linename=linename)
+    #pcube = example_cube_fit(cubename=cubename, paraname=paraname, modname=modname, linename=linename)
+
+    pcube = mvf.cubefit_gen(cube11name=cubename, ncomp=2, paraname=paraname, modname=modname, multicore = 4,
+                            snr_min=3.0, linename=linename)
 
     return pcube
 
@@ -55,6 +58,7 @@ def example_cube_fit(cubename = None, paraname = None, modname = None, linename 
         cube =  fake_cube()
     else:
         cube = SpectralCube.read(cubename)
+        cube = cube.with_spectral_unit(u.km/u.s,velocity_convention='radio')
 
     # Create a pyspeckit cube
     # the redefinition of xarr is a work-around way of making pyspeckit convention compatible with spectral_cube
@@ -62,6 +66,7 @@ def example_cube_fit(cubename = None, paraname = None, modname = None, linename 
     freq = freq_dict[linename]*u.Hz
     xarr = SpectroscopicAxis(cube.spectral_axis, refX=freq, velocity_convention='radio')
     pcube = pyspeckit.Cube(cube=cube, xarr=xarr)
+    pcube.xarr.velocity_convention = 'radio'
 
     # For convenience, convert the X-axis to km/s
     # (WCSLIB automatically converts to m/s even if you give it km/s)
@@ -175,7 +180,7 @@ def fake_cube(fname = None, linename='oneone'):
     mywcs.wcs.cdelt = np.array([-0.066667, 0.066667, spc_res*1e3])
     mywcs.wcs.crval = [290.9250, 14.5092, spc_llim*1e3]
     mywcs.wcs.ctype = ["RA---TAN", "DEC--TAN", 'VELO']
-    mywcs.wcs.cunit = ['deg', 'deg', 'm/s']
+    #mywcs.wcs.cunit = ['deg', 'deg', 'm/s']
 
     # Create a synthetic X-dimension in km/s
     xarr = np.linspace(spc_llim, spc_ulim, int(n_samp) + 1, endpoint = True)
@@ -222,6 +227,8 @@ def fake_cube(fname = None, linename='oneone'):
     data = data + noise
 
     cube = SpectralCube(data=data, wcs=mywcs)
+    cube = cube.with_spectral_unit(xarr.unit, rest_value = freq_dict[linename]*u.Hz)
+    cube = cube.with_spectral_unit(u.km/u.s, velocity_convention='radio')
 
     if fname != None:
         cube.write(fname, format='fits', overwrite = True)

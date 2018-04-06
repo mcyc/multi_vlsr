@@ -5,7 +5,7 @@ import pyspeckit
 import astropy.io.fits as fits
 from astropy import units as u
 from pyspeckit.spectrum.units import SpectroscopicAxis
-from pyspeckit.spectrum.models.ammonia_constants import freq_dict
+from pyspeckit.spectrum.models.ammonia_constants import freq_dict, voff_lines_dict
 from pyspeckit.spectrum.models import ammonia
 
 from spectral_cube import SpectralCube
@@ -402,32 +402,72 @@ def cubefit_gen(cube11name, ncomp=2, paraname = None, modname = None, chisqname 
     pcube = pyspeckit.Cube(cube11name)
     pcube.unit="K"
 
+
     # the following check on rest-frequency may not be necessarily for GAS, but better be safe than sorry
-    if cube._wcs.wcs.restfrq != np.nan:
+    # note: this assume the data cube has the right units
+    if cube._wcs.wcs.restfrq == np.nan:
         # Specify the rest frequency not present
         cube = cube.with_spectral_unit(u.Hz, rest_value = freq_dict[linename]*u.Hz)
-        cube = cube.with_spectral_unit(u.km/u.s,velocity_convention='radio')
+    cube = cube.with_spectral_unit(u.km/u.s,velocity_convention='radio')
 
-    if pcube.wcs.wcs.restfrq != np.nan:
+    if pcube.wcs.wcs.restfrq == np.nan:
         # Specify the rest frequency not present
         pcube.xarr.refX = freq_dict[linename]*u.Hz
+    pcube.xarr.velocity_convention = 'radio'
 
+    # always register the fitter just in case different lines are used
+    '''
     # Register the 2 velocity component fitter
     if not 'nh3_multi_v' in pcube.specfit.Registry.multifitters:
-        fitter = ammv.nh3_multi_v_model_generator(n_comp = ncomp)
-        pcube.specfit.Registry.add_fitter('nh3_multi_v', fitter, fitter.npars)
-        print "number of parameters is {0}".format(fitter.npars)
+    '''
 
+    fitter = ammv.nh3_multi_v_model_generator(n_comp = ncomp, linenames=[linename])
+    pcube.specfit.Registry.add_fitter('nh3_multi_v', fitter, fitter.npars)
+    print "number of parameters is {0}".format(fitter.npars)
+    print "the line to fit is {0}".format(linename)
 
-    errmap11 = fits.getdata(errmap11name)
+    # Find the velocity of peak emission in the integrated spectrum over all the pixels to estimate where the main
+    # hyperfine structures are in the cube
+    tot_spec = cube.sum(axis=(1,2))
+    idx_peak = np.nanargmax(tot_spec)
+    print "peak T_B: {0}".format(np.nanmax(tot_spec))
+
+    v_atpeak = cube.spectral_axis[idx_peak].to(u.km/u.s).value
+    print "v_atpeak: {0}".format(v_atpeak)
+
+    # Setup a window around the expected velocity range in the data
+    v_peak_hwidth = 3.0 # km/s (should be sufficient for GAS Orion, but may not be enough for KEYSTONE)
+    vmax = v_atpeak + v_peak_hwidth
+    vmin = v_atpeak - v_peak_hwidth
+
+    if errmap11name is not None:
+        errmap11 = fits.getdata(errmap11name)
+    else:
+        # following the GAS recipe to produce error map
+        #throw = 2*u.km/u.s + ThisRegion['VRANGE']*u.km/u.s/2
+        throw = 2*v_peak_hwidth*u.km/u.s
+        mask = np.ones(cube.shape[0],dtype=np.bool)
+        voff = voff_lines_dict[linename]
+        for deltav in voff:
+            mask*=(np.abs(cube.spectral_axis-deltav*u.km/u.s) > throw)
+        a_rms = (np.where(mask != np.roll(mask,1)))[0]
+        b_rms = (np.where(mask != np.roll(mask,-1)))[0]
+        index_rms=np.hstack(np.arange(start,stop+1) for start, stop in zip(b_rms, a_rms))
+        mask_rms=np.zeros(cube.shape, dtype=bool)
+        mask_rms[index_rms]  = True
+        mask_rms = mask_rms & np.isfinite( (cube.unmasked_data[:,:,:]).value )
+        cube_rms  = cube.with_mask(mask_rms)
+        errmap11 = cube_rms.std(axis=0).value
+
     snr = cube.filled_data[:].value/errmap11
     peaksnr = np.max(snr,axis=0)
 
     # the following function is copied directly from GAS
     def default_masking(snr,snr_min=5.0):
         planemask = (snr>snr_min)
-        planemask = remove_small_objects(planemask,min_size=40)
-        planemask = opening(planemask,disk(1))
+        if planemask.size > 100:
+            planemask = remove_small_objects(planemask,min_size=40)
+            planemask = opening(planemask,disk(1))
         return(planemask)
 
     if mask_function is None:
@@ -436,35 +476,9 @@ def cubefit_gen(cube11name, ncomp=2, paraname = None, modname = None, chisqname 
         planemask = mask_function(peaksnr,snr_min = snr_min)
 
     mask = (snr>3)*planemask
+    print "mask: {0}".format(planemask)
     maskcube = cube.with_mask(mask.astype(bool))
     maskcube = maskcube.with_spectral_unit(u.km/u.s,velocity_convention='radio')
-
-    # set the fit parameter limits (consistent with GAS DR1)
-    #Tbg = 2.8       # K
-    Texmin = 3.0    # K; a more reasonable lower limit (5 K T_kin, 1e3 cm^-3 density, 1e13 cm^-2 column, 3km/s sigma)
-    Texmax = 100    # K; only possible for high column density (1e8? cm^-3, 1e16 cm^-2, 0.1 km/s sig, and ~100 K T_kin)
-    sigmin = 0.04   # km/s
-    sigmax = 3.0    # km/s; for Larson's law, a 10pc cloud has sigma = 2.6 km/s
-    taumax = 100.0  # a reasonable upper limit for GAS data. May have to double check for VLA or KEYSTONE data.
-    taumin = 0.01   # it's hard to get lower than this even at 1e3 cm^-3, 1e13 cm^-2, 3 km/s linewidth, and high Tkin
-    eps = 0.001 # a small perturbation that can be used in guesses
-
-    # Find the velocity of peak emission in the integrated spectrum over all the pixels
-    # to estimate where the main hyperfine structures are in the cube
-    #idx_peak = np.nanargmax(maskcube.sum(axis=(1,2)))
-    #tot_spec = maskcube.sum(axis=(1,2))
-    # the mask sometimes could mask out more things than intended... we'll just use the total, unmasked spectrum for now
-    tot_spec = cube.sum(axis=(1,2))
-    idx_peak = np.nanargmax(tot_spec)
-    print "peak T_B: {0}".format(np.nanmax(tot_spec))
-
-    v_atpeak = maskcube.spectral_axis[idx_peak].to(u.km/u.s).value
-    print "v_atpeak: {0}".format(v_atpeak)
-
-    # Setup a window around the main hyperfine components
-    v_peak_hwidth = 3.0
-    vmax = v_atpeak + v_peak_hwidth
-    vmin = v_atpeak - v_peak_hwidth
 
     # Extract the spectrum within the window defined around the main hyperfine components and take moments
     slab = maskcube.spectral_slab(vmin*u.km/u.s, vmax*u.km/u.s)
@@ -477,6 +491,18 @@ def cubefit_gen(cube11name, ncomp=2, paraname = None, modname = None, chisqname 
     m0[np.isnan(m0)] = 0.0 # I'm not sure if this is a good way to get around the sum vs nansum issue
     peakloc = np.nanargmax(m0)
     ymax,xmax = np.unravel_index(peakloc, m0.shape)
+
+
+    # set the fit parameter limits (consistent with GAS DR1)
+    #Tbg = 2.8       # K
+    Texmin = 3.0    # K; a more reasonable lower limit (5 K T_kin, 1e3 cm^-3 density, 1e13 cm^-2 column, 3km/s sigma)
+    Texmax = 100    # K; only possible for high column density (1e8? cm^-3, 1e16 cm^-2, 0.1 km/s sig, and ~100 K T_kin)
+    sigmin = 0.04   # km/s
+    sigmax = 3.0    # km/s; for Larson's law, a 10pc cloud has sigma = 2.6 km/s
+    taumax = 100.0  # a reasonable upper limit for GAS data. May have to double check for VLA or KEYSTONE data.
+    taumin = 0.01   # it's hard to get lower than this even at 1e3 cm^-3, 1e13 cm^-2, 3 km/s linewidth, and high Tkin
+    eps = 0.001 # a small perturbation that can be used in guesses
+
 
     # Make parameter guesses based on the moments [vel, width, tex, tau]
     tex_guess = 10.0
@@ -497,11 +523,13 @@ def cubefit_gen(cube11name, ncomp=2, paraname = None, modname = None, chisqname 
 
     # using a working recipe (assuming a bright and a faint componet)
     if ncomp == 2:
-        gg[0,:,:] = m1 - 0.25*m2       # v0 centriod
+        #sigmaoff = 0.25
+        sigmaoff = 0.4
+        gg[0,:,:] = m1 - sigmaoff*m2       # v0 centriod
         gg[1,:,:] = gs_sig             # v0 width
         gg[2,:,:] = tex_guess          # v0 T_ex
         gg[3,:,:] = tau_guess*0.8      # v0 tau
-        gg[4,:,:] = m1 + 0.25*m2       # v1 centriod
+        gg[4,:,:] = m1 + sigmaoff*m2       # v1 centriod
         gg[5,:,:] = gs_sig             # v1 width
         gg[6,:,:] = tex_guess          # v1 T_ex
         gg[7,:,:] = tau_guess*0.2      # v1 tau
