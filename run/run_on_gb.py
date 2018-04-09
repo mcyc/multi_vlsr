@@ -75,11 +75,12 @@ class Region(object):
         # defining paths to the imaged data
         # NOTE: given that there are multiple components, the following attributes are better implamented as
         # dictoinaries than just a single string
-        self.NewParaFile = '{2}/{0}_{3}vcomp_parameter_maps_{1}.fits'.format(self.region, self.rootPara, self.paraDir,
-                                                                             n_comp)
+        self.NewParaFile = '{2}/{0}_NH3_{4}_{3}vcomp_parameter_maps_{1}.fits'.format(self.region, self.rootPara,
+                                                                                     self.paraDir, n_comp, self.line_root)
         self.ModelFile = '{2}/{0}_NH3_{4}_{1}_{3}comp_model.fits'.format(self.region, self.root, self.modelDir,
                                                                         n_comp, self.line_root)
-        self.ChisqFile = '{2}/{0}_{3}vcomp_chisq_{1}.fits'.format(self.region, self.rootPara, self.paraDir, n_comp)
+        self.ChisqFile = '{2}/{0}_NH3_{4}_{3}vcomp_chisq_{1}.fits'.format(self.region, self.rootPara, self.paraDir,
+                                                                          n_comp, self.line_root)
 
         self.SNRFile = '{2}/{0}_{3}vcomp_SNR_eachV_{1}.fits'.format(self.region, self.rootPara, self.paraDir, n_comp)
         self.SepVModelFile = '{2}/{0}_NH3_{4}_{1}_{3}VModel.fits'.format(self.region, self.root, self.modelDir, n_comp,
@@ -94,10 +95,11 @@ class Region(object):
         self.paraCubes = mvf.cubefit_gen(cube11name = self.OneOneFile, ncomp = n_comp , paraname = self.NewParaFile,
                                  modname = self.ModelFile, chisqname = self.ChisqFile, guesses = guesses,
                                  errmap11name = self.RMSFile, multicore = multicore,
-                                 snr_min=snr_min, mask_function = mask_function)
-
+                                 snr_min=snr_min, mask_function = mask_function, linename=self.linename)
+        '''
         mvf.get_multiV_models(paraname=self.NewParaFile, refcubename=self.OneOneFile, n_comp = n_comp,
                               savename = self.SepVModelFile, snrname = self.SNRFile, rms = 0.15, rmspath=self.RMSFile)
+        '''
         self.end_timing()
 
 
