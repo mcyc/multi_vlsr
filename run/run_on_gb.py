@@ -85,7 +85,7 @@ class Region(object):
         self.SepVModelFile = '{2}/{0}_NH3_{4}_{1}_{3}VModel.fits'.format(self.region, self.root, self.modelDir, n_comp,
                                                                          self.line_root)
 
-        if os.path.exists(self.SingVParaFile):
+        if os.path.exists(self.SingVParaFile) and self.linename == "oneone":
             guesses = mvf.make_guesses(self.SingVParaFile, n_comp = n_comp)
         else:
             guesses = None
