@@ -175,9 +175,9 @@ def special_run(region='L1448', multicore=8, linename = "oneone"):
     regOb.OneOneFile = '{2}/{0}/{0}_NH3_{3}_{1}.fits'.format(regOb.region, 'all_rebase_multi', regOb.cubeDir, regOb.line_root)
 
     #regOb.fit_cube(n_comp=1, multicore=multicore, snr_min=5.0, mask_function = None)
-    regOb.fit_cube(n_comp=2, multicore=multicore, snr_min=5.0, mask_function = None)
-    regOb.calc_aic()
-    regOb.calc_chisq()
+    regOb.fit_cube(n_comp=2, multicore=multicore, snr_min=3.0, mask_function = None)
+    #regOb.calc_aic()
+    #regOb.calc_chisq()
 
 
 def run(region='L1448', multicore=8, root='all_rebase3'):
