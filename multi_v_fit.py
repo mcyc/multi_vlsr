@@ -4,13 +4,14 @@ import numpy as np
 import pyspeckit
 import astropy.io.fits as fits
 from astropy import units as u
+from astropy.stats import mad_std
 from pyspeckit.spectrum.units import SpectroscopicAxis
 from pyspeckit.spectrum.models.ammonia_constants import freq_dict, voff_lines_dict
 from pyspeckit.spectrum.models import ammonia
 
 from spectral_cube import SpectralCube
 from astropy.utils.console import ProgressBar
-from skimage.morphology import remove_small_objects,disk,opening #, closing
+from skimage.morphology import remove_small_objects,disk,opening,binary_erosion #, closing
 
 
 from os import path
@@ -416,29 +417,13 @@ def cubefit_gen(cube11name, ncomp=2, paraname = None, modname = None, chisqname 
     pcube.xarr.velocity_convention = 'radio'
 
     # always register the fitter just in case different lines are used
-    '''
-    # Register the 2 velocity component fitter
-    if not 'nh3_multi_v' in pcube.specfit.Registry.multifitters:
-    '''
-
     fitter = ammv.nh3_multi_v_model_generator(n_comp = ncomp, linenames=[linename])
     pcube.specfit.Registry.add_fitter('nh3_multi_v', fitter, fitter.npars)
     print "number of parameters is {0}".format(fitter.npars)
     print "the line to fit is {0}".format(linename)
 
-    # Find the velocity of peak emission in the integrated spectrum over all the pixels to estimate where the main
-    # hyperfine structures are in the cube
-    tot_spec = cube.sum(axis=(1,2))
-    idx_peak = np.nanargmax(tot_spec)
-    print "peak T_B: {0}".format(np.nanmax(tot_spec))
-
-    v_atpeak = cube.spectral_axis[idx_peak].to(u.km/u.s).value
-    print "v_atpeak: {0}".format(v_atpeak)
-
-    # Setup a window around the expected velocity range in the data
+    # Specify a width for the expected velocity range in the data
     v_peak_hwidth = 3.0 # km/s (should be sufficient for GAS Orion, but may not be enough for KEYSTONE)
-    vmax = v_atpeak + v_peak_hwidth
-    vmin = v_atpeak - v_peak_hwidth
 
     if errmap11name is not None:
         errmap11 = fits.getdata(errmap11name)
@@ -479,6 +464,33 @@ def cubefit_gen(cube11name, ncomp=2, paraname = None, modname = None, chisqname 
     print "mask: {0}".format(planemask)
     maskcube = cube.with_mask(mask.astype(bool))
     maskcube = maskcube.with_spectral_unit(u.km/u.s,velocity_convention='radio')
+
+    # Setup a window around the expected velocity range in the data
+        # Find the velocity of peak emission in the integrated spectrum over all the pixels to estimate where the main
+    # hyperfine structures are in the cube
+    mask2D = np.any(np.isfinite(cube._data), axis=0)
+    # erode 3 pixels off the edge of mask (in case the data wasn't trimmed)
+    mask2D = binary_erosion(mask2D, disk(3))
+
+    # the rms masking tends to give more weight to the noisy edge
+    '''
+    # a quick estimate of the rms in the data (works well when the signals has low 'filling-fraction' in the cube)
+    rms_est = mad_std(cube._data[:,mask2D])
+    mask = cube._data > 3.0*rms_est
+    mask[:,~mask2D] = False
+    '''
+
+    #tot_spec = cube.sum(axis=(1,2))
+    tot_spec = np.nansum(cube._data[:,]*mask2D, axis=(1,2))
+
+    idx_peak = np.nanargmax(tot_spec)
+    print "peak T_B: {0}".format(np.nanmax(tot_spec))
+
+    v_atpeak = cube.spectral_axis[idx_peak].to(u.km/u.s).value
+    print "v_atpeak: {0}".format(v_atpeak)
+
+    vmax = v_atpeak + v_peak_hwidth
+    vmin = v_atpeak - v_peak_hwidth
 
     # Extract the spectrum within the window defined around the main hyperfine components and take moments
     slab = maskcube.spectral_slab(vmin*u.km/u.s, vmax*u.km/u.s)
