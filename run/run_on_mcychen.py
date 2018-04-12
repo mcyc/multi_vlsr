@@ -19,7 +19,7 @@ class Region(object):
     A Class that contains all the relevant file path and run the pipeline fitting and analysis
     '''
 
-    def __init__(self, region_name, root='base_all_rebase3', rootPara = None):
+    def __init__(self, region_name, root='base_all_rebase3', rootPara = None, linename = "oneone"):
 
         self.region = region_name
         self.rootDir = "/Users/mcychen/Documents/Data/GAS_NH3"
@@ -31,18 +31,21 @@ class Region(object):
 
         # create directories if they don't exist
         make_dir(self.cubeFigDir)
+        make_dir(self.cleanParaDir)
 
         self.root = root
         if rootPara is None:
             self.rootPara = self.root
 
-        self.OneOneFile = '{0}/{1}_NH3_11_{2}.fits'.format(self.cubeDir, self.region, self.rootPara)
-
-        '''
-        # defining paths to imaged data
-        self.RMSFile = '{2}/{0}/{0}_NH3_11_{1}_rms.fits'.format(self.region, self.root, self.cubeDir)
-        self.SingVParaFile = '{2}/{0}/{0}_parameter_maps_{1}.fits'.format(self.region, self.rootPara, self.cubeDir)
-        '''
+        self.linename = linename
+        if linename == "oneone":
+            self.line_root = "11"
+        elif linename == "twotwo":
+            self.line_root = "22"
+        else:
+            self.line_root = "bad"
+            print "[ERROR]: NH3 lines beyond twotwo has yet to be implemented"
+        self.OneOneFile = '{0}/{1}_NH3_{2}_{3}.fits'.format(self.cubeDir, self.region, self.line_root, self.rootPara)
 
 
     def clean_map(self):
@@ -59,20 +62,28 @@ class Region(object):
         n_comp = 2
         n_comp_compare = 1
 
-        ParaFile = '{2}/{0}_{3}vcomp_parameter_maps_{1}.fits'.format(self.region, self.rootPara, self.paraDir,
-                                                                             n_comp)
+        ParaFile = '{2}/{0}_NH3_{4}_{3}vcomp_parameter_maps_{1}.fits'.format(self.region, self.rootPara, self.paraDir,
+                                                                             n_comp, self.line_root)
 
-        SNRFile = '{2}/{0}_{3}vcomp_SNR_eachV_{1}.fits'.format(self.region, self.rootPara, self.paraDir, n_comp)
+        SNRFile = '{2}/{0}_NH3_{4}_{3}vcomp_SNR_eachV_{1}.fits'.format(self.region, self.rootPara, self.paraDir, n_comp,
+                                                                       self.line_root)
 
         # output file paths
+        self.CleanParaFile_2comp = '{2}/{0}_NH3_{4}_{3}vcomp_parameter_maps_{1}_clean.fits'.format(self.region,
+                                                                                                   self.rootPara,
+                                                                                                   self.cleanParaDir,
+                                                                                                   n_comp,
+                                                                                                   self.line_root)
 
-        self.CleanParaFile_2comp = '{2}/{0}_{3}vcomp_parameter_maps_{1}_clean.fits'.format(self.region, self.rootPara,
-                                                                                     self.cleanParaDir, n_comp)
+        aiccpath = "{0}/{1}_NH3_{4}_{2}v{3}comp_aicc.fits".format(self.cleanParaDir, self.region, n_comp,
+                                                                  n_comp_compare, self.line_root)
 
-        aiccpath = "{0}/{1}_NH3_11_{2}v{3}comp_aicc.fits".format(self.cleanParaDir, self.region, n_comp, n_comp_compare)
-
-
+        '''
         clean_map.clean(ParaFile, self.CleanParaFile_2comp, snrname = SNRFile, one_v_map = self.CleanParaFile_1comp,
+                        aic_maps = aiccpath, fill_plane1 = False, mergesim = False, rm_sml_obj = True,
+                        sort_method = "None", snr_min = 3.0)
+        '''
+        clean_map.clean(ParaFile, self.CleanParaFile_2comp, snrname = None, one_v_map = self.CleanParaFile_1comp,
                         aic_maps = aiccpath, fill_plane1 = False, mergesim = False, rm_sml_obj = True,
                         sort_method = "None", snr_min = 3.0)
 
@@ -80,13 +91,20 @@ class Region(object):
 
     def clean_map_1comp(self):
         n_comp = 1
-        ParaFile1 = '{2}/{0}_{3}vcomp_parameter_maps_{1}.fits'.format(self.region, self.rootPara, self.paraDir, n_comp)
-        SNRFile = '{2}/{0}_{3}vcomp_SNR_eachV_{1}.fits'.format(self.region, self.rootPara, self.paraDir, n_comp)
 
-        self.CleanParaFile_1comp = '{2}/{0}_{3}vcomp_parameter_maps_{1}_clean.fits'.format(self.region, self.rootPara,
-                                                                                     self.cleanParaDir, n_comp)
+        ParaFile1 = '{2}/{0}_NH3_{4}_{3}vcomp_parameter_maps_{1}.fits'.format(self.region, self.rootPara, self.paraDir,
+                                                                              n_comp, self.line_root)
 
-        clean_map.clean_onecomp(ParaFile1, self.CleanParaFile_1comp, snrname = SNRFile, rm_sml_obj = True, snr_min = 3.0)
+        SNRFile = '{2}/{0}_NH3_{4}_{3}vcomp_SNR_eachV_{1}.fits'.format(self.region, self.rootPara, self.paraDir, n_comp,
+                                                                       self.line_root)
+
+        self.CleanParaFile_1comp = '{2}/{0}_NH3_{4}_{3}vcomp_parameter_maps_{1}_clean.fits'.format(self.region,
+                                                                                                   self.rootPara,
+                                                                                                   self.cleanParaDir,
+                                                                                                   n_comp, self.line_root)
+
+        #clean_map.clean_onecomp(ParaFile1, self.CleanParaFile_1comp, snrname = SNRFile, rm_sml_obj = True, snr_min = 3.0)
+        clean_map.clean_onecomp(ParaFile1, self.CleanParaFile_1comp, snrname = None, rm_sml_obj = True, snr_min = 3.0)
 
 
     def deblend_2comp(self, vmin, vmax, res_boost = 1.0):
@@ -148,7 +166,6 @@ class Region(object):
             saveSpecPath = '{0}/{1}_spec_{2}comp_clean.pdf'.format(self.cubeFigDir, self.region, n_comp)
 
         else:
-            print "goooood"
             parapath = '{2}/{0}_{3}vcomp_parameter_maps_{1}.fits'.format(self.region, self.rootPara, self.paraDir, n_comp)
             saveSpecPath = '{0}/{1}_spec_{2}comp.pdf'.format(self.cubeFigDir, self.region, n_comp)
 
@@ -181,11 +198,12 @@ def make_dir(dirpath):
             raise
 
 ########################################################################################################################
-# one time function
+# user inputs
 
-
-def clean_reg(reg = 'HC2'):
-    region = Region(reg)
+def clean_reg(reg = 'L1448'):
+    region = Region(reg, linename = "oneone")
+    region.clean_map()
+    region = Region(reg, linename = "twotwo")
     region.clean_map()
     return None
 
@@ -193,9 +211,12 @@ def deblend(reg = 'HC2', vmin=4, vmax=7):
     region = Region(reg)
     region.deblend_2comp(vmin, vmax)
 
+########################################################################################################################
+# one time functions
+
 def check_fit():
 
-    if False:
+    if True:
         reg = 'L1448'
         region = Region(reg)
         yxList = [(105,86),
@@ -204,7 +225,8 @@ def check_fit():
             (125,106),
             (123,125),
             (120,140)]
-        region.exam_spec_fits(yxList, n_comp=1)
+        region.OneOneFile = '{0}/{1}_NH3_11_{2}.fits'.format(region.cubeDir, region.region, 'all_rebase_multi')
+        region.exam_spec_fits(yxList, n_comp=2, vZoomLims=(-6,15))
 
 
     if False:
@@ -225,7 +247,7 @@ def check_fit():
         region.exam_spec_fits(yxList, n_comp=1)
 
 
-    if True:
+    if False:
         reg = 'HC2'
         region = Region(reg)
         '''
@@ -272,3 +294,119 @@ def ccc():
     region.exam_spec_fits(yxList, n_comp=2, vZoomLims=(-5,17), useCleanMap=False)
     #region.exam_spec_fits(yxList, n_comp=2, vZoomLims=(-5,17), useCleanMap=True)
 
+
+def ckcl():
+    # check the cleaning technique
+    reg = 'L1448'
+    region = Region(reg)
+    '''
+    yxList = [(103,84),
+            (116,99),
+            (118,110),
+            (125,106),
+            (125,122),
+            (117,139)]
+    '''
+    yxList = [(123,107),
+            (123,106),
+            (123,105),
+            (102,84),
+            (102,85),
+            (102,86)]
+
+    region.OneOneFile = '{0}/{1}_NH3_11_{2}.fits'.format(region.cubeDir, region.region, 'all_rebase_multi')
+    vZoomLims = (-6,15)
+    region.exam_spec_fits(yxList, n_comp=1, vZoomLims=vZoomLims, useCleanMap=False)
+    #region.exam_spec_fits(yxList, n_comp=2, vZoomLims=vZoomLims, useCleanMap=False)
+    #region.exam_spec_fits(yxList, n_comp=2, vZoomLims=vZoomLims, useCleanMap=True)
+
+
+def comp_11n22(region = "L1448"):
+    import astropy.io.fits as fits
+    import matplotlib.pyplot as plt
+    import numpy as np
+
+    baseDir = "/Users/mcychen/Documents/Data/GAS_NH3/DRMC_paraMaps/{0}/paraMaps_MChen/clean_maps".format(region)
+    f1 = "{0}/{1}_NH3_{2}_2vcomp_parameter_maps_base_all_rebase3_clean.fits".format(baseDir, region, "11")
+    f2 = "{0}/{1}_NH3_{2}_2vcomp_parameter_maps_base_all_rebase3_clean.fits".format(baseDir, region, "22")
+
+    '''
+    # uncleaned maps
+    baseDir = "/Users/mcychen/Documents/Data/GAS_NH3/DRMC_paraMaps/{0}/paraMaps_MChen".format(region)
+    f1 = "{0}/{1}_NH3_{2}_2vcomp_parameter_maps_base_all_rebase3.fits".format(baseDir, region, "11")
+    f2 = "{0}/{1}_NH3_{2}_2vcomp_parameter_maps_base_all_rebase3.fits".format(baseDir, region, "22")
+    '''
+
+    data11 = fits.getdata(f1)
+    data22 = fits.getdata(f2)
+
+    data11[data11 == 0.0] = np.nan
+    data22[data22 == 0.0] = np.nan
+
+    # sort the components by their similarity
+    swap = np.abs(data11[0]-data22[0]) > np.abs(data11[0]-data22[4])
+    data11[0:4,swap], data11[4:8,swap] = data11[4:8,swap], data11[0:4,swap]
+    data11[8:12,swap], data11[12:,swap] = data11[12:,swap], data11[8:12,swap]
+
+
+
+    f1 = "{0}/{1}_NH3_{2}_1vcomp_parameter_maps_base_all_rebase3_clean.fits".format(baseDir, region, "11")
+    data11_1v = fits.getdata(f1)
+    data11_1v[data11_1v == 0.0] = np.nan
+
+
+    if False:
+        plt.hist((data11_1v[0]-data22[0]).ravel(), 50, range=(-0.5,0.5), histtype = "stepfilled", color="0.75")
+
+    if True:
+        # compare the 11 and 22 vlsr
+        diff1 = data11[0]-data22[0]
+        diff2 = data11[4]-data22[4]
+        # mask where both components exist
+        mask = np.all(np.isfinite(data11), axis=0)
+        plt.clf()
+        plt.hist(diff1[~mask], 50, range=(-0.5,0.5), histtype = "stepfilled", color="0.85")
+        plt.hist(diff1[mask], 50, range=(-0.5,0.5), histtype = "step")
+        plt.hist(diff2[mask], 50, range=(-0.5,0.5), histtype = "step")
+
+        plt.xlabel(r"$\Delta$v$_{lsr}$ (km s$^{-1}$)")
+        plt.ylabel("pixel counts")
+        plt.legend(["the only component", "front component", "rear component"], frameon=False)
+        plt.title(r"1,1 vs. 2,2 fits for NH$_3$ in {0}".format(region))
+        plt.savefig("{0}/figures/{1}_11vs22_vlsr_scatter.pdf".format(baseDir,region))
+
+    if False:
+        # compare the 11 and 22 sigma
+        diff1 = data11[1]-data22[1]
+        diff2 = data11[5]-data22[5]
+        # mask where both components exist
+        mask = np.all(np.isfinite(data11), axis=0)
+        plt.clf()
+        plt.hist(diff1[~mask], 50, range=(-0.5,0.5), histtype = "stepfilled", color="0.85")
+        plt.hist(diff1[mask], 50, range=(-0.5,0.5), histtype = "step")
+        plt.hist(diff2[mask], 50, range=(-0.5,0.5), histtype = "step")
+
+        plt.xlabel(r"$\Delta \sigma_{v}$ (km s$^{-1}$)")
+        plt.ylabel("pixel counts")
+        plt.legend(["the only component", "front component", "rear component"], frameon=False)
+        plt.title(r"1,1 vs. 2,2 fits for NH$_3$ in {0}".format(region))
+        plt.savefig("{0}/figures/{1}_11vs22_sigma_scatter.pdf".format(baseDir,region))
+
+    if False:
+        mask = np.isfinite(data11[4])
+        plt.hist((data11[0][mask]-data11_1v[0][mask]).ravel(), 50, range=(-0.5,0.5), histtype = "step")
+        plt.hist(-1*(data11[4][mask]-data11_1v[0][mask]).ravel(), 50, range=(-0.5,0.5), histtype = "step")
+        plt.xlabel(r"$\Delta$v$_{lsr}$ (km s$^{-1}$)")
+        plt.ylabel("pixel counts")
+
+    if False:
+        # find the difference between the two components
+        mask = np.isfinite(data11[4])
+        diff3 = data11[0][mask] - data11[4][mask]
+        plt.hist(np.abs(diff3), 50, range=(0,2), histtype = "step")
+        plt.xlabel(r"$\Delta$v$_{lsr}$ (km s$^{-1}$)")
+        plt.ylabel("pixel counts")
+
+    if False:
+        plt.scatter(data22[0], data11[4]-data22[4], s=3)
+    plt.show()
