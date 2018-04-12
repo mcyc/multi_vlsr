@@ -88,7 +88,7 @@ class Region(object):
 
         if False:
         #if os.path.exists(self.SingVParaFile) and self.linename == "oneone":
-        #    guesses = mvf.make_guesses(self.SingVParaFile, n_comp = n_comp)
+            guesses = mvf.make_guesses(self.SingVParaFile, n_comp = n_comp)
         else:
             guesses = None
 
