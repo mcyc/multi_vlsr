@@ -152,7 +152,7 @@ def DR1_run(region='NGC1333', multicore=8, linename = "oneone", snr_min=5.0):
     reg = Region(region, root='DR1_rebase3', linename=linename)
 
     reg.OneOneFile = '{2}/{0}/DR1/{0}_NH3_{3}_{1}_trim.fits'.format(reg.region, reg.root, reg.cubeDir, reg.line_root)
-    reg.RMSFile = '{2}/{0}/{0}_NH3_{3}_{1}_rms_QA_trim.fits'.format(reg.region, reg.root, reg.cubeDir, reg.line_root)
+    reg.RMSFile = '{2}/{0}/DR1/{0}_NH3_{3}_{1}_rms_QA_trim.fits'.format(reg.region, reg.root, reg.cubeDir, reg.line_root)
     reg.SingVParaFile = None
 
     reg.fit_cube(n_comp=1, multicore=multicore, snr_min=snr_min, mask_function = None)
