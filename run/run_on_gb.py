@@ -146,7 +146,7 @@ def make_dir(dirpath):
 
 #=======================================================================================================================
 
-def DR1_run(region='NGC1333', multicore=8, linename = "oneone"):
+def DR1_run(region='NGC1333', multicore=8, linename = "oneone", snr_min=5.0):
 
     # for running on DR1 regions
     reg = Region(region, root='DR1_rebase3', linename=linename)
@@ -155,8 +155,8 @@ def DR1_run(region='NGC1333', multicore=8, linename = "oneone"):
     reg.RMSFile = '{2}/{0}/{0}_NH3_{3}_{1}_rms_QA_trim.fits'.format(reg.region, reg.root, reg.cubeDir, reg.line_root)
     reg.SingVParaFile = None
 
-    reg.fit_cube(n_comp=1, multicore=multicore, snr_min=5.0, mask_function = None)
-    reg.fit_cube(n_comp=2, multicore=multicore, snr_min=3.0, mask_function = None)
+    reg.fit_cube(n_comp=1, multicore=multicore, snr_min=snr_min, mask_function = None)
+    reg.fit_cube(n_comp=2, multicore=multicore, snr_min=snr_min, mask_function = None)
     reg.calc_aic()
     reg.calc_chisq()
 
