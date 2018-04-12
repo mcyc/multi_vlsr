@@ -86,8 +86,9 @@ class Region(object):
         self.SepVModelFile = '{2}/{0}_NH3_{4}_{1}_{3}VModel.fits'.format(self.region, self.root, self.modelDir, n_comp,
                                                                          self.line_root)
 
-        if os.path.exists(self.SingVParaFile) and self.linename == "oneone":
-            guesses = mvf.make_guesses(self.SingVParaFile, n_comp = n_comp)
+        if False:
+        #if os.path.exists(self.SingVParaFile) and self.linename == "oneone":
+        #    guesses = mvf.make_guesses(self.SingVParaFile, n_comp = n_comp)
         else:
             guesses = None
 
@@ -145,11 +146,26 @@ def make_dir(dirpath):
 
 #=======================================================================================================================
 
+def DR1_run(region='NGC1333', multicore=8, linename = "oneone"):
+
+    # for running on DR1 regions
+    reg = Region(region, root='DR1_rebase3', linename=linename)
+
+    reg.OneOneFile = '{2}/{0}/DR1/{0}_NH3_{3}_{1}_trim.fits'.format(reg.region, reg.root, reg.cubeDir, reg.line_root)
+    reg.RMSFile = '{2}/{0}/{0}_NH3_{3}_{1}_rms_QA_trim.fits'.format(reg.region, reg.root, reg.cubeDir, reg.line_root)
+    reg.SingVParaFile = None
+
+    reg.fit_cube(n_comp=1, multicore=multicore, snr_min=5.0, mask_function = None)
+    reg.fit_cube(n_comp=2, multicore=multicore, snr_min=3.0, mask_function = None)
+    reg.calc_aic()
+    reg.calc_chisq()
 
 
-def super_run():
-    special_run(region='L1448', linename="oneone")
-    special_run(region='L1448', linename="twotwo")
+def super_run(linename = "oneone"):
+    DR1_run(region='NGC1333', multicore=8, linename=linename)
+
+    #special_run(region='L1448', linename="oneone")
+    #special_run(region='L1448', linename="twotwo")
     #special_run(region='OrionB_NGC2023-2024')
     '''
     run(region='OrionA')
@@ -163,15 +179,6 @@ def special_run(region='L1448', multicore=8, linename = "oneone"):
     # for rebase that does not have other first look properties
     regOb = Region(region, root='base_all_rebase3', linename=linename)
     # use Jared's multi-rebased file
-
-    '''
-    if linename == "oneone":
-        line_root = "11"
-    elif linename == "twotwo":
-        line_root = "22"
-    else:
-        print "[ERROR]: bad line name!!!"
-    '''
 
     regOb.OneOneFile = '{2}/{0}/{0}_NH3_{3}_{1}.fits'.format(regOb.region, 'all_rebase_multi', regOb.cubeDir, regOb.line_root)
 

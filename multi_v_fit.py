@@ -470,6 +470,7 @@ def cubefit_gen(cube11name, ncomp=2, paraname = None, modname = None, chisqname 
     # hyperfine structures are in the cube
     mask2D = np.any(np.isfinite(cube._data), axis=0)
     # erode 3 pixels off the edge of mask (in case the data wasn't trimmed)
+    # (trimming more pixels off may do some extra goods
     mask2D = binary_erosion(mask2D, disk(3))
 
     # the rms masking tends to give more weight to the noisy edge
@@ -584,7 +585,7 @@ def cubefit_gen(cube11name, ncomp=2, paraname = None, modname = None, chisqname 
 
     pcube.fiteach(fittype='nh3_multi_v', guesses=guesses,
                   start_from_point=(xmax,ymax),
-                  use_neighbor_as_guess=True,
+                  use_neighbor_as_guess=False,
                   #[v,s,t,t,v,s,t,t]
                   limitedmax=[True,True,True,True]*ncomp,
                   maxpars=[vmax, sigmax, Texmax, taumax]*ncomp,
