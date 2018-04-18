@@ -240,6 +240,58 @@ def get_chisq(cube, model, expand=20, reduced = True, usemask = True, mask = Non
         return chisq, np.sum(mask, axis=0)
 
 
+def moment_guesses(moment1, moment2, ncomp, sigmin=0.04, tex_guess=10.0, tau_guess=0.5):
+    '''
+    Make reasonable guesses for the multiple component fits
+    :param moment1:
+    :param moment2:
+    :param ncomp:
+    :param sigmin:
+    :param tex_guess:
+    :param tau_guess:
+    :return:
+    '''
+
+    m1 = moment1
+    m2 = moment2
+
+    # Guess linewidth (the current recipe works okay, but potential improvements can be made.
+    gs_sig = m2/ncomp
+    gs_sig[gs_sig < sigmin] = 0.08 # narrow enough to be purely thermal @ ~10 K
+
+    # there are 4 parameters for each v-component
+    gg = np.zeros((ncomp*4,)+m1.shape)
+
+    if ncomp == 1:
+        gg[0,:,:] = m1                 # v0 centriod
+        gg[1,:,:] = gs_sig             # v0 width
+        gg[2,:,:] = tex_guess          # v0 T_ex
+        gg[3,:,:] = tau_guess          # v0 tau
+
+    # using a working recipe (assuming a bright and a faint componet)
+    if ncomp == 2:
+        #sigmaoff = 0.25
+        sigmaoff = 0.4
+        gg[0,:,:] = m1 - sigmaoff*m2       # v0 centriod
+        gg[1,:,:] = gs_sig             # v0 width
+        gg[2,:,:] = tex_guess          # v0 T_ex
+        gg[3,:,:] = tau_guess*0.8      # v0 tau
+        gg[4,:,:] = m1 + sigmaoff*m2       # v1 centriod
+        gg[5,:,:] = gs_sig             # v1 width
+        gg[6,:,:] = tex_guess          # v1 T_ex
+        gg[7,:,:] = tau_guess*0.2      # v1 tau
+
+    # using a generalized receipe that I have not tested clearly could use improvement
+    if ncomp > 2:
+        for i in range (0, ncomp):
+            gg[i,  :,:] = m1+(-1.0+i*1.0/ncomp)*0.5*m2 # v0 centriod (step through a range fo velocities within sigma_v)
+            gg[i+1,:,:] = gs_sig             # v0 width
+            gg[i+2,:,:] = tex_guess          # v0 T_ex
+            gg[i+3,:,:] = tau_guess*0.2      # v0 tau
+
+    return gg
+
+
 def make_guesses(sigv_para_name, n_comp = 2, tex_guess =10.0, tau_guess = 0.5):
     '''
     Make 2 velocity component fit guesses based on the GAS DR1 parameter maps
