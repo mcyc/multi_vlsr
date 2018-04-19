@@ -240,6 +240,44 @@ def get_chisq(cube, model, expand=20, reduced = True, usemask = True, mask = Non
         return chisq, np.sum(mask, axis=0)
 
 
+def main_hf_moments(maskcube, window_hwidth):
+    # find moments for the main hyperfine lines
+    # (moments, especially moment 2, computed with the satellite lines are less useful in terms of the kinematics)
+
+    mask2D = np.any(np.isfinite(maskcube._data), axis=0)
+
+    if mask2D.size > 100:
+        #erode 3 pixels off the edge of mask (in case the data wasn't trimmed)
+        mask2D = binary_erosion(mask2D, disk(3))
+
+    # the rms masking tends to give more weight to the noisy edge
+    '''
+    # a quick estimate of the rms in the data (works well when the signals has low 'filling-fraction' in the cube)
+    rms_est = mad_std(cube._data[:,mask2D])
+    mask = cube._data > 3.0*rms_est
+    mask[:,~mask2D] = False
+    '''
+
+    tot_spec = np.nansum(maskcube._data[:,]*mask2D, axis=(1,2))
+
+    idx_peak = np.nanargmax(tot_spec)
+    print "peak T_B: {0}".format(np.nanmax(tot_spec))
+
+    v_atpeak = maskcube.spectral_axis[idx_peak].to(u.km/u.s).value
+    print "v_atpeak: {0}".format(v_atpeak)
+
+    vmax = v_atpeak + window_hwidth
+    vmin = v_atpeak - window_hwidth
+
+    # Extract the spectrum within the window defined around the main hyperfine components and take moments
+    slab = maskcube.spectral_slab(vmin*u.km/u.s, vmax*u.km/u.s)
+    m0 = slab.moment0(axis=0).value
+    m1 = slab.moment1(axis=0).to(u.km/u.s).value
+    m2 = (np.abs(slab.moment2(axis=0))**0.5).to(u.km/u.s).value
+
+    return m0, m1, m2
+
+
 def moment_guesses(moment1, moment2, ncomp, sigmin=0.04, tex_guess=10.0, tau_guess=0.5):
     '''
     Make reasonable guesses for the multiple component fits
@@ -524,47 +562,22 @@ def cubefit_gen(cube11name, ncomp=2, paraname = None, modname = None, chisqname 
     maskcube = cube.with_mask(mask.astype(bool))
     maskcube = maskcube.with_spectral_unit(u.km/u.s,velocity_convention='radio')
 
-    # Setup a window around the expected velocity range in the data
-        # Find the velocity of peak emission in the integrated spectrum over all the pixels to estimate where the main
-    # hyperfine structures are in the cube
-    mask2D = np.any(np.isfinite(cube._data), axis=0)
-    # erode 3 pixels off the edge of mask (in case the data wasn't trimmed)
-    # (trimming more pixels off may do some extra goods
+    m0, m1, m2 = main_hf_moments(maskcube, window_hwidth=v_peak_hwidth)
+    m0[np.isnan(m0)] = 0.0 # I'm not sure if this is a good way to get around the sum vs nansum issue
 
-    if mask2D.size > 100:
-        mask2D = binary_erosion(mask2D, disk(3))
-
-    # the rms masking tends to give more weight to the noisy edge
-    '''
-    # a quick estimate of the rms in the data (works well when the signals has low 'filling-fraction' in the cube)
-    rms_est = mad_std(cube._data[:,mask2D])
-    mask = cube._data > 3.0*rms_est
-    mask[:,~mask2D] = False
-    '''
-
-    #tot_spec = cube.sum(axis=(1,2))
-    tot_spec = np.nansum(cube._data[:,]*mask2D, axis=(1,2))
-
-    idx_peak = np.nanargmax(tot_spec)
-    print "peak T_B: {0}".format(np.nanmax(tot_spec))
-
-    v_atpeak = cube.spectral_axis[idx_peak].to(u.km/u.s).value
-    print "v_atpeak: {0}".format(v_atpeak)
-
-    vmax = v_atpeak + v_peak_hwidth
-    vmin = v_atpeak - v_peak_hwidth
-
-    # Extract the spectrum within the window defined around the main hyperfine components and take moments
-    slab = maskcube.spectral_slab(vmin*u.km/u.s, vmax*u.km/u.s)
-    m1 = slab.moment1(axis=0).to(u.km/u.s).value
-    m2 = (np.abs(slab.moment2(axis=0))**0.5).to(u.km/u.s).value
-    # Note: due to the hyperfine structures, the NH3 moment 2 overestimates linewidth
+    # refine the window a bit based on the moment maps
+    v_median = np.median(m1[np.isfinite(m1)])
+    #vmax = v_atpeak + v_peak_hwidth
+    #vmin = v_atpeak - v_peak_hwidth
+    vmax = v_median + v_peak_hwidth
+    vmin = v_median - v_peak_hwidth
+    print "median velocity: {0}".format(v_median)
 
     # find the location of the peak signal (to determine the first pixel to fit)
-    m0 = slab.moment0(axis=0).value
-    m0[np.isnan(m0)] = 0.0 # I'm not sure if this is a good way to get around the sum vs nansum issue
     peakloc = np.nanargmax(m0)
     ymax,xmax = np.unravel_index(peakloc, m0.shape)
+
+
 
     # set the fit parameter limits (consistent with GAS DR1)
     #Tbg = 2.8       # K
