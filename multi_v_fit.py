@@ -255,6 +255,11 @@ def moment_guesses(moment1, moment2, ncomp, sigmin=0.04, tex_guess=10.0, tau_gue
     m1 = moment1
     m2 = moment2
 
+    print "moment 1:"
+    print m1
+    print "moment 2"
+    print m2
+
     # Guess linewidth (the current recipe works okay, but potential improvements can be made.
     gs_sig = m2/ncomp
     gs_sig[gs_sig < sigmin] = 0.08 # narrow enough to be purely thermal @ ~10 K
@@ -272,11 +277,11 @@ def moment_guesses(moment1, moment2, ncomp, sigmin=0.04, tex_guess=10.0, tau_gue
     if ncomp == 2:
         #sigmaoff = 0.25
         sigmaoff = 0.4
-        gg[0,:,:] = m1 - sigmaoff*m2       # v0 centriod
+        gg[0,:,:] = m1 - sigmaoff*m2   # v0 centriod
         gg[1,:,:] = gs_sig             # v0 width
         gg[2,:,:] = tex_guess          # v0 T_ex
         gg[3,:,:] = tau_guess*0.8      # v0 tau
-        gg[4,:,:] = m1 + sigmaoff*m2       # v1 centriod
+        gg[4,:,:] = m1 + sigmaoff*m2   # v1 centriod
         gg[5,:,:] = gs_sig             # v1 width
         gg[6,:,:] = tex_guess          # v1 T_ex
         gg[7,:,:] = tau_guess*0.2      # v1 tau
@@ -288,6 +293,9 @@ def moment_guesses(moment1, moment2, ncomp, sigmin=0.04, tex_guess=10.0, tau_gue
             gg[i+1,:,:] = gs_sig             # v0 width
             gg[i+2,:,:] = tex_guess          # v0 T_ex
             gg[i+3,:,:] = tau_guess*0.2      # v0 tau
+
+    print "guesses:"
+    print gg
 
     return gg
 
@@ -513,7 +521,6 @@ def cubefit_gen(cube11name, ncomp=2, paraname = None, modname = None, chisqname 
         planemask = mask_function(peaksnr,snr_min = snr_min)
 
     mask = (snr>3)*planemask
-    print "mask: {0}".format(planemask)
     maskcube = cube.with_mask(mask.astype(bool))
     maskcube = maskcube.with_spectral_unit(u.km/u.s,velocity_convention='radio')
 
@@ -523,7 +530,9 @@ def cubefit_gen(cube11name, ncomp=2, paraname = None, modname = None, chisqname 
     mask2D = np.any(np.isfinite(cube._data), axis=0)
     # erode 3 pixels off the edge of mask (in case the data wasn't trimmed)
     # (trimming more pixels off may do some extra goods
-    mask2D = binary_erosion(mask2D, disk(3))
+
+    if mask2D.size > 100:
+        mask2D = binary_erosion(mask2D, disk(3))
 
     # the rms masking tends to give more weight to the noisy edge
     '''
@@ -557,7 +566,6 @@ def cubefit_gen(cube11name, ncomp=2, paraname = None, modname = None, chisqname 
     peakloc = np.nanargmax(m0)
     ymax,xmax = np.unravel_index(peakloc, m0.shape)
 
-
     # set the fit parameter limits (consistent with GAS DR1)
     #Tbg = 2.8       # K
     Texmin = 3.0    # K; a more reasonable lower limit (5 K T_kin, 1e3 cm^-3 density, 1e13 cm^-2 column, 3km/s sigma)
@@ -568,44 +576,8 @@ def cubefit_gen(cube11name, ncomp=2, paraname = None, modname = None, chisqname 
     taumin = 0.01   # it's hard to get lower than this even at 1e3 cm^-3, 1e13 cm^-2, 3 km/s linewidth, and high Tkin
     eps = 0.001 # a small perturbation that can be used in guesses
 
-
-    # Make parameter guesses based on the moments [vel, width, tex, tau]
-    tex_guess = 10.0
-    tau_guess = 0.5
-
-    # Guess linewidth (the current recipe works okay, but potential improvements can be made.
-    gs_sig = m2/ncomp
-    gs_sig[gs_sig < sigmin] = 0.08 # narrow enough to be purely thermal @ ~10 K
-
-    # there are 4 parameters for each v-component
-    gg = np.zeros((ncomp*4,)+pcube.cube.shape[1:])
-
-    if ncomp == 1:
-        gg[0,:,:] = m1                 # v0 centriod
-        gg[1,:,:] = gs_sig             # v0 width
-        gg[2,:,:] = tex_guess          # v0 T_ex
-        gg[3,:,:] = tau_guess          # v0 tau
-
-    # using a working recipe (assuming a bright and a faint componet)
-    if ncomp == 2:
-        #sigmaoff = 0.25
-        sigmaoff = 0.4
-        gg[0,:,:] = m1 - sigmaoff*m2       # v0 centriod
-        gg[1,:,:] = gs_sig             # v0 width
-        gg[2,:,:] = tex_guess          # v0 T_ex
-        gg[3,:,:] = tau_guess*0.8      # v0 tau
-        gg[4,:,:] = m1 + sigmaoff*m2       # v1 centriod
-        gg[5,:,:] = gs_sig             # v1 width
-        gg[6,:,:] = tex_guess          # v1 T_ex
-        gg[7,:,:] = tau_guess*0.2      # v1 tau
-
-    # using a generalized receipe that I have not tested clearly could use improvement
-    if ncomp > 2:
-        for i in range (0, ncomp):
-            gg[i,  :,:] = m1+(-1.0+i*1.0/ncomp)*0.5*m2 # v0 centriod (step through a range fo velocities within sigma_v)
-            gg[i+1,:,:] = gs_sig             # v0 width
-            gg[i+2,:,:] = tex_guess          # v0 T_ex
-            gg[i+3,:,:] = tau_guess*0.2      # v0 tau
+    # get the guesses based on moment maps
+    gg = moment_guesses(m1, m2, ncomp, sigmin=sigmin, tex_guess=10.0, tau_guess=0.5)
 
     if guesses is None:
         guesses = gg
