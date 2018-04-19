@@ -240,10 +240,30 @@ def get_chisq(cube, model, expand=20, reduced = True, usemask = True, mask = Non
         return chisq, np.sum(mask, axis=0)
 
 
-def main_hf_moments(maskcube, window_hwidth):
+def main_hf_moments(maskcube, window_hwidth, snr_thresh=None):
+    '''
     # find moments for the main hyperfine lines
     # (moments, especially moment 2, computed with the satellite lines are less useful in terms of the kinematics)
 
+    :param maskcube: Spectral Cube
+        the Spectral Cube to make the moments from
+
+    :param window_hwidth: float
+        half-width of the window (in km/s) to be used to isolate the main hyperfine lines from the rest of the spectrum
+
+    :param snr_thresh: float
+        The peak signal-to-noise ratio threshold for a pixel to be included in the integrated spectrum. The noise level
+        is estimated using median absolute deviation (MAD)
+
+    -------
+    :return: m0
+    :return: m1
+    :return: m2
+    '''
+
+    import matplotlib.pyplot as plt
+
+    '''
     mask2D = np.any(np.isfinite(maskcube._data), axis=0)
 
     if mask2D.size > 100:
@@ -251,14 +271,21 @@ def main_hf_moments(maskcube, window_hwidth):
         mask2D = binary_erosion(mask2D, disk(3))
 
     # the rms masking tends to give more weight to the noisy edge
-    '''
-    # a quick estimate of the rms in the data (works well when the signals has low 'filling-fraction' in the cube)
-    rms_est = mad_std(cube._data[:,mask2D])
-    mask = cube._data > 3.0*rms_est
-    mask[:,~mask2D] = False
-    '''
+    if snr_thresh is not None:
+        # a quick estimate of the rms in the data (works well when the signals has low 'filling-fraction' in the cube)
+        rms_est = mad_std(maskcube._data[:,mask2D])
+        print "The MAD estimated rms: {0}".format(rms_est)
+        mask = maskcube._data > snr_thresh*rms_est
+        mask2D = np.logical_and(mask2D, np.any(mask, axis=0))
+        #mask[:,~mask2D] = False
 
-    tot_spec = np.nansum(maskcube._data[:,]*mask2D, axis=(1,2))
+    '''
+    #tot_spec = np.nansum(maskcube._data[:,]*mask2D, axis=(1,2))
+    tot_spec = np.nansum(maskcube._data[:,]*maskcube.get_mask_array(), axis=(1,2))
+
+
+    plt.plot(np.arange(tot_spec.size),tot_spec)
+    plt.show()
 
     idx_peak = np.nanargmax(tot_spec)
     print "peak T_B: {0}".format(np.nanmax(tot_spec))
@@ -526,6 +553,7 @@ def cubefit_gen(cube11name, ncomp=2, paraname = None, modname = None, chisqname 
     if errmap11name is not None:
         errmap11 = fits.getdata(errmap11name)
     else:
+        '''
         # following the GAS recipe to produce error map
         #throw = 2*u.km/u.s + ThisRegion['VRANGE']*u.km/u.s/2
         throw = 2*v_peak_hwidth*u.km/u.s
@@ -536,14 +564,27 @@ def cubefit_gen(cube11name, ncomp=2, paraname = None, modname = None, chisqname 
         a_rms = (np.where(mask != np.roll(mask,1)))[0]
         b_rms = (np.where(mask != np.roll(mask,-1)))[0]
         index_rms=np.hstack(np.arange(start,stop+1) for start, stop in zip(b_rms, a_rms))
+        print "index_rms size: {0}".format(index_rms.size)
         mask_rms=np.zeros(cube.shape, dtype=bool)
         mask_rms[index_rms]  = True
+        print "mask_rms size: {0}".format(mask_rms[mask_rms].size)
         mask_rms = mask_rms & np.isfinite( (cube.unmasked_data[:,:,:]).value )
+        print "mask_rms size: {0}".format(mask_rms[mask_rms].size)
         cube_rms  = cube.with_mask(mask_rms)
         errmap11 = cube_rms.std(axis=0).value
+        '''
+
+        # a quick way to estimate RMS as long as the noise dominates the spectrum by channels
+        errmap11 = mad_std(cube._data, axis=0)
+        print "median rms: {0}".format(np.nanmedian(errmap11))
 
     snr = cube.filled_data[:].value/errmap11
     peaksnr = np.max(snr,axis=0)
+
+    # trim the edges by 3 pixels to guess the location of the peak emission
+    footprint_mask = np.any(np.isfinite(cube._data), axis=0)
+    if footprint_mask.size > 100:
+        footprint_mask = binary_erosion(footprint_mask, disk(3))
 
     # the following function is copied directly from GAS
     def default_masking(snr,snr_min=5.0):
@@ -558,12 +599,22 @@ def cubefit_gen(cube11name, ncomp=2, paraname = None, modname = None, chisqname 
     else:
         planemask = mask_function(peaksnr,snr_min = snr_min)
 
-    mask = (snr>3)*planemask
+    print "planemask size: {0}".format(planemask[planemask].size)
+    mask = (snr>3)*planemask*footprint_mask
+    print "mask size: {0}".format(mask[mask].size)
+
+    import matplotlib.pyplot as plt
+    plt.imshow(mask.any(axis=0), origin='lower')
+    plt.show()
+    plt.clf()
+
     maskcube = cube.with_mask(mask.astype(bool))
     maskcube = maskcube.with_spectral_unit(u.km/u.s,velocity_convention='radio')
 
     m0, m1, m2 = main_hf_moments(maskcube, window_hwidth=v_peak_hwidth)
     m0[np.isnan(m0)] = 0.0 # I'm not sure if this is a good way to get around the sum vs nansum issue
+
+    return maskcube
 
     # refine the window a bit based on the moment maps
     v_median = np.median(m1[np.isfinite(m1)])
@@ -573,10 +624,9 @@ def cubefit_gen(cube11name, ncomp=2, paraname = None, modname = None, chisqname 
     vmin = v_median - v_peak_hwidth
     print "median velocity: {0}".format(v_median)
 
-    # find the location of the peak signal (to determine the first pixel to fit)
+    # find the location of the peak signal (to determine the first pixel to fit if nearest neighbour method is used)
     peakloc = np.nanargmax(m0)
     ymax,xmax = np.unravel_index(peakloc, m0.shape)
-
 
 
     # set the fit parameter limits (consistent with GAS DR1)
