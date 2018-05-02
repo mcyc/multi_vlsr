@@ -2,12 +2,13 @@ __author__ = 'mcychen'
 
 
 #=======================================================================================================================
+import os
 import numpy as np
 import astropy.io.fits as fits
 import FITS_tools
 from astropy import units as u
 from astropy.stats import mad_std
-from skimage.morphology import remove_small_objects,disk,opening # ,binary_erosion, closing
+from skimage.morphology import remove_small_objects, disk, opening, binary_erosion #, closing
 from spectral_cube import SpectralCube
 from radio_beam import Beam
 
@@ -16,7 +17,7 @@ import multi_v_fit as mvf
 
 
 
-#=======================================================================================================================
+
 
 def test():
     workDir = "/Users/mcychen/Documents/Data/GAS_NH3/DRMC_rebase3/L1448"
@@ -26,12 +27,53 @@ def test():
     return convolve_sky_byfactor(cubename, 2, savename)
 
 
-def convolve_sky_byfactor(cube, factor, savename):
+def example():
+
+    dir = "/Users/mcychen/Documents/Data/GAS_NH3/mock_rebase/lowC1_xlowC2"
+    cubename = "{0}/mock_NH3_11_2vcomp_lowC1_xlowC2_cube.fits".format(dir)
+
+    paraDir = "/Users/mcychen/Documents/Data/GAS_NH3/mock_paraMaps/lowC1_xlowC2/"
+    paraname = "{0}/mock_NH3_11_2vcomp_lowC1_xlowC2_parameter_maps_refined.fits".format(paraDir)
+
+    kwargs = {'ncomp':2, 'paraname':paraname, 'modname':None, 'chisqname':None, 'guesses':None, 'errmap11name':None,
+              'multicore':3, 'mask_function':None, 'snr_min':3.0, 'linename':"oneone"}
+
+    pcube = cubefit(cubename, downsampfactor=2, **kwargs)
+    return pcube
+
+
+#=======================================================================================================================
+
+def cubefit(cubename, downsampfactor=2, **kwargs):
+
+    root = "conv{0}Xbeam".format(int(np.rint(downsampfactor)))
+
+    cnv_cubename = "{0}_{1}.fits".format(os.path.splitext(cubename)[0], root)
+    cnv_cube = convolve_sky_byfactor(cubename, downsampfactor, savename=cnv_cubename)
+
+    pcube = mvf.cubefit_gen(cubename, **kwargs)
+
+    # use the fits of the convolved cube as the new guesses
+    guesses = pcube.parcube
+    guesses[guesses == 0] = np.nan
+    del kwargs['guesses']
+    kwargs['modname'] = "{0}_{1}_refined.fits".format(os.path.splitext(cubename)[0], "modelcube")
+    kwargs['paraname'] = "{0}_final.fits".format(os.path.splitext(kwargs['paraname'])[0], "modelcube")
+
+    pcube = mvf.cubefit_gen(cubename, **kwargs)
+    return pcube
+
+#=======================================================================================================================
+
+def convolve_sky_byfactor(cube, factor, savename, edgetrim_width=5):
 
     factor = factor*1.0
 
     if not isinstance(cube, SpectralCube):
         cube = SpectralCube.read(cube)
+
+    if edgetrim_width is not None:
+        cube = edge_trim(cube, trim_width=edgetrim_width)
 
     hdr = cube.header
 
@@ -55,6 +97,8 @@ def convolve_sky_byfactor(cube, factor, savename):
     # regrid the convolved cube
     nhdr = FITS_tools.downsample.downsample_header(hdr, factor=factor, axis=1)
     nhdr = FITS_tools.downsample.downsample_header(nhdr, factor=factor, axis=2)
+    nhdr['NAXIS1'] = int(np.rint(hdr['NAXIS1']/factor))
+    nhdr['NAXIS2'] = int(np.rint(hdr['NAXIS2']/factor))
 
     #ncube_data = FITS_tools.cube_regrid.regrid_cube(cnv_cube._data, hdr, nhdr, preserve_bad_pixels=True)
     newcube = cnv_cube.reproject(nhdr, order='bilinear')
@@ -67,7 +111,7 @@ def convolve_sky_byfactor(cube, factor, savename):
 
 
 #def convolve_sky(cube, beamsize, savename=None, beamunit=u.arcsec, snrmasked = True):
-def convolve_sky(cube, beam, snrmasked = True):
+def convolve_sky(cube, beam, snrmasked = True, iterrefine= True):
 
     if not isinstance(cube, SpectralCube):
         cube = SpectralCube.read(cube)
@@ -82,13 +126,15 @@ def convolve_sky(cube, beam, snrmasked = True):
 
     cnv_cube=maskcube.convolve_to(beam)
 
+    if iterrefine:
+        # use the convolved cube for new masking
+        planemask = snr_mask(cnv_cube, snr_min=3.0)
+        mask = np.isfinite(cube._data)*planemask
+        maskcube = cube.with_mask(mask.astype(bool))
+        cnv_cube=maskcube.convolve_to(beam)
+
     return cnv_cube
 
-
-
-def cubefit(cubename):
-    pcube = mvf.cubefit_gen(cubename, ncomp=2, paraname = None, modname = None, chisqname = None, guesses = None, errmap11name = None,
-            multicore = 1, mask_function = None, snr_min=3.0, linename="oneone")
 
 
 def snr_mask(cube, snr_min=3.0, errmappath=None):
@@ -114,5 +160,16 @@ def snr_mask(cube, snr_min=3.0, errmappath=None):
     planemask = default_masking(peaksnr,snr_min=snr_min)
 
     return planemask
+
+
+def edge_trim(cube, trim_width = 3):
+    # trim the edges by N pixels to guess the location of the peak emission
+
+    mask = np.any(np.isfinite(cube._data), axis=0)
+    if mask.size > 100:
+        mask = binary_erosion(mask, disk(trim_width))
+    mask = np.isfinite(cube._data)*mask
+
+    return cube.with_mask(mask.astype(bool))
 
 
