@@ -8,16 +8,22 @@ import astropy.io.fits as fits
 import FITS_tools
 from astropy import units as u
 from astropy.stats import mad_std
-from skimage.morphology import remove_small_objects, disk, opening, binary_erosion #, closing
+from skimage.morphology import remove_small_objects, disk, opening, binary_erosion, dilation, remove_small_holes
 from spectral_cube import SpectralCube
 from radio_beam import Beam
+from reproject import reproject_interp
+from astropy.wcs import WCS
 
+
+from scipy.ndimage.filters import median_filter
+from scipy.interpolate import CloughTocher2DInterpolator as intp
+from scipy.interpolate import griddata
+from FITS_tools.hcongrid import get_pixel_mapping
 
 import multi_v_fit as mvf
+reload(mvf)
 
-
-
-
+#=======================================================================================================================
 
 def test():
     workDir = "/Users/mcychen/Documents/Data/GAS_NH3/DRMC_rebase3/L1448"
@@ -48,19 +54,96 @@ def cubefit(cubename, downsampfactor=2, **kwargs):
 
     root = "conv{0}Xbeam".format(int(np.rint(downsampfactor)))
 
-    cnv_cubename = "{0}_{1}.fits".format(os.path.splitext(cubename)[0], root)
-    cnv_cube = convolve_sky_byfactor(cubename, downsampfactor, savename=cnv_cubename)
+    if not 'conv_paraname' in kwargs:
+        cnv_cubename = "{0}_{1}.fits".format(os.path.splitext(cubename)[0], root)
 
-    pcube = mvf.cubefit_gen(cubename, **kwargs)
+        cnv_cube = convolve_sky_byfactor(cubename, downsampfactor, savename=cnv_cubename, edgetrim_width=None)
 
-    # use the fits of the convolved cube as the new guesses
-    guesses = pcube.parcube
+        # use the mask of the convolved cube as the mask in which fits will be performed
+        mask=cnv_cube.get_mask_array()
+        def blank_mask(snr, snr_min=5.0):
+            planemask = mask
+            return(planemask)
+
+        #kwargs['mask_function']=blank_mask
+
+        # adopt the final kwarg to the convolved fitting
+        kwargs_cnv = kwargs.copy()
+        kwargs_cnv['paraname'] = "{0}_cnv.fits".format(os.path.splitext(kwargs['paraname'])[0], "parameter_maps")
+
+        cnv_pcube = mvf.cubefit_gen(cnv_cubename, **kwargs_cnv)
+        # using cnv_pcube directory seem to cause problems that I have yet to identify the roots
+        print "cnv pcube.parcube has shape of: {0}".format(cnv_pcube.parcube.shape)
+        guesses, gg_hdr = fits.getdata(kwargs_cnv['paraname'], header=True)
+
+    else:
+        guesses, gg_hdr = fits.getdata(kwargs['conv_paraname'], header=True)
+        # to make kwargs compitable with mvf.cubefit_gen()
+        del kwargs['conv_paraname']
+
+    npara = 4
+    ncomp = int(guesses.shape[0]/npara)/2
+
+    hdr_conv = get_celestial_hdr(gg_hdr)
     guesses[guesses == 0] = np.nan
-    del kwargs['guesses']
-    kwargs['modname'] = "{0}_{1}_refined.fits".format(os.path.splitext(cubename)[0], "modelcube")
-    kwargs['paraname'] = "{0}_final.fits".format(os.path.splitext(kwargs['paraname'])[0], "modelcube")
+    guesses = guesses[0:npara*ncomp]
+
+    mmask = master_mask(guesses)
+    #mmask = np.ones(guesses[0].shape, dtype=bool)
+
+    def refine_each_comp(guess_comp, mask):
+        Tex_min = 3.0
+        Tex_max = 10.0
+        Tau_min = 0.01
+        Tau_max = 10.0
+        guess_comp[0] = refine_guess(guess_comp[0], min=None, max=None, mask=mask, disksize=downsampfactor)
+        guess_comp[1] = refine_guess(guess_comp[1], min=None, max=None, mask=mask, disksize=downsampfactor)
+        # place a more "strict" limits for Tex and Tau guessing than the fitting itself
+        guess_comp[2] = refine_guess(guess_comp[2], min=Tex_min, max=Tex_max, mask=mask, disksize=downsampfactor)
+        guess_comp[3] = refine_guess(guess_comp[3], min=Tau_min, max=Tau_max, mask=mask, disksize=downsampfactor)
+        return guess_comp
+
+    for i in range (0, ncomp):
+        guesses[i*npara:i*npara+npara] = refine_each_comp(guesses[i*npara:i*npara+npara], mmask)
+
+    # regrid the guess back to that of the original data
+    cube_hdr = fits.getheader(cubename)
+    hdr_final = get_celestial_hdr(cube_hdr)
+
+    guesses_final = []
+    for gss in guesses:
+        guesses_final.append(regrid(gss, hdr_conv, hdr_final, dmask=None))
+    kwargs['guesses'] = np.array(guesses_final)
+
+    # make the **kwargs comptiable with mvf.cubefit_gen(), i.e., remove parameter that are only specific to this method
+    kwargs['modname'] = "{0}_{1}_iter.fits".format(os.path.splitext(cubename)[0], "modelcube")
+    kwargs['paraname'] = "{0}_iter.fits".format(os.path.splitext(kwargs['paraname'])[0], "parameter_maps")
 
     pcube = mvf.cubefit_gen(cubename, **kwargs)
+    return None
+
+    # write the fitted parameters into a fits file
+    save_pcube(pcube, kwargs['paraname'], ncomp=ncomp)
+    '''
+    if kwargs['paraname'] != None:
+        hdr_new = pcube.header
+        for i in range (0, ncomp):
+            hdr_new['PLANE{0}'.format(ncomp +1)] = 'VELOCITY_{1}'.format(ncomp)
+            hdr_new['PLANE{0}'.format(ncomp +2)] = 'SIGMA_{1}'.format(ncomp)
+            hdr_new['PLANE{0}'.format(ncomp +3)] = 'TEX_{1}'.format(ncomp)
+            hdr_new['PLANE{0}'.format(ncomp +4)] = 'TAU_{1}'.format(ncomp)
+            hdr_new['PLANE{0}'.format(ncomp +5)] = 'eVELOCITY_{1}'.format(ncomp)
+            hdr_new['PLANE{0}'.format(ncomp +6)] = 'eSIGMA_{1}'.format(ncomp)
+            hdr_new['PLANE{0}'.format(ncomp +7)] = 'eTEX_{1}'.format(ncomp)
+            hdr_new['PLANE{0}'.format(ncomp +8)] = 'eTAU_{1}'.format(ncomp)
+        hdr_new['CDELT3']= 1
+        hdr_new['CTYPE3']= 'FITPAR'
+        hdr_new['CRVAL3']= 0
+        hdr_new['CRPIX3']= 1
+
+        fitcubefile = fits.PrimaryHDU(data=np.concatenate([pcube.parcube,pcube.errcube]), header=hdr_new)
+        fitcubefile.writeto(kwargs['paraname'] ,overwrite=True)
+    '''
     return pcube
 
 #=======================================================================================================================
@@ -136,7 +219,6 @@ def convolve_sky(cube, beam, snrmasked = True, iterrefine= True):
     return cnv_cube
 
 
-
 def snr_mask(cube, snr_min=3.0, errmappath=None):
 
     if errmappath is not None:
@@ -173,3 +255,89 @@ def edge_trim(cube, trim_width = 3):
     return cube.with_mask(mask.astype(bool))
 
 
+def master_mask(pcube):
+    mask = np.any(np.isfinite(pcube), axis=0)
+    mask = remove_small_objects(mask, min_size=9)
+    mask = dilation(mask, disk(1))
+    mask = remove_small_holes(mask, 9)
+    return mask
+
+
+def refine_guess(map, min=None, max=None, mask=None, disksize=2):
+    # refine parameter maps by outlier-fitering, masking, and interpolating
+    map = map.copy()
+
+    if min is not None:
+        map[map<min] = np.nan
+    if max is not None:
+        map[map>max] = np.nan
+
+    #map = median_filter(map, footprint=disk(1.75), mode="nearest")
+    map = median_filter(map, footprint=disk(disksize))
+
+    if mask is None:
+        mask = np.isfinite(map)
+        # remove small objects
+        mask = remove_small_objects(mask,min_size=5)
+        # dilate the footprint a bit
+        mask = dilation(mask, disk(1))
+
+    # interpolate over the dmask footprint
+
+    xline = np.arange(map.shape[1])
+    yline = np.arange(map.shape[0])
+    X,Y = np.meshgrid(xline, yline)
+    itpmask = np.isfinite(map)
+    C = intp((X[itpmask],Y[itpmask]), map[itpmask])
+
+    # interpolate over the dmask footprint
+    zi = C(X*mask,Y*mask)
+
+    return zi
+
+
+
+def regrid(image, header1, header2, dmask=None):
+    # similar to hcongrid from FITS_tools, but uses scipy.interpolate.griddata to interpolate over nan values
+    grid1 = get_pixel_mapping(header1, header2)
+
+    xline = np.arange(image.shape[1])
+    yline = np.arange(image.shape[0])
+    X,Y = np.meshgrid(xline, yline)
+
+    mask = np.isfinite(image)
+
+    if dmask is None:
+        dmask = np.ones(grid1[0].shape, dtype=bool)
+
+    return griddata((X[mask],Y[mask]), image[mask], (grid1[1]*dmask, grid1[0]*dmask), method='cubic', fill_value=np.nan)
+
+
+
+def get_celestial_hdr(header):
+    new_hdr = WCS(header).celestial.to_header()
+    new_hdr['NAXIS1'] = header['NAXIS1']
+    new_hdr['NAXIS2'] = header['NAXIS2']
+    return new_hdr
+
+
+def save_pcube(pcube, savename, ncomp=2):
+    #npara = 4
+    #ncomp = int(pcube.data.shape[0]/npara)
+    hdr_new = pcube.header
+    for i in range (0, ncomp):
+        hdr_new['PLANE{0}'.format(ncomp +1)] = 'VELOCITY_{0}'.format(ncomp)
+        hdr_new['PLANE{0}'.format(ncomp +2)] = 'SIGMA_{0}'.format(ncomp)
+        hdr_new['PLANE{0}'.format(ncomp +3)] = 'TEX_{0}'.format(ncomp)
+        hdr_new['PLANE{0}'.format(ncomp +4)] = 'TAU_{0}'.format(ncomp)
+        hdr_new['PLANE{0}'.format(ncomp +5)] = 'eVELOCITY_{0}'.format(ncomp)
+        hdr_new['PLANE{0}'.format(ncomp +6)] = 'eSIGMA_{0}'.format(ncomp)
+        hdr_new['PLANE{0}'.format(ncomp +7)] = 'eTEX_{0}'.format(ncomp)
+        hdr_new['PLANE{0}'.format(ncomp +8)] = 'eTAU_{0}'.format(ncomp)
+    hdr_new['CDELT3']= 1
+    hdr_new['CTYPE3']= 'FITPAR'
+    hdr_new['CRVAL3']= 0
+    hdr_new['CRPIX3']= 1
+
+    fitcubefile = fits.PrimaryHDU(data=np.concatenate([pcube.parcube,pcube.errcube]), header=hdr_new)
+    fitcubefile.writeto(savename ,overwrite=True)

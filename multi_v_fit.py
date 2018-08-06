@@ -284,8 +284,8 @@ def main_hf_moments(maskcube, window_hwidth, snr_thresh=None):
     tot_spec = np.nansum(maskcube._data[:,]*maskcube.get_mask_array(), axis=(1,2))
 
 
-    plt.plot(np.arange(tot_spec.size),tot_spec)
-    plt.show()
+    #plt.plot(np.arange(tot_spec.size),tot_spec)
+    #plt.show()
 
     idx_peak = np.nanargmax(tot_spec)
     print "peak T_B: {0}".format(np.nanmax(tot_spec))
@@ -599,14 +599,16 @@ def cubefit_gen(cube11name, ncomp=2, paraname = None, modname = None, chisqname 
     else:
         planemask = mask_function(peaksnr,snr_min = snr_min)
 
-    print "planemask size: {0}".format(planemask[planemask].size)
-    mask = (snr>3)*planemask*footprint_mask
-    print "mask size: {0}".format(mask[mask].size)
+    print "planemask size: {0}, shape: {1}".format(planemask[planemask].size, planemask.shape)
+    mask = (snr>3)*planemask#*footprint_mask
+    print "mask size: {0}, shape: {1}".format(mask[mask].size, mask.shape)
 
+    '''
     import matplotlib.pyplot as plt
     plt.imshow(mask.any(axis=0), origin='lower')
     plt.show()
     plt.clf()
+    '''
 
     maskcube = cube.with_mask(mask.astype(bool))
     maskcube = maskcube.with_spectral_unit(u.km/u.s,velocity_convention='radio')
@@ -614,7 +616,7 @@ def cubefit_gen(cube11name, ncomp=2, paraname = None, modname = None, chisqname 
     m0, m1, m2 = main_hf_moments(maskcube, window_hwidth=v_peak_hwidth)
     m0[np.isnan(m0)] = 0.0 # I'm not sure if this is a good way to get around the sum vs nansum issue
 
-    return maskcube
+    #return maskcube
 
     # refine the window a bit based on the moment maps
     v_median = np.median(m1[np.isfinite(m1)])
@@ -652,6 +654,7 @@ def cubefit_gen(cube11name, ncomp=2, paraname = None, modname = None, chisqname 
         guesses[:,~has_sigm] = gg[:,~has_sigm]
         has_v = guesses[0] != 0.0
         guesses[:,~has_v] = gg[:,~has_v]
+        print "user provided guesses accepted"
 
     # The guesses should be fine in the first case, but just in case, make sure the guesses are confined within the
     # appropriate limits
