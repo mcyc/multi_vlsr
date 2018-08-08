@@ -3,6 +3,10 @@ __author__ = 'mcychen'
 import sys, os
 # add the parent directory to the paths
 sys.path.insert(1, os.path.join(sys.path[0], '..'))
+import astropy.io.fits as fits
+import numpy as np
+import matplotlib.pyplot as plt
+from astropy.stats import mad_std
 
 import multi_v_fit as mvf
 reload(mvf)
@@ -13,10 +17,32 @@ import test_multiv as testmv
 #=======================================================================================================================
 
 def do():
-    l1 = "oneone"
-    kwarg = {'version':'lowC1_xlowC2', 'SNR1':'low', 'SNR2':'xlow'}
-    run(l1, **kwarg)
+    if False:
+        l1 = "oneone"
+        kwarg = {'version':'lowC1_xlowC2', 'SNR1':'low', 'SNR2':'xlow'}
+        run(l1, **kwarg)
 
+
+    if True:
+        l1 = "oneone"
+        #l2 = "twotwo"
+
+        kwarg = {'version':'lowC1_xxlowC2', 'SNR1':'low', 'SNR2':'xxlow'}
+        run(l1, **kwarg)
+        kwarg = {'version':'medC1_lowC2', 'SNR1':'med', 'SNR2':'low'}
+        run(l1, **kwarg)
+        kwarg = {'version':'medC1_xlowC2', 'SNR1':'med', 'SNR2':'xlow'}
+        run(l1, **kwarg)
+
+    if False:
+        kwarg = {'version':'highC1_medC2', 'SNR1':'high', 'SNR2':'med'}
+        run(l1, **kwarg)
+
+    if False:
+        kwarg = {'version':'lowC1_lowC2', 'SNR1':'low', 'SNR2':'low'}
+        run(l1, **kwarg)
+        kwarg = {'version':'medC1_medC2', 'SNR1':'med', 'SNR2':'med'}
+        run(l1, **kwarg)
 
 def run(linename="oneone", version = "medC1_lowC2", SNR1="med", SNR2="low"):
 
@@ -65,7 +91,7 @@ def run(linename="oneone", version = "medC1_lowC2", SNR1="med", SNR2="low"):
         #paraname = "{0}/mock_NH3_11_2vcomp_lowC1_xlowC2_parameter_maps_refined.fits".format(paraDir)
 
         # supply the fitted parameter to the convovled cube
-        if True:
+        if False:
             # if the convolved paramter already excited,
             conv_paraname = "{0}_refined.fits".format(os.path.splitext(paraname)[0], "parameter_maps")
             kwargs = {'ncomp':2, 'paraname':paraname, 'modname':None, 'chisqname':None, 'guesses':None, 'errmap11name':None,
@@ -80,9 +106,182 @@ def run(linename="oneone", version = "medC1_lowC2", SNR1="med", SNR2="low"):
         pcube = itf.cubefit(cubename, downsampfactor=2, **kwargs)
 
     if False:
+        print paraname
+        print realparaname
         figDir = "{0}/figures".format(paraDir)
+
         if not os.path.exists(figDir):
             os.makedirs(figDir)
-        testmv.plot_vel_fit_accuracy(realparaname, paraname, saveFigDir=figDir, saveFigRoot="NH3_{0}".format(line_root))
+        itername = "{0}_iter.fits".format(os.path.splitext(paraname)[0], "parameter_maps")
+        plot_vel_fit_accuracy(realparaname, paraname, itername, saveFigDir=figDir, saveFigRoot="NH3_{0}".format(line_root))
 
     return None
+
+
+#=======================================================================================================================
+
+def plot_vel_fit_accuracy(name_realp, name_fitp, name_itrfit, saveFigDir="",  saveFigRoot=""):
+
+    para_rl, hdr_rl = fits.getdata(name_realp, header=True)
+    para_ft, hdr_ft = fits.getdata(name_fitp, header=True)
+    para_itr, hdr_itr = fits.getdata(name_itrfit, header=True)
+
+    # remove the failed fits
+    para_ft[para_ft == 0.0] = np.nan
+    para_itr[para_itr == 0.0] = np.nan
+
+
+    '''
+    # if the first component model fits the real second component better, swap it with the second component
+    # note: this may be an issue for cases where two components have a very similar velocity
+    swap = np.abs(para_ft[0] - para_rl[2]) < np.abs(para_ft[4] - para_rl[2])
+    # note: check to see if the following operation does "overide" parts of the information
+    para_ft[:4][:,swap], para_ft[4:8][:,swap]  = para_ft[4:8][:,swap], para_ft[:4][:,swap]
+    '''
+
+    # plot the 'real' error of the second component fit
+
+    if False:
+        # the fit error vs "real" error
+        plt.clf()
+        plt.scatter(para_ft[12], np.abs(para_ft[4] - para_rl[2]), s=3)
+        plt.xlabel("fits error")
+        plt.ylabel("real error")
+
+    if False:
+        # accuracy of the vlsr fit vs. vlsr seperation from the bright component
+        plt.clf()
+        plt.scatter(para_rl[2], para_ft[4] - para_rl[2], s=3)
+        plt.xlabel(r"$\Delta$v$_{lsr}$ between the two components (km s$^{-1}$)")
+        plt.ylabel(r"Fit and actual v$_{lsr}$ difference (km s$^{-1}$)")
+        plt.savefig("{0}/{1}_vlsrErr_vs_deltaV_scatter.pdf".format(saveFigDir, saveFigRoot))
+
+    if False:
+        # accuracy of the vlsr fit vs. vlsr seperation from the bright component
+        plt.clf()
+        plt.scatter(para_rl[3], para_ft[4] - para_rl[2], s=3)
+        plt.xlabel(r"Second Component $\sigma_{v}$ (km s$^{-1}$)")
+        plt.ylabel(r"Difference between fit and actual v$_{lsr}$ (km s$^{-1}$)")
+        plt.savefig("{0}/{1}_vlsrErr_vs_deltaSigma_scatter.pdf".format(saveFigDir, saveFigRoot))
+
+    if False:
+        # plot the histogram of the fit errors
+        plt.clf()
+        plt.hist((para_ft[0] - para_rl[0]).ravel(), 50, range=(-0.4,0.4), normed=False, histtype = "stepfilled", color="0.75")
+        plt.hist((para_ft[4] - para_rl[2]).ravel(), 50, range=(-0.4,0.4), normed=False, histtype = "step")
+        plt.legend(["rear component","front component"], frameon=False)
+        plt.ylabel("Number of pixels")
+        plt.xlabel(r"Difference between fit and actual v$_{lsr}$ (km s$^{-1}$)")
+        plt.savefig("{0}/{1}_vlsrErr_histo.pdf".format(saveFigDir, saveFigRoot))
+
+    if False:
+        # plot the histogram of the fit errors relative to the estimated errors
+
+        plt.clf()
+        diff1 = (para_ft[0] - para_rl[0])/para_ft[8]
+        diff2 = (para_ft[4] - para_rl[2])/para_ft[12]
+        plt.hist(diff1.ravel(), 50, range=(-5,5), normed=False, histtype = "step")
+        #plt.hist(diff2.ravel(), 50, range=(-5,5), normed=False, histtype = "step")
+
+        #plt.clf()
+        diff_itr1 = (para_itr[0] - para_rl[0])/para_itr[8]
+        diff_itr2 = (para_itr[4] - para_rl[2])/para_itr[12]
+        plt.hist(diff_itr1.ravel(), 50, range=(-5,5), normed=False, histtype = "step")
+        #plt.hist(diff_itr2.ravel(), 50, range=(-5,5), normed=False, histtype = "step")
+
+        plt.legend(["rear component","front component"], frameon=False)
+        plt.title("Accuracy in the 1,1 fits")
+        plt.ylabel("Number of pixels")
+        plt.xlabel(r"Difference between fit and actual v$_{lsr}$ over the estimated error")
+        plt.savefig("{0}/{1}_vlsrErrRelEst_histo_iter.pdf".format(saveFigDir, saveFigRoot))
+
+
+    if True:
+        # default matplotlib colors
+        cBlue = "#1f77b4"
+        cOrng = "#ff7f0e"
+        hRg = (-0.2,0.2)
+        numbin = 30
+
+        diff1 = (para_ft[0] - para_rl[0]).ravel()
+        diff2 = (para_ft[4] - para_rl[2]).ravel()
+        diff_itr1 = (para_itr[0] - para_rl[0]).ravel()
+        diff_itr2 = (para_itr[4] - para_rl[2]).ravel()
+
+        # histogram comparison between the relative error of the regular fit vs. absolute fit
+        plt.clf()
+        plt.hist(diff1, numbin, range=hRg, histtype="stepfilled", alpha=0.5, color=cBlue)
+        plt.hist(diff2, numbin, range=hRg, histtype="stepfilled", alpha=0.5, color=cOrng)
+        plt.hist(diff_itr1, numbin, range=hRg, histtype="step",  color=cBlue)
+        plt.hist(diff_itr2, numbin, range=hRg, histtype="step", color=cOrng)
+        #diff_itr1 = (para_itr[0] - para_rl[0])/para_itr[8]
+        #diff_itr2 = (para_itr[4] - para_rl[2])/para_itr[12]
+
+        rdigit = 3
+        lgnd1 = "reg. rear; $\sigma_{mad} = $" + str(np.round(mad_std(diff1[np.isfinite(diff1)]),rdigit))
+        lgnd2 = "reg. front; $\sigma_{mad} = $" + str(np.round(mad_std(diff2[np.isfinite(diff2)]),rdigit))
+        lgnd3 = "iter. rear; $\sigma_{mad} = $" + str(np.round(mad_std(diff_itr1[np.isfinite(diff_itr1)]),rdigit))
+        lgnd4 = "iter. front; $\sigma_{mad} = $" + str(np.round(mad_std(diff_itr2[np.isfinite(diff_itr2)]),rdigit))
+
+        plt.legend([lgnd1, lgnd2, lgnd3, lgnd4], frameon=False)
+        plt.ylabel("Number of pixels")
+        plt.xlabel(r"v$_{lsr}$ fit accuracy (km s$^{-1}$)")
+        plt.savefig("{0}/{1}_vlsrErr_histo_iter.pdf".format(saveFigDir, saveFigRoot))
+
+    if False:
+        # KDE comparison between the relative error of the regular fit vs. absolute fit
+
+        # relative accuracy from regular fitting
+        diff1 = (para_ft[0] - para_rl[0])/para_ft[8]
+        diff2 = (para_ft[4] - para_rl[2])/para_ft[12]
+        diff1 = diff1[np.isfinite(diff1)].ravel()
+        diff2 = diff2[np.isfinite(diff2)].ravel()
+
+        # relative accuracy from the iterative fitting
+        diff_itr1 = (para_itr[0] - para_rl[0])/para_itr[8]
+        diff_itr2 = (para_itr[4] - para_rl[2])/para_itr[12]
+
+        diff_itr1 = diff_itr1[np.isfinite(diff_itr1)].ravel()
+        diff_itr2 = diff_itr2[np.isfinite(diff_itr2)].ravel()
+
+        numbin = 50
+        uplim = 5
+        lowlim = -5
+        bins = np.linspace(lowlim, uplim, numbin)
+
+        plt.clf()
+        plot_kde(diff1, bins)
+        plot_kde(diff_itr1, bins)
+        legend_1 = "reg. fit; $\sigma_{MAD} = $" + str(np.round(mad_std(diff1), 2))
+        legend_2 = "iter. fit; $\sigma_{MAD} = $" + str(np.round(mad_std(diff_itr1), 2))
+        plt.legend([legend_1,legend_2], frameon=False)
+        plt.axvspan(-1, 1, alpha=0.5, color='0.75')
+        plt.title("Accuracy in the 1,1 fits relative to the estimated errors")
+        plt.ylabel("Fraction of pixels")
+        plt.xlabel(r"Difference between fit and actual v$_{lsr}$ over the estimated error")
+        plt.savefig("{0}/{1}_vlsrErrRelEst_kde_iter_frontComp.pdf".format(saveFigDir, saveFigRoot))
+
+        plt.clf()
+        plot_kde(diff2, bins)
+        plot_kde(diff_itr2, bins)
+        legend_1 = "reg. fit; $\sigma_{MAD} = $" + str(np.round(mad_std(diff2), 2))
+        legend_2 = "iter. fit; $\sigma_{MAD} = $" + str(np.round(mad_std(diff_itr2), 2))
+        plt.legend([legend_1, legend_2], frameon=False)
+        #plt.axvline(x=1.1775, linestyle='--', color="0.75")
+        #plt.axvline(x=-1.1775, linestyle='--', color="0.75")
+        plt.axvspan(-1, 1, alpha=0.5, color='0.75')
+        plt.title("Accuracy in the 1,1 fits relative to the estimated errors")
+        plt.ylabel("Fraction of pixels")
+        plt.xlabel(r"Difference between fit and actual v$_{lsr}$ over the estimated error")
+        plt.savefig("{0}/{1}_vlsrErrRelEst_kde_iter_backComp.pdf".format(saveFigDir, saveFigRoot))
+
+
+
+
+def plot_kde(x, bins, **kwargs):
+    from sklearn.neighbors import KernelDensity
+    binwidth = bins[1] - bins[0]
+    X_plot = np.linspace(bins.min(), bins.max(), 1000)[:, np.newaxis]
+    kde = KernelDensity(kernel='gaussian', bandwidth=binwidth*2).fit(np.reshape(x,(x.shape[0],1)))
+    log_dens = kde.score_samples(X_plot)
+    plt.plot(X_plot[:, 0], np.exp(log_dens), **kwargs)
