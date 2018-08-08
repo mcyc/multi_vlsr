@@ -27,11 +27,16 @@ def do():
         l1 = "oneone"
         #l2 = "twotwo"
 
-        kwarg = {'version':'lowC1_xxlowC2', 'SNR1':'low', 'SNR2':'xxlow'}
-        run(l1, **kwarg)
         kwarg = {'version':'medC1_lowC2', 'SNR1':'med', 'SNR2':'low'}
+        testmv.run(l1, **kwarg)
         run(l1, **kwarg)
+
+        kwarg = {'version':'lowC1_xxlowC2', 'SNR1':'low', 'SNR2':'xxlow'}
+        testmv.run(l1, **kwarg)
+        run(l1, **kwarg)
+
         kwarg = {'version':'medC1_xlowC2', 'SNR1':'med', 'SNR2':'xlow'}
+        testmv.run(l1, **kwarg)
         run(l1, **kwarg)
 
     if False:
@@ -70,11 +75,11 @@ def run(linename="oneone", version = "medC1_lowC2", SNR1="med", SNR2="low"):
     if False:
         # make a fake cube for testing
         if linename == "oneone":
-            tex1, tau1 = itf.mock_textau_11(SNR=SNR1)
-            tex2, tau2 = itf.mock_textau_11(SNR=SNR2)
+            tex1, tau1 = testmv.mock_textau_11(SNR=SNR1)
+            tex2, tau2 = testmv.mock_textau_11(SNR=SNR2)
         elif linename == "twotwo":
-            tex1, tau1 = itf.mock_textau_22(SNR=SNR1)
-            tex2, tau2 = itf.mock_textau_22(SNR=SNR2)
+            tex1, tau1 = testmv.mock_textau_22(SNR=SNR1)
+            tex2, tau2 = testmv.mock_textau_22(SNR=SNR2)
         # generate a fake cube
         kwarg = {'tex1':tex1, 'tau1':tau1, 'tex2':tex2, 'tau2':tau2}
         testmv.fake_cube(fname = cubename, paraname = realparaname, linename = linename, **kwarg)
