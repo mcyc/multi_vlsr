@@ -648,9 +648,9 @@ def cubefit_gen(cube11name, ncomp=2, paraname = None, modname = None, chisqname 
         guesses = gg
 
     else:
-        # fill in the blanks in the 'guesses'
+        # fill in the blanks in the 'guesses,' accepting any finite values with a linewidth above the given threshold
         # (the two sets of operations below may be a little redundant, but better be safe than sorry I guess)
-        has_sigm = guesses[1] > sigmin  + eps
+        has_sigm = np.logical_and(guesses[1] > sigmin  + eps, np.all(np.isfinite(guesses), axis=0))
         guesses[:,~has_sigm] = gg[:,~has_sigm]
         has_v = guesses[0] != 0.0
         guesses[:,~has_v] = gg[:,~has_v]
