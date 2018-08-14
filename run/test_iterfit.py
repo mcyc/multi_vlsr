@@ -17,39 +17,53 @@ import test_multiv as testmv
 #=======================================================================================================================
 
 def do():
+    l1 = "oneone"
+    #l2 = "twotwo"
+
     if False:
-        l1 = "oneone"
-        kwarg = {'version':'lowC1_xlowC2', 'SNR1':'low', 'SNR2':'xlow'}
+        kwarg = {'version':'medC1_xlowC2', 'SNR1':'med', 'SNR2':'xlow'}
+        #testmv.run(l1, **kwarg)
         run(l1, **kwarg)
 
-
-    if True:
-        l1 = "oneone"
-        #l2 = "twotwo"
-
-        kwarg = {'version':'medC1_lowC2', 'SNR1':'med', 'SNR2':'low'}
-        testmv.run(l1, **kwarg)
+        kwarg = {'version':'lowC1_xlowC2', 'SNR1':'low', 'SNR2':'xlow'}
+        #testmv.run(l1, **kwarg)
         run(l1, **kwarg)
 
         kwarg = {'version':'lowC1_xxlowC2', 'SNR1':'low', 'SNR2':'xxlow'}
+        #testmv.run(l1, **kwarg)
+        run(l1, **kwarg)
+
+        kwarg = {'version':'medC1_lowC2', 'SNR1':'med', 'SNR2':'low'}
+        #testmv.run(l1, **kwarg)
+        run(l1, **kwarg)
+
+    if True:
+        kwarg = {'version':'medC1_xxlowC2', 'SNR1':'med', 'SNR2':'xxlow'}
         testmv.run(l1, **kwarg)
         run(l1, **kwarg)
 
-        kwarg = {'version':'medC1_xlowC2', 'SNR1':'med', 'SNR2':'xlow'}
-        testmv.run(l1, **kwarg)
-        run(l1, **kwarg)
-
-    if False:
-        kwarg = {'version':'highC1_medC2', 'SNR1':'high', 'SNR2':'med'}
-        run(l1, **kwarg)
-
-    if False:
         kwarg = {'version':'lowC1_lowC2', 'SNR1':'low', 'SNR2':'low'}
-        run(l1, **kwarg)
-        kwarg = {'version':'medC1_medC2', 'SNR1':'med', 'SNR2':'med'}
+        testmv.run(l1, **kwarg)
         run(l1, **kwarg)
 
-def run(linename="oneone", version = "medC1_lowC2", SNR1="med", SNR2="low"):
+        kwarg = {'version':'medC1_medC2', 'SNR1':'med', 'SNR2':'med'}
+        testmv.run(l1, **kwarg)
+        run(l1, **kwarg)
+
+    if True:
+        kwarg = {'version':'highC1_lowC2', 'SNR1':'high', 'SNR2':'low'}
+        testmv.run(l1, **kwarg)
+        run(l1, **kwarg)
+
+    if True:
+        kwarg = {'version':'highC1_medC2', 'SNR1':'high', 'SNR2':'med'}
+        testmv.run(l1, **kwarg)
+        run(l1, **kwarg)
+
+
+
+
+def run(linename="oneone", version = "medC1_lowC2", SNR1="med", SNR2="low", makeMockCube=False):
 
     baseDir = "/Users/mcychen/Documents/Data/GAS_NH3"
 
@@ -72,7 +86,7 @@ def run(linename="oneone", version = "medC1_lowC2", SNR1="med", SNR2="low"):
     realparaname = "{0}/mock_NH3_{1}_2vcomp_{2}_trueparameter_maps.fits".format(paraDir, line_root, version)
     peakname = "{0}/mock_NH3_{1}_2vcomp_{2}_peaktemps.fits".format(cubeDir, line_root, version)
 
-    if False:
+    if makeMockCube:
         # make a fake cube for testing
         if linename == "oneone":
             tex1, tau1 = testmv.mock_textau_11(SNR=SNR1)
@@ -88,17 +102,11 @@ def run(linename="oneone", version = "medC1_lowC2", SNR1="med", SNR2="low"):
     modname = "{0}/mock_NH3_{1}_2vcomp_{2}_modelcube.fits".format(cubeDir, line_root, version)
 
     if True:
-
-        #dir = "/Users/mcychen/Documents/Data/GAS_NH3/mock_rebase/lowC1_xlowC2"
-        #cubename = "{0}/mock_NH3_11_2vcomp_lowC1_xlowC2_cube.fits".format(dir)
-
-        #paraDir = "/Users/mcychen/Documents/Data/GAS_NH3/mock_paraMaps/lowC1_xlowC2/"
-        #paraname = "{0}/mock_NH3_11_2vcomp_lowC1_xlowC2_parameter_maps_refined.fits".format(paraDir)
-
+    # run the fitting routine
         # supply the fitted parameter to the convovled cube
         if False:
             # if the convolved paramter already excited,
-            conv_paraname = "{0}_refined.fits".format(os.path.splitext(paraname)[0], "parameter_maps")
+            conv_paraname = "{0}_cnv.fits".format(os.path.splitext(paraname)[0], "parameter_maps")
             kwargs = {'ncomp':2, 'paraname':paraname, 'modname':None, 'chisqname':None, 'guesses':None, 'errmap11name':None,
                   'multicore':3, 'mask_function':None, 'snr_min':3.0, 'linename':"oneone", 'conv_paraname':conv_paraname}
 
@@ -110,7 +118,7 @@ def run(linename="oneone", version = "medC1_lowC2", SNR1="med", SNR2="low"):
         # fit the fake cube with 2 velocity component models, iteratively
         pcube = itf.cubefit(cubename, downsampfactor=2, **kwargs)
 
-    if False:
+    if True:
         print paraname
         print realparaname
         figDir = "{0}/figures".format(paraDir)
@@ -198,10 +206,11 @@ def plot_vel_fit_accuracy(name_realp, name_fitp, name_itrfit, saveFigDir="",  sa
         plt.title("Accuracy in the 1,1 fits")
         plt.ylabel("Number of pixels")
         plt.xlabel(r"Difference between fit and actual v$_{lsr}$ over the estimated error")
-        plt.savefig("{0}/{1}_vlsrErrRelEst_histo_iter.pdf".format(saveFigDir, saveFigRoot))
+        plt.savefig("{0}/{1}_vlsrErrRelEst_histo_iter2.pdf".format(saveFigDir, saveFigRoot))
 
 
     if True:
+        # histogram comparison between relative error of the regular fit vs. absolute fit
         # default matplotlib colors
         cBlue = "#1f77b4"
         cOrng = "#ff7f0e"
@@ -228,12 +237,18 @@ def plot_vel_fit_accuracy(name_realp, name_fitp, name_itrfit, saveFigDir="",  sa
         lgnd3 = "iter. rear; $\sigma_{mad} = $" + str(np.round(mad_std(diff_itr1[np.isfinite(diff_itr1)]),rdigit))
         lgnd4 = "iter. front; $\sigma_{mad} = $" + str(np.round(mad_std(diff_itr2[np.isfinite(diff_itr2)]),rdigit))
 
+        #median1 = np.round(np.median(diff_itr1[np.isfinite(diff_itr1)]/mad_std(diff1[np.isfinite(diff1)])),4)
+        #median2 = np.round(np.median(diff_itr2[np.isfinite(diff_itr2)]/mad_std(diff2[np.isfinite(diff2)])),4)
+        median1 = np.round(np.median(diff_itr1[np.isfinite(diff_itr1)]),4)
+        median2 = np.round(np.median(diff_itr2[np.isfinite(diff_itr2)]),4)
+        plt.title("Accuracy in the 1,1 fits. Iter. median: {0} & {1}".format(median1, median2))
+
         plt.legend([lgnd1, lgnd2, lgnd3, lgnd4], frameon=False)
         plt.ylabel("Number of pixels")
         plt.xlabel(r"v$_{lsr}$ fit accuracy (km s$^{-1}$)")
-        plt.savefig("{0}/{1}_vlsrErr_histo_iter.pdf".format(saveFigDir, saveFigRoot))
+        plt.savefig("{0}/{1}_vlsrErr_histo_iter2.pdf".format(saveFigDir, saveFigRoot))
 
-    if False:
+    if True:
         # KDE comparison between the relative error of the regular fit vs. absolute fit
 
         # relative accuracy from regular fitting
@@ -261,10 +276,11 @@ def plot_vel_fit_accuracy(name_realp, name_fitp, name_itrfit, saveFigDir="",  sa
         legend_2 = "iter. fit; $\sigma_{MAD} = $" + str(np.round(mad_std(diff_itr1), 2))
         plt.legend([legend_1,legend_2], frameon=False)
         plt.axvspan(-1, 1, alpha=0.5, color='0.75')
+        plt.axvline(x=0, linestyle='--', color="0.75", alpha=0.75)
         plt.title("Accuracy in the 1,1 fits relative to the estimated errors")
         plt.ylabel("Fraction of pixels")
         plt.xlabel(r"Difference between fit and actual v$_{lsr}$ over the estimated error")
-        plt.savefig("{0}/{1}_vlsrErrRelEst_kde_iter_frontComp.pdf".format(saveFigDir, saveFigRoot))
+        plt.savefig("{0}/{1}_vlsrErrRelEst_kde_iter_rearComp.pdf".format(saveFigDir, saveFigRoot))
 
         plt.clf()
         plot_kde(diff2, bins)
@@ -272,18 +288,20 @@ def plot_vel_fit_accuracy(name_realp, name_fitp, name_itrfit, saveFigDir="",  sa
         legend_1 = "reg. fit; $\sigma_{MAD} = $" + str(np.round(mad_std(diff2), 2))
         legend_2 = "iter. fit; $\sigma_{MAD} = $" + str(np.round(mad_std(diff_itr2), 2))
         plt.legend([legend_1, legend_2], frameon=False)
+        plt.axvline(x=0, linestyle='--', color="0.75", alpha=0.75)
         #plt.axvline(x=1.1775, linestyle='--', color="0.75")
         #plt.axvline(x=-1.1775, linestyle='--', color="0.75")
         plt.axvspan(-1, 1, alpha=0.5, color='0.75')
         plt.title("Accuracy in the 1,1 fits relative to the estimated errors")
         plt.ylabel("Fraction of pixels")
         plt.xlabel(r"Difference between fit and actual v$_{lsr}$ over the estimated error")
-        plt.savefig("{0}/{1}_vlsrErrRelEst_kde_iter_backComp.pdf".format(saveFigDir, saveFigRoot))
+        plt.savefig("{0}/{1}_vlsrErrRelEst_kde_iter_frontComp.pdf".format(saveFigDir, saveFigRoot))
 
 
 
 
 def plot_kde(x, bins, **kwargs):
+    # a quick way to plot KDE in a similar fashion to a histogram
     from sklearn.neighbors import KernelDensity
     binwidth = bins[1] - bins[0]
     X_plot = np.linspace(bins.min(), bins.max(), 1000)[:, np.newaxis]
