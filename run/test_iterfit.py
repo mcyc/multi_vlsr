@@ -37,13 +37,14 @@ def do():
         #testmv.run(l1, **kwarg)
         run(l1, **kwarg)
 
-    if True:
+    if False:
         kwarg = {'version':'medC1_xxlowC2', 'SNR1':'med', 'SNR2':'xxlow'}
-        testmv.run(l1, **kwarg)
+        #testmv.run(l1, **kwarg)
         run(l1, **kwarg)
 
+    if True:
         kwarg = {'version':'lowC1_lowC2', 'SNR1':'low', 'SNR2':'low'}
-        testmv.run(l1, **kwarg)
+        #testmv.run(l1, **kwarg)
         run(l1, **kwarg)
 
         kwarg = {'version':'medC1_medC2', 'SNR1':'med', 'SNR2':'med'}
