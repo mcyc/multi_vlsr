@@ -3,6 +3,7 @@ __author__ = 'mcychen'
 import numpy as np
 import pyspeckit
 import astropy.io.fits as fits
+import copy
 from astropy import units as u
 from astropy.stats import mad_std
 from pyspeckit.spectrum.units import SpectroscopicAxis
@@ -320,10 +321,10 @@ def moment_guesses(moment1, moment2, ncomp, sigmin=0.04, tex_guess=10.0, tau_gue
     m1 = moment1
     m2 = moment2
 
-    print "moment 1:"
-    print m1
-    print "moment 2"
-    print m2
+    #print "moment 1:"
+    #print m1
+    #print "moment 2"
+    #print m2
 
     # Guess linewidth (the current recipe works okay, but potential improvements can be made.
     gs_sig = m2/ncomp
@@ -359,8 +360,8 @@ def moment_guesses(moment1, moment2, ncomp, sigmin=0.04, tex_guess=10.0, tau_gue
             gg[i+2,:,:] = tex_guess          # v0 T_ex
             gg[i+3,:,:] = tau_guess*0.2      # v0 tau
 
-    print "guesses:"
-    print gg
+    #print "guesses:"
+    #print gg
 
     return gg
 
@@ -686,6 +687,8 @@ def cubefit_gen(cube11name, ncomp=2, paraname = None, modname = None, chisqname 
                   )
 
     if paraname != None:
+        save_pcube(pcube, paraname, ncomp=ncomp)
+        '''
         fitcubefile = fits.PrimaryHDU(data=np.concatenate([pcube.parcube,pcube.errcube]), header=pcube.header)
         for i in range (0, ncomp):
             fitcubefile.header.set('PLANE{0}','VELOCITY_{1}'.format(ncomp +1, ncomp))
@@ -702,6 +705,7 @@ def cubefit_gen(cube11name, ncomp=2, paraname = None, modname = None, chisqname 
         fitcubefile.header.set('CRVAL3',0)
         fitcubefile.header.set('CRPIX3',1)
         fitcubefile.writeto(paraname ,overwrite=True)
+        '''
 
     if modname != None:
         model = SpectralCube(pcube.get_modelcube(), pcube.wcs, header=cube.header)
@@ -713,3 +717,34 @@ def cubefit_gen(cube11name, ncomp=2, paraname = None, modname = None, chisqname 
         chisqfile.writeto(chisqname, overwrite=True)
 
     return pcube
+
+
+
+def save_pcube(pcube, savename, ncomp=2):
+    # a method to save the fitted parameter cube with relavent header information
+
+    npara = 4
+    #ncomp = int(pcube.data.shape[0]/npara)
+
+    hdr_new = copy.deepcopy(pcube.header)
+    for i in range (0, ncomp):
+        hdr_new['PLANE{0}'.format(i*npara+0)] = 'VELOCITY_{0}'.format(i+1)
+        hdr_new['PLANE{0}'.format(i*npara+1)] = 'SIGMA_{0}'.format(i+1)
+        hdr_new['PLANE{0}'.format(i*npara+2)] = 'TEX_{0}'.format(i+1)
+        hdr_new['PLANE{0}'.format(i*npara+3)] = 'TAU_{0}'.format(i+1)
+
+    # the loop is split into two so the numbers will be written in ascending order
+    for i in range (0, ncomp):
+        hdr_new['PLANE{0}'.format((ncomp+i)*npara +0)] = 'eVELOCITY_{0}'.format(i+1)
+        hdr_new['PLANE{0}'.format((ncomp+i)*npara +1)] = 'eSIGMA_{0}'.format(i+1)
+        hdr_new['PLANE{0}'.format((ncomp+i)*npara +2)] = 'eTEX_{0}'.format(i+1)
+        hdr_new['PLANE{0}'.format((ncomp+i)*npara +3)] = 'eTAU_{0}'.format(i+1)
+    hdr_new['CDELT3']= 1
+    hdr_new['CTYPE3']= 'FITPAR'
+    hdr_new['CRVAL3']= 0
+    hdr_new['CRPIX3']= 1
+
+    print "parameter cube saved!"
+
+    fitcubefile = fits.PrimaryHDU(data=np.concatenate([pcube.parcube,pcube.errcube]), header=hdr_new)
+    fitcubefile.writeto(savename ,overwrite=True)
