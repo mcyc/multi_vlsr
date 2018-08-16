@@ -5,6 +5,7 @@ import sys, os, errno, time
 sys.path.insert(1, os.path.join(sys.path[0], '..'))
 
 import multi_v_fit as mvf
+import iterative_fit as itf
 import aic
 import clean_map
 
@@ -68,7 +69,7 @@ class Region(object):
         print "time elapsed: {0}:{1}".format(delta_time/60, delta_time%60)
 
 
-    def fit_cube(self, n_comp, multicore=8, snr_min=5.0, mask_function = None):
+    def fit_cube(self, n_comp, multicore=8, snr_min=5.0, mask_function = None, iterfit=True):
 
         self.start_timing()
 
@@ -86,20 +87,29 @@ class Region(object):
         self.SepVModelFile = '{2}/{0}_NH3_{4}_{1}_{3}VModel.fits'.format(self.region, self.root, self.modelDir, n_comp,
                                                                          self.line_root)
 
-        if False:
-        #if os.path.exists(self.SingVParaFile) and self.linename == "oneone":
-            guesses = mvf.make_guesses(self.SingVParaFile, n_comp = n_comp)
-        else:
-            guesses = None
+        if iterfit:
+            # perform iternative fitting
+            kwargs = {'ncomp':2, 'paraname':self.NewParaFile, 'modname':None, 'chisqname':None, 'guesses':None,
+                      'errmap11name':None, 'multicore':3, 'mask_function':None, 'snr_min':3.0, 'linename':"oneone"}
+            self.paraCubes = itf.cubefit(self.OneOneFile, downsampfactor=2, **kwargs)
 
-        # fit the data
-        self.paraCubes = mvf.cubefit_gen(cube11name = self.OneOneFile, ncomp = n_comp , paraname = self.NewParaFile,
-                                 modname = self.ModelFile, chisqname = self.ChisqFile, guesses = guesses,
-                                 errmap11name = self.RMSFile, multicore = multicore,
-                                 snr_min=snr_min, mask_function = mask_function, linename=self.linename)
+        else:
+            # Note: it may be better not to use the single component fit as our Guesses; less errors to propagate
+            if False:
+                #if os.path.exists(self.SingVParaFile) and self.linename == "oneone":
+                guesses = mvf.make_guesses(self.SingVParaFile, n_comp = n_comp)
+            else:
+                guesses = None
+
+            # perform regular fitting
+            kwargs = {'ncomp':n_comp, 'paraname':self.NewParaFile, 'modname':self.ModelFile, 'chisqname':self.ChisqFile,
+                      'guesses':guesses, 'errmap11name':self.RMSFile, 'multicore':multicore, 'snr_min':snr_min,
+                      'mask_function':mask_function, 'linename':self.linename}
+            self.paraCubes = mvf.cubefit_gen(cube11name = self.OneOneFile, **kwargs)
+
         '''
         mvf.get_multiV_models(paraname=self.NewParaFile, refcubename=self.OneOneFile, n_comp = n_comp,
-                              savename = self.SepVModelFile, snrname = self.SNRFile, rms = 0.15, rmspath=self.RMSFile)
+                                  savename = self.SepVModelFile, snrname = self.SNRFile, rms = 0.15, rmspath=self.RMSFile)
         '''
         self.end_timing()
 
@@ -182,8 +192,8 @@ def special_run(region='L1448', multicore=8, linename = "oneone"):
 
     regOb.OneOneFile = '{2}/{0}/{0}_NH3_{3}_{1}.fits'.format(regOb.region, 'all_rebase_multi', regOb.cubeDir, regOb.line_root)
 
-    regOb.fit_cube(n_comp=1, multicore=multicore, snr_min=3.0, mask_function = None)
-    regOb.fit_cube(n_comp=2, multicore=multicore, snr_min=3.0, mask_function = None)
+    regOb.fit_cube(n_comp=1, multicore=multicore, snr_min=3.0, mask_function = None, iterfit=True)
+    regOb.fit_cube(n_comp=2, multicore=multicore, snr_min=3.0, mask_function = None, iterfit=True)
     regOb.calc_aic()
     regOb.calc_chisq()
 
