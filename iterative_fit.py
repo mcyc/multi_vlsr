@@ -13,7 +13,8 @@ from spectral_cube import SpectralCube
 from radio_beam import Beam
 from reproject import reproject_interp
 from astropy.wcs import WCS
-
+import copy
+from astropy.stats import mad_std
 
 from scipy.ndimage.filters import median_filter
 from scipy.interpolate import CloughTocher2DInterpolator as intp
@@ -84,14 +85,17 @@ def cubefit(cubename, downsampfactor=2, **kwargs):
     npara = 4
     ncomp = int(guesses.shape[0]/npara)/2
 
+    # clean up the maps based on vlsr errors
+    guesses = simple_para_clean(guesses, ncomp, npara=npara)
+
     hdr_conv = get_celestial_hdr(gg_hdr)
     guesses[guesses == 0] = np.nan
     guesses = guesses[0:npara*ncomp]
 
     mmask = master_mask(guesses)
-    #mmask = np.ones(guesses[0].shape, dtype=bool)
 
     def refine_each_comp(guess_comp, mask):
+        # refine guesses for each component, with values outside ranges specified below removed
         Tex_min = 3.0
         Tex_max = 10.0
         Tau_min = 0.01
@@ -120,30 +124,10 @@ def cubefit(cubename, downsampfactor=2, **kwargs):
     kwargs['paraname'] = "{0}_iter.fits".format(os.path.splitext(kwargs['paraname'])[0], "parameter_maps")
 
     pcube = mvf.cubefit_gen(cubename, **kwargs)
-    return None
 
     # write the fitted parameters into a fits file
-    save_pcube(pcube, kwargs['paraname'], ncomp=ncomp)
-    '''
-    if kwargs['paraname'] != None:
-        hdr_new = pcube.header
-        for i in range (0, ncomp):
-            hdr_new['PLANE{0}'.format(ncomp +1)] = 'VELOCITY_{1}'.format(ncomp)
-            hdr_new['PLANE{0}'.format(ncomp +2)] = 'SIGMA_{1}'.format(ncomp)
-            hdr_new['PLANE{0}'.format(ncomp +3)] = 'TEX_{1}'.format(ncomp)
-            hdr_new['PLANE{0}'.format(ncomp +4)] = 'TAU_{1}'.format(ncomp)
-            hdr_new['PLANE{0}'.format(ncomp +5)] = 'eVELOCITY_{1}'.format(ncomp)
-            hdr_new['PLANE{0}'.format(ncomp +6)] = 'eSIGMA_{1}'.format(ncomp)
-            hdr_new['PLANE{0}'.format(ncomp +7)] = 'eTEX_{1}'.format(ncomp)
-            hdr_new['PLANE{0}'.format(ncomp +8)] = 'eTAU_{1}'.format(ncomp)
-        hdr_new['CDELT3']= 1
-        hdr_new['CTYPE3']= 'FITPAR'
-        hdr_new['CRVAL3']= 0
-        hdr_new['CRPIX3']= 1
+    mvf.save_pcube(pcube, kwargs['paraname'], ncomp=ncomp)
 
-        fitcubefile = fits.PrimaryHDU(data=np.concatenate([pcube.parcube,pcube.errcube]), header=hdr_new)
-        fitcubefile.writeto(kwargs['paraname'] ,overwrite=True)
-    '''
     return pcube
 
 #=======================================================================================================================
@@ -193,7 +177,7 @@ def convolve_sky_byfactor(cube, factor, savename, edgetrim_width=5):
     return newcube
 
 
-#def convolve_sky(cube, beamsize, savename=None, beamunit=u.arcsec, snrmasked = True):
+
 def convolve_sky(cube, beam, snrmasked = True, iterrefine= True):
 
     if not isinstance(cube, SpectralCube):
@@ -263,6 +247,29 @@ def master_mask(pcube):
     return mask
 
 
+def simple_para_clean(pmaps, ncomp, npara=4):
+    # clean parameter maps based on their error values
+
+    # remove component with vlsrErr that is number of sigma off from the median as specified below
+    std_thres = 2
+
+    pmaps[pmaps == 0] = np.nan
+
+    # loop through each component
+    for i in range (0, ncomp):
+        # get the STD and Medians of the vlsr errors
+        std_vErr = mad_std(pmaps[(i+ncomp)*npara][np.isfinite(pmaps[(i+ncomp)*npara])])
+        median_vErr = np.median(pmaps[(i+ncomp)*npara][np.isfinite(pmaps[(i+ncomp)*npara])])
+
+        # remove outlier pixels
+        mask = pmaps[(i+ncomp)*npara] > median_vErr + std_vErr*std_thres
+
+        pmaps[i*npara:(i+1)*npara, mask] = np.nan
+        pmaps[(i+ncomp)*npara:(i+ncomp+1)*npara, mask] = np.nan
+
+    return pmaps
+
+
 def refine_guess(map, min=None, max=None, mask=None, disksize=2):
     # refine parameter maps by outlier-fitering, masking, and interpolating
     map = map.copy()
@@ -272,7 +279,6 @@ def refine_guess(map, min=None, max=None, mask=None, disksize=2):
     if max is not None:
         map[map>max] = np.nan
 
-    #map = median_filter(map, footprint=disk(1.75), mode="nearest")
     map = median_filter(map, footprint=disk(disksize))
 
     if mask is None:
@@ -283,7 +289,6 @@ def refine_guess(map, min=None, max=None, mask=None, disksize=2):
         mask = dilation(mask, disk(1))
 
     # interpolate over the dmask footprint
-
     xline = np.arange(map.shape[1])
     yline = np.arange(map.shape[0])
     X,Y = np.meshgrid(xline, yline)
@@ -294,7 +299,6 @@ def refine_guess(map, min=None, max=None, mask=None, disksize=2):
     zi = C(X*mask,Y*mask)
 
     return zi
-
 
 
 def regrid(image, header1, header2, dmask=None):
@@ -313,31 +317,36 @@ def regrid(image, header1, header2, dmask=None):
     return griddata((X[mask],Y[mask]), image[mask], (grid1[1]*dmask, grid1[0]*dmask), method='cubic', fill_value=np.nan)
 
 
-
 def get_celestial_hdr(header):
+    # make a new header that only contains celestial (i.e., on-sky) information
     new_hdr = WCS(header).celestial.to_header()
     new_hdr['NAXIS1'] = header['NAXIS1']
     new_hdr['NAXIS2'] = header['NAXIS2']
     return new_hdr
 
-
+'''
 def save_pcube(pcube, savename, ncomp=2):
+    # a method to save the fitted parameter cube with relavent header information
+
     #npara = 4
     #ncomp = int(pcube.data.shape[0]/npara)
-    hdr_new = pcube.header
+    hdr_new = copy.deepcopy(pcube.header)
     for i in range (0, ncomp):
-        hdr_new['PLANE{0}'.format(ncomp +1)] = 'VELOCITY_{0}'.format(ncomp)
-        hdr_new['PLANE{0}'.format(ncomp +2)] = 'SIGMA_{0}'.format(ncomp)
-        hdr_new['PLANE{0}'.format(ncomp +3)] = 'TEX_{0}'.format(ncomp)
-        hdr_new['PLANE{0}'.format(ncomp +4)] = 'TAU_{0}'.format(ncomp)
-        hdr_new['PLANE{0}'.format(ncomp +5)] = 'eVELOCITY_{0}'.format(ncomp)
-        hdr_new['PLANE{0}'.format(ncomp +6)] = 'eSIGMA_{0}'.format(ncomp)
-        hdr_new['PLANE{0}'.format(ncomp +7)] = 'eTEX_{0}'.format(ncomp)
-        hdr_new['PLANE{0}'.format(ncomp +8)] = 'eTAU_{0}'.format(ncomp)
+        hdr_new['PLANE{0}'.format(i +1)] = 'VELOCITY_{0}'.format(i)
+        hdr_new['PLANE{0}'.format(i +2)] = 'SIGMA_{0}'.format(i)
+        hdr_new['PLANE{0}'.format(i +3)] = 'TEX_{0}'.format(i)
+        hdr_new['PLANE{0}'.format(i +4)] = 'TAU_{0}'.format(i)
+        hdr_new['PLANE{0}'.format(i +5)] = 'eVELOCITY_{0}'.format(i)
+        hdr_new['PLANE{0}'.format(i +6)] = 'eSIGMA_{0}'.format(i)
+        hdr_new['PLANE{0}'.format(i +7)] = 'eTEX_{0}'.format(i)
+        hdr_new['PLANE{0}'.format(i +8)] = 'eTAU_{0}'.format(i)
     hdr_new['CDELT3']= 1
     hdr_new['CTYPE3']= 'FITPAR'
     hdr_new['CRVAL3']= 0
     hdr_new['CRPIX3']= 1
 
+    print "parameter cube saved!"
+
     fitcubefile = fits.PrimaryHDU(data=np.concatenate([pcube.parcube,pcube.errcube]), header=hdr_new)
     fitcubefile.writeto(savename ,overwrite=True)
+'''
