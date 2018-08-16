@@ -11,9 +11,9 @@ from astropy.stats import mad_std
 from skimage.morphology import remove_small_objects, disk, opening, binary_erosion, dilation, remove_small_holes
 from spectral_cube import SpectralCube
 from radio_beam import Beam
-from reproject import reproject_interp
+#from reproject import reproject_interp
 from astropy.wcs import WCS
-import copy
+#import copy
 from astropy.stats import mad_std
 
 from scipy.ndimage.filters import median_filter
