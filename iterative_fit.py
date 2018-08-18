@@ -55,7 +55,7 @@ def cubefit(cubename, downsampfactor=2, **kwargs):
 
     root = "conv{0}Xbeam".format(int(np.rint(downsampfactor)))
 
-    if False: #not 'conv_paraname' in kwargs:
+    if not 'conv_paraname' in kwargs:
         cnv_cubename = "{0}_{1}.fits".format(os.path.splitext(cubename)[0], root)
 
         cnv_cube = convolve_sky_byfactor(cubename, downsampfactor, savename=cnv_cubename, edgetrim_width=None)
@@ -72,7 +72,9 @@ def cubefit(cubename, downsampfactor=2, **kwargs):
         kwargs_cnv = kwargs.copy()
         kwargs_cnv['paraname'] = "{0}_cnv.fits".format(os.path.splitext(kwargs['paraname'])[0], "parameter_maps")
 
-        cnv_pcube = mvf.cubefit_gen(cnv_cubename, **kwargs_cnv)
+        if False:
+            cnv_pcube = mvf.cubefit_gen(cnv_cubename, **kwargs_cnv)
+
         # using cnv_pcube directory seem to cause problems that I have yet to identify the roots
         print "cnv pcube.parcube has shape of: {0}".format(cnv_pcube.parcube.shape)
         guesses, gg_hdr = fits.getdata(kwargs_cnv['paraname'], header=True)
