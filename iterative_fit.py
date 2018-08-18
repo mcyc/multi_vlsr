@@ -74,9 +74,9 @@ def cubefit(cubename, downsampfactor=2, **kwargs):
 
         if False:
             cnv_pcube = mvf.cubefit_gen(cnv_cubename, **kwargs_cnv)
-
-        # using cnv_pcube directory seem to cause problems that I have yet to identify the roots
-        print "cnv pcube.parcube has shape of: {0}".format(cnv_pcube.parcube.shape)
+            # using cnv_pcube directory seem to cause problems that I have yet to identify the roots
+            print "cnv pcube.parcube has shape of: {0}".format(cnv_pcube.parcube.shape)
+            
         guesses, gg_hdr = fits.getdata(kwargs_cnv['paraname'], header=True)
 
     else:
