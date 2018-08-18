@@ -668,6 +668,15 @@ def cubefit_gen(cube11name, ncomp=2, paraname = None, modname = None, chisqname 
     guesses[3::4][guesses[3::4] > taumax] = taumax
     guesses[3::4][guesses[3::4] < taumin] = taumin
 
+    if True:
+        # save the guesses for diagnostic purposes
+        import os
+        hdr_new = copy.deepcopy(pcube.header)
+        savename = "{0}_guesses.fits".format(os.path.splitext(paraname)[0], "parameter_maps")
+        fitcubefile = fits.PrimaryHDU(data=guesses, header=hdr_new)
+        fitcubefile.writeto(savename ,overwrite=True)
+        return guesses
+
     # set some of the fiteach() inputs to that used in GAS DR1 reduction
     kwargs = {'integral':False, 'verbose_level':3, 'signal_cut':2}
 
