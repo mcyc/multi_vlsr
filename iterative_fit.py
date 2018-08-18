@@ -55,7 +55,7 @@ def cubefit(cubename, downsampfactor=2, **kwargs):
 
     root = "conv{0}Xbeam".format(int(np.rint(downsampfactor)))
 
-    if not 'conv_paraname' in kwargs:
+    if False: #not 'conv_paraname' in kwargs:
         cnv_cubename = "{0}_{1}.fits".format(os.path.splitext(cubename)[0], root)
 
         cnv_cube = convolve_sky_byfactor(cubename, downsampfactor, savename=cnv_cubename, edgetrim_width=None)
