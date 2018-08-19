@@ -98,10 +98,20 @@ def cubefit(cubename, downsampfactor=2, **kwargs):
 
     def refine_each_comp(guess_comp, mask):
         # refine guesses for each component, with values outside ranges specified below removed
+
         Tex_min = 3.0
         Tex_max = 10.0
         Tau_min = 0.01
         Tau_max = 10.0
+
+        '''
+        # adopt the same limits as used by multi_v_fit
+        Tex_min = 3.0    # K; a more reasonable lower limit (5 K T_kin, 1e3 cm^-3 density, 1e13 cm^-2 column, 3km/s sigma)
+        Tex_max = 100    # K; only possible for high column density (1e8? cm^-3, 1e16 cm^-2, 0.1 km/s sig, and ~100 K T_kin)
+        Tau_min = 0.01   # it's hard to get lower than this even at 1e3 cm^-3, 1e13 cm^-2, 3 km/s linewidth, and high Tkin
+        Tau_max = 100.0  # a reasonable upper limit for GAS data. May have to double check for VLA or KEYSTONE data.
+        '''
+
         guess_comp[0] = refine_guess(guess_comp[0], min=None, max=None, mask=mask, disksize=downsampfactor)
         guess_comp[1] = refine_guess(guess_comp[1], min=None, max=None, mask=mask, disksize=downsampfactor)
         # place a more "strict" limits for Tex and Tau guessing than the fitting itself
@@ -242,11 +252,73 @@ def edge_trim(cube, trim_width = 3):
 
 
 def master_mask(pcube):
+    # create a 2D mask over where any of the paramater map has finite values
     mask = np.any(np.isfinite(pcube), axis=0)
     mask = remove_small_objects(mask, min_size=9)
     mask = dilation(mask, disk(1))
     mask = remove_small_holes(mask, 9)
     return mask
+
+
+def guess_from_cnvpara(data_cnv, header_cnv, header_target, downsampfactor=2):
+    # a wrapper to make guesses based on the parameters fitted to the convolved data
+    npara = 4
+    ncomp = int(data_cnv.shape[0]/npara)/2
+
+    data_cnv = data_cnv.copy()
+    # clean up the maps based on vlsr errors
+    data_cnv = simple_para_clean(data_cnv, ncomp, npara=npara)
+
+    hdr_conv = get_celestial_hdr(header_cnv)
+    data_cnv[data_cnv == 0] = np.nan
+    data_cnv = data_cnv[0:npara*ncomp]
+
+    mmask = master_mask(data_cnv)
+
+    def refine_each_comp(guess_comp, mask):
+        # refine guesses for each component, with values outside ranges specified below removed
+
+        Tex_min = 3.0
+        Tex_max = 10.0
+        Tau_min = 0.01
+        Tau_max = 10.0
+
+        '''
+        # adopt the same limits as used by multi_v_fit
+        Tex_min = 3.0    # K; a more reasonable lower limit (5 K T_kin, 1e3 cm^-3 density, 1e13 cm^-2 column, 3km/s sigma)
+        Tex_max = 100    # K; only possible for high column density (1e8? cm^-3, 1e16 cm^-2, 0.1 km/s sig, and ~100 K T_kin)
+        Tau_min = 0.01   # it's hard to get lower than this even at 1e3 cm^-3, 1e13 cm^-2, 3 km/s linewidth, and high Tkin
+        Tau_max = 100.0  # a reasonable upper limit for GAS data. May have to double check for VLA or KEYSTONE data.
+        '''
+
+        downsampfactor = 1.0
+
+        guess_comp[0] = refine_guess(guess_comp[0], min=None, max=None, mask=mask, disksize=downsampfactor)
+        guess_comp[1] = refine_guess(guess_comp[1], min=None, max=None, mask=mask, disksize=downsampfactor)
+        # place a more "strict" limits for Tex and Tau guessing than the fitting itself
+        guess_comp[2] = refine_guess(guess_comp[2], min=Tex_min, max=Tex_max, mask=mask, disksize=downsampfactor)
+        guess_comp[3] = refine_guess(guess_comp[3], min=Tau_min, max=Tau_max, mask=mask, disksize=downsampfactor)
+        return guess_comp
+
+    for i in range (0, ncomp):
+        data_cnv[i*npara:i*npara+npara] = refine_each_comp(data_cnv[i*npara:i*npara+npara], mmask)
+
+    #return data_cnv
+
+    # regrid the guess back to that of the original data
+    hdr_final = get_celestial_hdr(header_target)
+
+    guesses_final = []
+
+    # regrid the guesses
+    for gss in data_cnv:
+        # create a mask to regrid over
+        newmask = regrid(np.isfinite(gss), hdr_conv, hdr_final, dmask=None, method='nearest')
+        newmask = newmask.astype('bool')
+        newmask = dilation(newmask, disk(1))
+        guesses_final.append(regrid(gss, hdr_conv, hdr_final, dmask=newmask))
+
+    return np.array(guesses_final)
 
 
 def simple_para_clean(pmaps, ncomp, npara=4):
@@ -289,6 +361,7 @@ def refine_guess(map, min=None, max=None, mask=None, disksize=2):
         mask = remove_small_objects(mask,min_size=5)
         # dilate the footprint a bit
         mask = dilation(mask, disk(1))
+        mask = remove_small_holes(mask, 9)
 
     # interpolate over the dmask footprint
     xline = np.arange(map.shape[1])
@@ -303,7 +376,7 @@ def refine_guess(map, min=None, max=None, mask=None, disksize=2):
     return zi
 
 
-def regrid(image, header1, header2, dmask=None):
+def regrid(image, header1, header2, dmask=None, method='cubic'):
     # similar to hcongrid from FITS_tools, but uses scipy.interpolate.griddata to interpolate over nan values
     grid1 = get_pixel_mapping(header1, header2)
 
@@ -316,7 +389,7 @@ def regrid(image, header1, header2, dmask=None):
     if dmask is None:
         dmask = np.ones(grid1[0].shape, dtype=bool)
 
-    return griddata((X[mask],Y[mask]), image[mask], (grid1[1]*dmask, grid1[0]*dmask), method='cubic', fill_value=np.nan)
+    return griddata((X[mask],Y[mask]), image[mask], (grid1[1]*dmask, grid1[0]*dmask), method=method, fill_value=np.nan)
 
 
 def get_celestial_hdr(header):
@@ -325,30 +398,3 @@ def get_celestial_hdr(header):
     new_hdr['NAXIS1'] = header['NAXIS1']
     new_hdr['NAXIS2'] = header['NAXIS2']
     return new_hdr
-
-'''
-def save_pcube(pcube, savename, ncomp=2):
-    # a method to save the fitted parameter cube with relavent header information
-
-    #npara = 4
-    #ncomp = int(pcube.data.shape[0]/npara)
-    hdr_new = copy.deepcopy(pcube.header)
-    for i in range (0, ncomp):
-        hdr_new['PLANE{0}'.format(i +1)] = 'VELOCITY_{0}'.format(i)
-        hdr_new['PLANE{0}'.format(i +2)] = 'SIGMA_{0}'.format(i)
-        hdr_new['PLANE{0}'.format(i +3)] = 'TEX_{0}'.format(i)
-        hdr_new['PLANE{0}'.format(i +4)] = 'TAU_{0}'.format(i)
-        hdr_new['PLANE{0}'.format(i +5)] = 'eVELOCITY_{0}'.format(i)
-        hdr_new['PLANE{0}'.format(i +6)] = 'eSIGMA_{0}'.format(i)
-        hdr_new['PLANE{0}'.format(i +7)] = 'eTEX_{0}'.format(i)
-        hdr_new['PLANE{0}'.format(i +8)] = 'eTAU_{0}'.format(i)
-    hdr_new['CDELT3']= 1
-    hdr_new['CTYPE3']= 'FITPAR'
-    hdr_new['CRVAL3']= 0
-    hdr_new['CRPIX3']= 1
-
-    print "parameter cube saved!"
-
-    fitcubefile = fits.PrimaryHDU(data=np.concatenate([pcube.parcube,pcube.errcube]), header=hdr_new)
-    fitcubefile.writeto(savename ,overwrite=True)
-'''
