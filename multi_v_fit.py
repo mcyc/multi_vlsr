@@ -584,7 +584,7 @@ def cubefit_gen(cube11name, ncomp=2, paraname = None, modname = None, chisqname 
 
     # trim the edges by 3 pixels to guess the location of the peak emission
     footprint_mask = np.any(np.isfinite(cube._data), axis=0)
-    if footprint_mask.size > 100:
+    if footprint_mask.size > 1000:
         footprint_mask = binary_erosion(footprint_mask, disk(3))
 
     # the following function is copied directly from GAS
@@ -601,7 +601,7 @@ def cubefit_gen(cube11name, ncomp=2, paraname = None, modname = None, chisqname 
         planemask = mask_function(peaksnr,snr_min = snr_min)
 
     print "planemask size: {0}, shape: {1}".format(planemask[planemask].size, planemask.shape)
-    mask = (snr>3)*planemask#*footprint_mask
+    mask = (snr>3)*planemask*footprint_mask
     print "mask size: {0}, shape: {1}".format(mask[mask].size, mask.shape)
 
     '''
