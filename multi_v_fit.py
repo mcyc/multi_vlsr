@@ -591,12 +591,12 @@ def cubefit_gen(cube11name, ncomp=2, paraname = None, modname = None, chisqname 
     maskcube = maskcube.with_spectral_unit(u.km/u.s,velocity_convention='radio')
 
     if guesses is not None:
-        v_guess = guesses[::4].copy()
+        v_guess = guesses[::4]#.copy()
         v_guess[v_guess == 0] = np.nan
         v_guess = v_guess[np.isfinite(v_guess)]
         v_median = np.median(v_guess)
         print "The median of the user provided velocities is: {0}".format(v_median)
-        m0, m1, m2 = main_hf_moments(maskcube, window_hwidth=v_peak_hwidth, v_atpeak=v_guess)
+        m0, m1, m2 = main_hf_moments(maskcube, window_hwidth=v_peak_hwidth, v_atpeak=v_median)
 
     else:
         m0, m1, m2 = main_hf_moments(maskcube, window_hwidth=v_peak_hwidth)
