@@ -251,12 +251,17 @@ def edge_trim(cube, trim_width = 3):
     return cube.with_mask(mask.astype(bool))
 
 
-def master_mask(pcube):
-    # create a 2D mask over where any of the paramater map has finite values
-    mask = np.any(np.isfinite(pcube), axis=0)
+def mask_cleaning(mask):
+    # designed to clean a noisy map, with a footprint that is likely slightly larger
     mask = remove_small_objects(mask, min_size=9)
     mask = dilation(mask, disk(1))
     mask = remove_small_holes(mask, 9)
+    return mask
+
+def master_mask(pcube):
+    # create a 2D mask over where any of the paramater map has finite values
+    mask = np.any(np.isfinite(pcube), axis=0)
+    mask = mask_cleaning(mask)
     return mask
 
 
@@ -275,7 +280,7 @@ def guess_from_cnvpara(data_cnv, header_cnv, header_target, downsampfactor=2):
 
     mmask = master_mask(data_cnv)
 
-    def refine_each_comp(guess_comp, mask):
+    def refine_each_comp(guess_comp, mask=None):
         # refine guesses for each component, with values outside ranges specified below removed
 
         Tex_min = 3.0
@@ -293,6 +298,9 @@ def guess_from_cnvpara(data_cnv, header_cnv, header_target, downsampfactor=2):
 
         downsampfactor = 1.0
 
+        if mask is None:
+            mask = master_mask(guess_comp)
+
         guess_comp[0] = refine_guess(guess_comp[0], min=None, max=None, mask=mask, disksize=downsampfactor)
         guess_comp[1] = refine_guess(guess_comp[1], min=None, max=None, mask=mask, disksize=downsampfactor)
         # place a more "strict" limits for Tex and Tau guessing than the fitting itself
@@ -301,7 +309,8 @@ def guess_from_cnvpara(data_cnv, header_cnv, header_target, downsampfactor=2):
         return guess_comp
 
     for i in range (0, ncomp):
-        data_cnv[i*npara:i*npara+npara] = refine_each_comp(data_cnv[i*npara:i*npara+npara], mmask)
+        #data_cnv[i*npara:i*npara+npara] = refine_each_comp(data_cnv[i*npara:i*npara+npara], mmask)
+        data_cnv[i*npara:i*npara+npara] = refine_each_comp(data_cnv[i*npara:i*npara+npara])
 
     #return data_cnv
 
@@ -315,7 +324,8 @@ def guess_from_cnvpara(data_cnv, header_cnv, header_target, downsampfactor=2):
         # create a mask to regrid over
         newmask = regrid(np.isfinite(gss), hdr_conv, hdr_final, dmask=None, method='nearest')
         newmask = newmask.astype('bool')
-        newmask = dilation(newmask, disk(1))
+        #newmask = dilation(newmask, disk(2))
+        #newmask = remove_small_holes(newmask, 9)
         guesses_final.append(regrid(gss, hdr_conv, hdr_final, dmask=newmask))
 
     return np.array(guesses_final)
@@ -357,11 +367,7 @@ def refine_guess(map, min=None, max=None, mask=None, disksize=2):
 
     if mask is None:
         mask = np.isfinite(map)
-        # remove small objects
-        mask = remove_small_objects(mask,min_size=5)
-        # dilate the footprint a bit
-        mask = dilation(mask, disk(1))
-        mask = remove_small_holes(mask, 9)
+        mask = mask_cleaning(mask)
 
     # interpolate over the dmask footprint
     xline = np.arange(map.shape[1])
