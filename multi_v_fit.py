@@ -241,7 +241,7 @@ def get_chisq(cube, model, expand=20, reduced = True, usemask = True, mask = Non
         return chisq, np.sum(mask, axis=0)
 
 
-def main_hf_moments(maskcube, window_hwidth, snr_thresh=None):
+def main_hf_moments(maskcube, window_hwidth, v_atpeak=None, snr_thresh=None):
     '''
     # find moments for the main hyperfine lines
     # (moments, especially moment 2, computed with the satellite lines are less useful in terms of the kinematics)
@@ -262,37 +262,13 @@ def main_hf_moments(maskcube, window_hwidth, snr_thresh=None):
     :return: m2
     '''
 
-    import matplotlib.pyplot as plt
-
-    '''
-    mask2D = np.any(np.isfinite(maskcube._data), axis=0)
-
-    if mask2D.size > 100:
-        #erode 3 pixels off the edge of mask (in case the data wasn't trimmed)
-        mask2D = binary_erosion(mask2D, disk(3))
-
-    # the rms masking tends to give more weight to the noisy edge
-    if snr_thresh is not None:
-        # a quick estimate of the rms in the data (works well when the signals has low 'filling-fraction' in the cube)
-        rms_est = mad_std(maskcube._data[:,mask2D])
-        print "The MAD estimated rms: {0}".format(rms_est)
-        mask = maskcube._data > snr_thresh*rms_est
-        mask2D = np.logical_and(mask2D, np.any(mask, axis=0))
-        #mask[:,~mask2D] = False
-
-    '''
-    #tot_spec = np.nansum(maskcube._data[:,]*mask2D, axis=(1,2))
-    tot_spec = np.nansum(maskcube._data[:,]*maskcube.get_mask_array(), axis=(1,2))
-
-
-    #plt.plot(np.arange(tot_spec.size),tot_spec)
-    #plt.show()
-
-    idx_peak = np.nanargmax(tot_spec)
-    print "peak T_B: {0}".format(np.nanmax(tot_spec))
-
-    v_atpeak = maskcube.spectral_axis[idx_peak].to(u.km/u.s).value
-    print "v_atpeak: {0}".format(v_atpeak)
+    if v_atpeak is None:
+        # find the peak of the integrated spectrum if v_atpeak isn't provided
+        tot_spec = np.nansum(maskcube._data[:,]*maskcube.get_mask_array(), axis=(1,2))
+        idx_peak = np.nanargmax(tot_spec)
+        print "peak T_B: {0}".format(np.nanmax(tot_spec))
+        v_atpeak = maskcube.spectral_axis[idx_peak].to(u.km/u.s).value
+        print "v_atpeak: {0}".format(v_atpeak)
 
     vmax = v_atpeak + window_hwidth
     vmin = v_atpeak - window_hwidth
@@ -504,7 +480,7 @@ def get_singv_tau11(singv_para):
 
 
 def cubefit_gen(cube11name, ncomp=2, paraname = None, modname = None, chisqname = None, guesses = None, errmap11name = None,
-            multicore = 1, mask_function = None, snr_min=3.0, linename="oneone"):
+            multicore = 1, mask_function = None, snr_min=3.0, linename="oneone", momedgetrim=True):
     '''
     Perform n velocity component fit on the GAS ammonia 1-1 data.
     (This should be the function to call for all future codes if it has been proven to be reliable)
@@ -584,7 +560,7 @@ def cubefit_gen(cube11name, ncomp=2, paraname = None, modname = None, chisqname 
 
     # trim the edges by 3 pixels to guess the location of the peak emission
     footprint_mask = np.any(np.isfinite(cube._data), axis=0)
-    if footprint_mask.size > 1000:
+    if footprint_mask.size > 1000 & momedgetrim:
         footprint_mask = binary_erosion(footprint_mask, disk(3))
 
     # the following function is copied directly from GAS
@@ -614,23 +590,29 @@ def cubefit_gen(cube11name, ncomp=2, paraname = None, modname = None, chisqname 
     maskcube = cube.with_mask(mask.astype(bool))
     maskcube = maskcube.with_spectral_unit(u.km/u.s,velocity_convention='radio')
 
-    m0, m1, m2 = main_hf_moments(maskcube, window_hwidth=v_peak_hwidth)
+    if guesses is not None:
+        v_guess = guesses[::4].ravel()
+        v_guess[v_guess == 0] = np.nan
+        v_guess = v_guess[np.isfinite(v_guess)]
+        v_median = np.median(v_guess)
+        print "the user provided median velocity: {0}".format(v_median)
+        m0, m1, m2 = main_hf_moments(maskcube, window_hwidth=v_peak_hwidth, v_atpeak=v_guess)
+
+    else:
+        m0, m1, m2 = main_hf_moments(maskcube, window_hwidth=v_peak_hwidth)
+        v_median = np.median(m1[np.isfinite(m1)])
+        print "median velocity: {0}".format(v_median)
+
+    # remove the nana values to allow np.nanargmax(m0) to operate smoothly
     m0[np.isnan(m0)] = 0.0 # I'm not sure if this is a good way to get around the sum vs nansum issue
 
-    #return maskcube
-
-    # refine the window a bit based on the moment maps
-    v_median = np.median(m1[np.isfinite(m1)])
-    #vmax = v_atpeak + v_peak_hwidth
-    #vmin = v_atpeak - v_peak_hwidth
+    # define acceptable v range based on the provided or determined median velocity
     vmax = v_median + v_peak_hwidth
     vmin = v_median - v_peak_hwidth
-    print "median velocity: {0}".format(v_median)
 
     # find the location of the peak signal (to determine the first pixel to fit if nearest neighbour method is used)
     peakloc = np.nanargmax(m0)
     ymax,xmax = np.unravel_index(peakloc, m0.shape)
-
 
     # set the fit parameter limits (consistent with GAS DR1)
     #Tbg = 2.8       # K
