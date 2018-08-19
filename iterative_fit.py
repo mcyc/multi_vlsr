@@ -77,16 +77,24 @@ def cubefit(cubename, downsampfactor=2, **kwargs):
             # using cnv_pcube directory seem to cause problems that I have yet to identify the roots
             print "cnv pcube.parcube has shape of: {0}".format(cnv_pcube.parcube.shape)
 
-        guesses, gg_hdr = fits.getdata(kwargs_cnv['paraname'], header=True)
+        data_cnv, hdr_cnv = fits.getdata(kwargs_cnv['paraname'], header=True)
 
     else:
-        guesses, gg_hdr = fits.getdata(kwargs['conv_paraname'], header=True)
+        data_cnv, hdr_cnv = fits.getdata(kwargs['conv_paraname'], header=True)
         # to make kwargs compitable with mvf.cubefit_gen()
         del kwargs['conv_paraname']
 
-    npara = 4
-    ncomp = int(guesses.shape[0]/npara)/2
 
+    npara = 4
+    ncomp = int(data_cnv.shape[0]/npara)/2
+
+    # the target header for the regridding
+    cube_hdr = fits.getheader(cubename)
+    hdr_final = get_celestial_hdr(cube_hdr)
+
+    kwargs['guesses'] = guess_from_cnvpara(data_cnv, hdr_cnv, hdr_final, downsampfactor=2)
+
+    '''
     # clean up the maps based on vlsr errors
     guesses = simple_para_clean(guesses, ncomp, npara=npara)
 
@@ -103,14 +111,6 @@ def cubefit(cubename, downsampfactor=2, **kwargs):
         Tex_max = 10.0
         Tau_min = 0.01
         Tau_max = 10.0
-
-        '''
-        # adopt the same limits as used by multi_v_fit
-        Tex_min = 3.0    # K; a more reasonable lower limit (5 K T_kin, 1e3 cm^-3 density, 1e13 cm^-2 column, 3km/s sigma)
-        Tex_max = 100    # K; only possible for high column density (1e8? cm^-3, 1e16 cm^-2, 0.1 km/s sig, and ~100 K T_kin)
-        Tau_min = 0.01   # it's hard to get lower than this even at 1e3 cm^-3, 1e13 cm^-2, 3 km/s linewidth, and high Tkin
-        Tau_max = 100.0  # a reasonable upper limit for GAS data. May have to double check for VLA or KEYSTONE data.
-        '''
 
         guess_comp[0] = refine_guess(guess_comp[0], min=None, max=None, mask=mask, disksize=downsampfactor)
         guess_comp[1] = refine_guess(guess_comp[1], min=None, max=None, mask=mask, disksize=downsampfactor)
@@ -130,6 +130,7 @@ def cubefit(cubename, downsampfactor=2, **kwargs):
     for gss in guesses:
         guesses_final.append(regrid(gss, hdr_conv, hdr_final, dmask=None))
     kwargs['guesses'] = np.array(guesses_final)
+    '''
 
     # make the **kwargs comptiable with mvf.cubefit_gen(), i.e., remove parameter that are only specific to this method
     kwargs['modname'] = "{0}_{1}_iter.fits".format(os.path.splitext(cubename)[0], "modelcube")
