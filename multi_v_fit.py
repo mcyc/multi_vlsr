@@ -651,10 +651,18 @@ def cubefit_gen(cube11name, ncomp=2, paraname = None, modname = None, chisqname 
     else:
         # fill in the blanks in the 'guesses,' accepting any finite values with a linewidth above the given threshold
         # (the two sets of operations below may be a little redundant, but better be safe than sorry I guess)
-        has_sigm = np.logical_and(guesses[1] > sigmin  + eps, np.all(np.isfinite(guesses), axis=0))
+        #has_sigm = np.logical_and(guesses[1] > sigmin  + eps, np.all(np.isfinite(guesses), axis=0))
+        '''
+        has_sigm = guesses[1] > sigmin  + eps
         guesses[:,~has_sigm] = gg[:,~has_sigm]
         has_v = guesses[0] != 0.0
         guesses[:,~has_v] = gg[:,~has_v]
+        '''
+
+        gmask = np.all(np.isfinite(guesses), axis=0)
+        guesses[:,~gmask] = gg[:,~gmask]
+
+
         print "user provided guesses accepted"
 
     # The guesses should be fine in the first case, but just in case, make sure the guesses are confined within the
@@ -697,24 +705,6 @@ def cubefit_gen(cube11name, ncomp=2, paraname = None, modname = None, chisqname 
 
     if paraname != None:
         save_pcube(pcube, paraname, ncomp=ncomp)
-        '''
-        fitcubefile = fits.PrimaryHDU(data=np.concatenate([pcube.parcube,pcube.errcube]), header=pcube.header)
-        for i in range (0, ncomp):
-            fitcubefile.header.set('PLANE{0}','VELOCITY_{1}'.format(ncomp +1, ncomp))
-            fitcubefile.header.set('PLANE{0}','SIGMA_{1}'.format(ncomp +2, ncomp))
-            fitcubefile.header.set('PLANE{0}','TEX_{1}'.format(ncomp +3, ncomp))
-            fitcubefile.header.set('PLANE{0}','TAU_{1}'.format(ncomp +4, ncomp))
-            fitcubefile.header.set('PLANE{0}','eVELOCITY_{1}'.format(ncomp +5, ncomp))
-            fitcubefile.header.set('PLANE{0}','eSIGMA_{1}'.format(ncomp +6, ncomp))
-            fitcubefile.header.set('PLANE{0}','eTEX_{1}'.format(ncomp +7, ncomp))
-            fitcubefile.header.set('PLANE{0}','eTAU_{1}'.format(ncomp +8, ncomp))
-
-        fitcubefile.header.set('CDELT3',1)
-        fitcubefile.header.set('CTYPE3','FITPAR')
-        fitcubefile.header.set('CRVAL3',0)
-        fitcubefile.header.set('CRPIX3',1)
-        fitcubefile.writeto(paraname ,overwrite=True)
-        '''
 
     if modname != None:
         model = SpectralCube(pcube.get_modelcube(), pcube.wcs, header=cube.header)
