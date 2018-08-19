@@ -659,8 +659,9 @@ def cubefit_gen(cube11name, ncomp=2, paraname = None, modname = None, chisqname 
         guesses[:,~has_v] = gg[:,~has_v]
         '''
 
-        gmask = np.all(np.isfinite(guesses), axis=0)
-        guesses[:,~gmask] = gg[:,~gmask]
+        guesses[guesses==0] = np.nan
+        gmask = np.isfinite(guesses)
+        guesses[~gmask] = gg[~gmask]
 
 
         print "user provided guesses accepted"
