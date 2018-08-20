@@ -282,7 +282,7 @@ def main_hf_moments(maskcube, window_hwidth, v_atpeak=None, snr_thresh=None):
     return m0, m1, m2
 
 
-def moment_guesses(moment1, moment2, ncomp, sigmin=0.04, tex_guess=3.2, tau_guess=0.5):
+def moment_guesses(moment1, moment2, ncomp, sigmin=0.04, tex_guess=3.2, tau_guess=0.5, moment0=None):
     '''
     Make reasonable guesses for the multiple component fits
     :param moment1:
@@ -293,6 +293,26 @@ def moment_guesses(moment1, moment2, ncomp, sigmin=0.04, tex_guess=3.2, tau_gues
     :param tau_guess:
     :return:
     '''
+
+    # define max and min values of tex and tau to use for the test
+    # a spectrum with tex and tau values both below the specified minima has an intensity below the expected GAS rms
+    tex_max = 8.0
+    tau_max = 1.0
+    tex_min = 3.2
+    tau_min = 0.4
+
+    if moment0 is not None:
+        # normalize the moment 0 map with respect to the norm_ref percentile value
+        # e.g., 95 percentile value being normalized to have a value of 0.95
+        norm_ref = 95.0
+        mom0high = np.percentile(moment0[np.isfinite(moment0)], norm_ref)
+        m0Norm = moment0.copy()*norm_ref/100.0/mom0high
+
+        print "[WARNING]: moment0 map is provided, thus the user-provided tex and tau will not be used"
+        tex_guess = m0Norm*tex_max
+        tex_guess[tex_guess < tex_min] = tex_min
+        tau_guess = m0Norm*tau_max
+        tau_guess[tau_guess < tau_min] = tau_min
 
     m1 = moment1
     m2 = moment2
@@ -322,19 +342,19 @@ def moment_guesses(moment1, moment2, ncomp, sigmin=0.04, tex_guess=3.2, tau_gues
         gg[0,:,:] = m1 - sigmaoff*m2   # v0 centriod
         gg[1,:,:] = gs_sig             # v0 width
         gg[2,:,:] = tex_guess          # v0 T_ex
-        gg[3,:,:] = tau_guess*0.8      # v0 tau
+        gg[3,:,:] = tau_guess          # v0 tau
         gg[4,:,:] = m1 + sigmaoff*m2   # v1 centriod
         gg[5,:,:] = gs_sig             # v1 width
         gg[6,:,:] = tex_guess          # v1 T_ex
-        gg[7,:,:] = tau_guess*0.2      # v1 tau
+        gg[7,:,:] = tau_guess*0.25      # v1 tau
 
-    # using a generalized receipe that I have not tested clearly could use improvement
+    # using a generalized receipe that have not been tested (lots of room for improvement!)
     if ncomp > 2:
         for i in range (0, ncomp):
             gg[i,  :,:] = m1+(-1.0+i*1.0/ncomp)*0.5*m2 # v0 centriod (step through a range fo velocities within sigma_v)
             gg[i+1,:,:] = gs_sig             # v0 width
             gg[i+2,:,:] = tex_guess          # v0 T_ex
-            gg[i+3,:,:] = tau_guess*0.2      # v0 tau
+            gg[i+3,:,:] = tau_guess*0.25     # v0 tau
 
     #print "guesses:"
     #print gg
@@ -604,6 +624,7 @@ def cubefit_gen(cube11name, ncomp=2, paraname = None, modname = None, chisqname 
         m0, m1, m2 = main_hf_moments(maskcube, window_hwidth=v_peak_hwidth)
         v_median = np.median(m1[np.isfinite(m1)])
         print "median velocity: {0}".format(v_median)
+
         if True:
             # save the moment maps for diagnostic purposes
             import os
@@ -640,7 +661,7 @@ def cubefit_gen(cube11name, ncomp=2, paraname = None, modname = None, chisqname 
 
     # get the guesses based on moment maps
     # tex and tau guesses are chosen to reflect low density, diffusive gas that are likley to have low SNR
-    gg = moment_guesses(m1, m2, ncomp, sigmin=sigmin, tex_guess=3.2, tau_guess=0.5)
+    gg = moment_guesses(m1, m2, ncomp, sigmin=sigmin, moment0=m0)
 
     if guesses is None:
         guesses = gg

@@ -69,7 +69,7 @@ class Region(object):
         print "time elapsed: {0}:{1}".format(delta_time/60, delta_time%60)
 
 
-    def fit_cube(self, n_comp, multicore=8, snr_min=5.0, mask_function = None, iterfit=True):
+    def fit_cube(self, n_comp, multicore=8, snr_min=5.0, mask_function=None, iterfit=True):
 
         self.start_timing()
 
