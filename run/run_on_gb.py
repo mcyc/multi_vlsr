@@ -92,7 +92,7 @@ class Region(object):
             kwargs = {'ncomp':n_comp, 'paraname':self.NewParaFile, 'modname':self.ModelFile, 'chisqname':self.ChisqFile,
                       'guesses':None, 'errmap11name':self.RMSFile, 'multicore':multicore, 'snr_min':snr_min,
                       'mask_function':mask_function, 'linename':self.linename}
-            self.paraCubes = itf.cubefit(cube11name=self.OneOneFile, downsampfactor=2, **kwargs)
+            self.paraCubes = itf.cubefit(self.OneOneFile, downsampfactor=2, **kwargs)
 
         else:
             # Note: it may be better not to use the single component fit as our Guesses; less errors to propagate
