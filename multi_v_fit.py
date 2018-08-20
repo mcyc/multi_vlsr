@@ -664,7 +664,7 @@ def cubefit_gen(cube11name, ncomp=2, paraname = None, modname = None, chisqname 
     guesses[3::4][guesses[3::4] > taumax] = taumax
     guesses[3::4][guesses[3::4] < taumin] = taumin
 
-    if True:
+    if False:
         # save the guesses for diagnostic purposes
         import os
         hdr_new = copy.deepcopy(pcube.header)
