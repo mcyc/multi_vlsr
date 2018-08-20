@@ -705,6 +705,15 @@ def cubefit_gen(cube11name, ncomp=2, paraname = None, modname = None, chisqname 
         chisqfile = fits.PrimaryHDU(data=chisq, header=cube.wcs.celestial.to_header())
         chisqfile.writeto(chisqname, overwrite=True)
 
+    if True:
+        # save the guesses for diagnostic purposes
+        import os
+        hdr_new = copy.deepcopy(pcube.header)
+        savename = "{0}_guesses.fits".format(os.path.splitext(paraname)[0], "parameter_maps")
+        fitcubefile = fits.PrimaryHDU(data=guesses, header=hdr_new)
+        fitcubefile.writeto(savename ,overwrite=True)
+        #return guesses
+
     return pcube
 
 
