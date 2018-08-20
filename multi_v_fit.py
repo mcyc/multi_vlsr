@@ -604,6 +604,19 @@ def cubefit_gen(cube11name, ncomp=2, paraname = None, modname = None, chisqname 
         m0, m1, m2 = main_hf_moments(maskcube, window_hwidth=v_peak_hwidth)
         v_median = np.median(m1[np.isfinite(m1)])
         print "median velocity: {0}".format(v_median)
+        if True:
+            # save the moment maps for diagnostic purposes
+            import os
+            hdr_new = copy.deepcopy(pcube.header)
+            hdr_new['CDELT3']= 1
+            hdr_new['CTYPE3']= 'FITPAR'
+            hdr_new['CRVAL3']= 0
+            hdr_new['CRPIX3']= 1
+
+            savename = "{0}_moments.fits".format(os.path.splitext(paraname)[0], "parameter_maps")
+            fitcubefile = fits.PrimaryHDU(data=np.array([m0,m1,m2]), header=hdr_new)
+            fitcubefile.writeto(savename ,overwrite=True)
+        return guesses
 
     # remove the nana values to allow np.nanargmax(m0) to operate smoothly
     m0[np.isnan(m0)] = 0.0 # I'm not sure if this is a good way to get around the sum vs nansum issue
@@ -666,14 +679,19 @@ def cubefit_gen(cube11name, ncomp=2, paraname = None, modname = None, chisqname 
     guesses[3::4][guesses[3::4] > taumax] = taumax
     guesses[3::4][guesses[3::4] < taumin] = taumin
 
-    if False:
+    if True:
         # save the guesses for diagnostic purposes
         import os
         hdr_new = copy.deepcopy(pcube.header)
+        hdr_new['CDELT3']= 1
+        hdr_new['CTYPE3']= 'FITPAR'
+        hdr_new['CRVAL3']= 0
+        hdr_new['CRPIX3']= 1
+
         savename = "{0}_guesses.fits".format(os.path.splitext(paraname)[0], "parameter_maps")
         fitcubefile = fits.PrimaryHDU(data=guesses, header=hdr_new)
         fitcubefile.writeto(savename ,overwrite=True)
-        #return guesses
+        return guesses
 
     # set some of the fiteach() inputs to that used in GAS DR1 reduction
     kwargs = {'integral':False, 'verbose_level':3, 'signal_cut':2}
@@ -704,15 +722,6 @@ def cubefit_gen(cube11name, ncomp=2, paraname = None, modname = None, chisqname 
         chisq = get_chisq(cube, pcube.get_modelcube(), expand=20)
         chisqfile = fits.PrimaryHDU(data=chisq, header=cube.wcs.celestial.to_header())
         chisqfile.writeto(chisqname, overwrite=True)
-
-    if True:
-        # save the guesses for diagnostic purposes
-        import os
-        hdr_new = copy.deepcopy(pcube.header)
-        savename = "{0}_guesses.fits".format(os.path.splitext(paraname)[0], "parameter_maps")
-        fitcubefile = fits.PrimaryHDU(data=guesses, header=hdr_new)
-        fitcubefile.writeto(savename ,overwrite=True)
-        #return guesses
 
     return pcube
 
