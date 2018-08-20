@@ -282,7 +282,7 @@ def main_hf_moments(maskcube, window_hwidth, v_atpeak=None, snr_thresh=None):
     return m0, m1, m2
 
 
-def moment_guesses(moment1, moment2, ncomp, sigmin=0.04, tex_guess=10.0, tau_guess=0.5):
+def moment_guesses(moment1, moment2, ncomp, sigmin=0.04, tex_guess=3.2, tau_guess=0.5):
     '''
     Make reasonable guesses for the multiple component fits
     :param moment1:
@@ -625,7 +625,8 @@ def cubefit_gen(cube11name, ncomp=2, paraname = None, modname = None, chisqname 
     eps = 0.001 # a small perturbation that can be used in guesses
 
     # get the guesses based on moment maps
-    gg = moment_guesses(m1, m2, ncomp, sigmin=sigmin, tex_guess=10.0, tau_guess=0.5)
+    # tex and tau guesses are chosen to reflect low density, diffusive gas that are likley to have low SNR
+    gg = moment_guesses(m1, m2, ncomp, sigmin=sigmin, tex_guess=3.2, tau_guess=0.5)
 
     if guesses is None:
         guesses = gg
@@ -641,10 +642,14 @@ def cubefit_gen(cube11name, ncomp=2, paraname = None, modname = None, chisqname 
         guesses[:,~has_v] = gg[:,~has_v]
         '''
 
+        # fill in the blanks with moment guesses
         guesses[guesses==0] = np.nan
         gmask = np.isfinite(guesses)
         guesses[~gmask] = gg[~gmask]
 
+        # fill in the failed sigma guesses with moment guesses
+        gmask = guesses[1::4] < sigmin
+        guesses[1::4][gmask] = gg[1::4][gmask]
 
         print "user provided guesses accepted"
 

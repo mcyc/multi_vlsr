@@ -274,12 +274,18 @@ def guess_from_cnvpara(data_cnv, header_cnv, header_target, downsampfactor=2):
     data_cnv = data_cnv.copy()
     # clean up the maps based on vlsr errors
     data_cnv = simple_para_clean(data_cnv, ncomp, npara=npara)
-
     hdr_conv = get_celestial_hdr(header_cnv)
     data_cnv[data_cnv == 0] = np.nan
     data_cnv = data_cnv[0:npara*ncomp]
 
     mmask = master_mask(data_cnv)
+
+    def tautex_renorm(taumap, texmap, tau_thresh = 0.1):
+        # attempt to re-normalize the tau & text values at the optically thin regime (where the two are degenerate)
+        isthin = np.logical_and(taumap < tau_thresh, np.isfinite(taumap))
+        texmap[isthin] = texmap[isthin]*taumap[isthin]/tau_thresh
+        taumap[isthin] = tau_thresh
+        return taumap, texmap
 
     def refine_each_comp(guess_comp, mask=None):
         # refine guesses for each component, with values outside ranges specified below removed
@@ -289,31 +295,25 @@ def guess_from_cnvpara(data_cnv, header_cnv, header_target, downsampfactor=2):
         Tau_min = 0.01
         Tau_max = 10.0
 
-        '''
-        # adopt the same limits as used by multi_v_fit
-        Tex_min = 3.0    # K; a more reasonable lower limit (5 K T_kin, 1e3 cm^-3 density, 1e13 cm^-2 column, 3km/s sigma)
-        Tex_max = 100    # K; only possible for high column density (1e8? cm^-3, 1e16 cm^-2, 0.1 km/s sig, and ~100 K T_kin)
-        Tau_min = 0.01   # it's hard to get lower than this even at 1e3 cm^-3, 1e13 cm^-2, 3 km/s linewidth, and high Tkin
-        Tau_max = 100.0  # a reasonable upper limit for GAS data. May have to double check for VLA or KEYSTONE data.
-        '''
-
-        downsampfactor = 1.0
+        disksize = 1.0
 
         if mask is None:
             mask = master_mask(guess_comp)
 
-        guess_comp[0] = refine_guess(guess_comp[0], min=None, max=None, mask=mask, disksize=downsampfactor)
-        guess_comp[1] = refine_guess(guess_comp[1], min=None, max=None, mask=mask, disksize=downsampfactor)
+        guess_comp[0] = refine_guess(guess_comp[0], min=None, max=None, mask=mask, disksize=disksize)
+        guess_comp[1] = refine_guess(guess_comp[1], min=None, max=None, mask=mask, disksize=disksize)
+
+        # re-normalize the degenerated tau & text for the purpose of estimate guesses
+        guess_comp[3], guess_comp[2] = tautex_renorm(guess_comp[3], guess_comp[2], tau_thresh = 0.1)
+
         # place a more "strict" limits for Tex and Tau guessing than the fitting itself
-        guess_comp[2] = refine_guess(guess_comp[2], min=Tex_min, max=Tex_max, mask=mask, disksize=downsampfactor)
-        guess_comp[3] = refine_guess(guess_comp[3], min=Tau_min, max=Tau_max, mask=mask, disksize=downsampfactor)
+        guess_comp[2] = refine_guess(guess_comp[2], min=Tex_min, max=Tex_max, mask=mask, disksize=disksize)
+        guess_comp[3] = refine_guess(guess_comp[3], min=Tau_min, max=Tau_max, mask=mask, disksize=disksize)
         return guess_comp
 
     for i in range (0, ncomp):
         #data_cnv[i*npara:i*npara+npara] = refine_each_comp(data_cnv[i*npara:i*npara+npara], mmask)
         data_cnv[i*npara:i*npara+npara] = refine_each_comp(data_cnv[i*npara:i*npara+npara])
-
-    #return data_cnv
 
     # regrid the guess back to that of the original data
     hdr_final = get_celestial_hdr(header_target)
@@ -322,11 +322,14 @@ def guess_from_cnvpara(data_cnv, header_cnv, header_target, downsampfactor=2):
 
     # regrid the guesses
     for gss in data_cnv:
+
+        newmask = np.isfinite(gss)
+        # removal holes with areas that smaller than a 5 by 5 square
+        newmask = remove_small_holes(newmask, 25)
         # create a mask to regrid over
-        newmask = regrid(np.isfinite(gss), hdr_conv, hdr_final, dmask=None, method='nearest')
+        newmask = regrid(newmask, hdr_conv, hdr_final, dmask=None, method='nearest')
         newmask = newmask.astype('bool')
         #newmask = dilation(newmask, disk(2))
-        #newmask = remove_small_holes(newmask, 9)
         guesses_final.append(regrid(gss, hdr_conv, hdr_final, dmask=newmask))
 
     return np.array(guesses_final)
@@ -355,7 +358,7 @@ def simple_para_clean(pmaps, ncomp, npara=4):
     return pmaps
 
 
-def refine_guess(map, min=None, max=None, mask=None, disksize=2):
+def refine_guess(map, min=None, max=None, mask=None, disksize=1):
     # refine parameter maps by outlier-fitering, masking, and interpolating
     map = map.copy()
 
