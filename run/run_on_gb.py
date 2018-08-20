@@ -90,7 +90,7 @@ class Region(object):
         if iterfit:
             # perform iternative fitting
             kwargs = {'ncomp':n_comp, 'paraname':self.NewParaFile, 'modname':self.ModelFile, 'chisqname':self.ChisqFile,
-                      'guesses':None, 'errmap11name':self.RMSFile, 'multicore':multicore, 'snr_min':snr_min,
+                      'guesses':None, 'errmap11name':None, 'multicore':multicore, 'snr_min':snr_min,
                       'mask_function':mask_function, 'linename':self.linename}
             self.paraCubes = itf.cubefit(self.OneOneFile, downsampfactor=2, **kwargs)
 
