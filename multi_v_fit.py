@@ -616,7 +616,6 @@ def cubefit_gen(cube11name, ncomp=2, paraname = None, modname = None, chisqname 
             savename = "{0}_moments.fits".format(os.path.splitext(paraname)[0], "parameter_maps")
             fitcubefile = fits.PrimaryHDU(data=np.array([m0,m1,m2]), header=hdr_new)
             fitcubefile.writeto(savename ,overwrite=True)
-        return guesses
 
     # remove the nana values to allow np.nanargmax(m0) to operate smoothly
     m0[np.isnan(m0)] = 0.0 # I'm not sure if this is a good way to get around the sum vs nansum issue
