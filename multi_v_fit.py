@@ -304,7 +304,7 @@ def moment_guesses(moment1, moment2, ncomp, sigmin=0.04, tex_guess=3.2, tau_gues
     if moment0 is not None:
         # normalize the moment 0 map with respect to the norm_ref percentile value
         # e.g., 95 percentile value being normalized to have a value of 0.95
-        norm_ref = 99.5
+        norm_ref = 99.73
         mom0high = np.percentile(moment0[np.isfinite(moment0)], norm_ref)
         print "moment 0 value at {0} percentile: {1}".format(norm_ref, mom0high)
         m0Norm = moment0.copy()*norm_ref/100.0/mom0high
@@ -312,8 +312,10 @@ def moment_guesses(moment1, moment2, ncomp, sigmin=0.04, tex_guess=3.2, tau_gues
         print "[WARNING]: moment0 map is provided, thus the user-provided tex and tau will not be used"
         tex_guess = m0Norm*tex_max
         tex_guess[tex_guess < tex_min] = tex_min
+        tex_guess[tex_guess > tex_max] = tex_max
         tau_guess = m0Norm*tau_max
         tau_guess[tau_guess < tau_min] = tau_min
+        tau_guess[tau_guess > tau_max] = tau_max
 
     m1 = moment1
     m2 = moment2
