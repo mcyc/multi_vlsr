@@ -58,6 +58,7 @@ def cubefit(cubename, downsampfactor=2, **kwargs):
     if not 'conv_paraname' in kwargs:
         cnv_cubename = "{0}_{1}.fits".format(os.path.splitext(cubename)[0], root)
 
+        print "convolve the cube by a factor of: {0}".format(downsampfactor)
         cnv_cube = convolve_sky_byfactor(cubename, downsampfactor, savename=cnv_cubename, edgetrim_width=None)
 
         # use the mask of the convolved cube as the mask in which fits will be performed
@@ -71,14 +72,20 @@ def cubefit(cubename, downsampfactor=2, **kwargs):
         # adopt the final kwarg to the convolved fitting
         kwargs_cnv = kwargs.copy()
         kwargs_cnv['paraname'] = "{0}_cnv.fits".format(os.path.splitext(kwargs['paraname'])[0], "parameter_maps")
+        # turn the moment edge trim off for now. Something seems to be wrong
+        kwargs_cnv['momedgetrim'] = False
 
         # fit the convolved cube to serve as parameter guesses for the full resolution fitting
         cnv_pcube = mvf.cubefit_gen(cnv_cubename, **kwargs_cnv)
         # print "cnv pcube.parcube has shape of: {0}".format(cnv_pcube.parcube.shape)
 
+        print "_____________________________________"
+        print "fitting convolved cube"
         data_cnv, hdr_cnv = fits.getdata(kwargs_cnv['paraname'], header=True)
 
     else:
+        print "_____________________________________"
+        print "fitting convolved cube"
         data_cnv, hdr_cnv = fits.getdata(kwargs['conv_paraname'], header=True)
         # to make kwargs compitable with mvf.cubefit_gen()
         del kwargs['conv_paraname']
