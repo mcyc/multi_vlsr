@@ -72,9 +72,8 @@ def cubefit(cubename, downsampfactor=2, **kwargs):
         kwargs_cnv = kwargs.copy()
         kwargs_cnv['paraname'] = "{0}_cnv.fits".format(os.path.splitext(kwargs['paraname'])[0], "parameter_maps")
 
-        # fit the convolved cube to serve as parameter guesses for the full resolution fitting 
+        # fit the convolved cube to serve as parameter guesses for the full resolution fitting
         cnv_pcube = mvf.cubefit_gen(cnv_cubename, **kwargs_cnv)
-        # using cnv_pcube directory seem to cause problems that I have yet to identify the roots
         # print "cnv pcube.parcube has shape of: {0}".format(cnv_pcube.parcube.shape)
 
         data_cnv, hdr_cnv = fits.getdata(kwargs_cnv['paraname'], header=True)
@@ -93,44 +92,6 @@ def cubefit(cubename, downsampfactor=2, **kwargs):
     hdr_final = get_celestial_hdr(cube_hdr)
 
     kwargs['guesses'] = guess_from_cnvpara(data_cnv, hdr_cnv, hdr_final, downsampfactor=2)
-
-    '''
-    # clean up the maps based on vlsr errors
-    guesses = simple_para_clean(guesses, ncomp, npara=npara)
-
-    hdr_conv = get_celestial_hdr(gg_hdr)
-    guesses[guesses == 0] = np.nan
-    guesses = guesses[0:npara*ncomp]
-
-    mmask = master_mask(guesses)
-
-    def refine_each_comp(guess_comp, mask):
-        # refine guesses for each component, with values outside ranges specified below removed
-
-        Tex_min = 3.0
-        Tex_max = 10.0
-        Tau_min = 0.01
-        Tau_max = 10.0
-
-        guess_comp[0] = refine_guess(guess_comp[0], min=None, max=None, mask=mask, disksize=downsampfactor)
-        guess_comp[1] = refine_guess(guess_comp[1], min=None, max=None, mask=mask, disksize=downsampfactor)
-        # place a more "strict" limits for Tex and Tau guessing than the fitting itself
-        guess_comp[2] = refine_guess(guess_comp[2], min=Tex_min, max=Tex_max, mask=mask, disksize=downsampfactor)
-        guess_comp[3] = refine_guess(guess_comp[3], min=Tau_min, max=Tau_max, mask=mask, disksize=downsampfactor)
-        return guess_comp
-
-    for i in range (0, ncomp):
-        guesses[i*npara:i*npara+npara] = refine_each_comp(guesses[i*npara:i*npara+npara], mmask)
-
-    # regrid the guess back to that of the original data
-    cube_hdr = fits.getheader(cubename)
-    hdr_final = get_celestial_hdr(cube_hdr)
-
-    guesses_final = []
-    for gss in guesses:
-        guesses_final.append(regrid(gss, hdr_conv, hdr_final, dmask=None))
-    kwargs['guesses'] = np.array(guesses_final)
-    '''
 
     # make the **kwargs comptiable with mvf.cubefit_gen(), i.e., remove parameter that are only specific to this method
     kwargs['modname'] = "{0}_{1}_iter.fits".format(os.path.splitext(cubename)[0], "modelcube")

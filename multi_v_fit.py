@@ -560,7 +560,9 @@ def cubefit_gen(cube11name, ncomp=2, paraname = None, modname = None, chisqname 
 
     # trim the edges by 3 pixels to guess the location of the peak emission
     footprint_mask = np.any(np.isfinite(cube._data), axis=0)
-    if footprint_mask.size > 1000 & momedgetrim:
+
+    if np.logical_and(footprint_mask.size > 1000, momedgetrim):
+        print "triming the edges to make moment maps"
         footprint_mask = binary_erosion(footprint_mask, disk(3))
 
     # the following function is copied directly from GAS
@@ -591,7 +593,7 @@ def cubefit_gen(cube11name, ncomp=2, paraname = None, modname = None, chisqname 
     maskcube = maskcube.with_spectral_unit(u.km/u.s,velocity_convention='radio')
 
     if guesses is not None:
-        v_guess = guesses[::4]#.copy()
+        v_guess = guesses[::4]
         v_guess[v_guess == 0] = np.nan
         v_guess = v_guess[np.isfinite(v_guess)]
         v_median = np.median(v_guess)
@@ -671,7 +673,7 @@ def cubefit_gen(cube11name, ncomp=2, paraname = None, modname = None, chisqname 
         savename = "{0}_guesses.fits".format(os.path.splitext(paraname)[0], "parameter_maps")
         fitcubefile = fits.PrimaryHDU(data=guesses, header=hdr_new)
         fitcubefile.writeto(savename ,overwrite=True)
-        return guesses
+        #return guesses
 
     # set some of the fiteach() inputs to that used in GAS DR1 reduction
     kwargs = {'integral':False, 'verbose_level':3, 'signal_cut':2}

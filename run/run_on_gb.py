@@ -89,9 +89,10 @@ class Region(object):
 
         if iterfit:
             # perform iternative fitting
-            kwargs = {'ncomp':2, 'paraname':self.NewParaFile, 'modname':None, 'chisqname':None, 'guesses':None,
-                      'errmap11name':None, 'multicore':3, 'mask_function':None, 'snr_min':3.0, 'linename':"oneone"}
-            self.paraCubes = itf.cubefit(self.OneOneFile, downsampfactor=2, **kwargs)
+            kwargs = {'ncomp':n_comp, 'paraname':self.NewParaFile, 'modname':self.ModelFile, 'chisqname':self.ChisqFile,
+                      'guesses':None, 'errmap11name':self.RMSFile, 'multicore':multicore, 'snr_min':snr_min,
+                      'mask_function':mask_function, 'linename':self.linename}
+            self.paraCubes = itf.cubefit(cube11name=self.OneOneFile, downsampfactor=2, **kwargs)
 
         else:
             # Note: it may be better not to use the single component fit as our Guesses; less errors to propagate
@@ -192,10 +193,10 @@ def special_run(region='L1448', multicore=8, linename = "oneone"):
 
     regOb.OneOneFile = '{2}/{0}/{0}_NH3_{3}_{1}.fits'.format(regOb.region, 'all_rebase_multi', regOb.cubeDir, regOb.line_root)
 
-    #regOb.fit_cube(n_comp=1, multicore=multicore, snr_min=3.0, mask_function = None, iterfit=True)
     regOb.fit_cube(n_comp=2, multicore=multicore, snr_min=3.0, mask_function = None, iterfit=True)
-    #regOb.calc_aic()
-    #regOb.calc_chisq()
+    regOb.fit_cube(n_comp=1, multicore=multicore, snr_min=3.0, mask_function = None, iterfit=True)
+    regOb.calc_aic()
+    regOb.calc_chisq()
 
 
 def run(region='L1448', multicore=8, root='all_rebase3'):
