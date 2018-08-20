@@ -348,7 +348,7 @@ def moment_guesses(moment1, moment2, ncomp, sigmin=0.04, tex_guess=3.2, tau_gues
         gg[3,:,:] = tau_guess          # v0 tau
         gg[4,:,:] = m1 + sigmaoff*m2   # v1 centriod
         gg[5,:,:] = gs_sig             # v1 width
-        gg[6,:,:] = tex_guess          # v1 T_ex
+        gg[6,:,:] = tex_guess*0.8          # v1 T_ex
         gg[7,:,:] = tau_guess*0.25      # v1 tau
 
     # using a generalized receipe that have not been tested (lots of room for improvement!)
@@ -356,7 +356,7 @@ def moment_guesses(moment1, moment2, ncomp, sigmin=0.04, tex_guess=3.2, tau_gues
         for i in range (0, ncomp):
             gg[i,  :,:] = m1+(-1.0+i*1.0/ncomp)*0.5*m2 # v0 centriod (step through a range fo velocities within sigma_v)
             gg[i+1,:,:] = gs_sig             # v0 width
-            gg[i+2,:,:] = tex_guess          # v0 T_ex
+            gg[i+2,:,:] = tex_guess*0.8      # v0 T_ex
             gg[i+3,:,:] = tau_guess*0.25     # v0 tau
 
     #print "guesses:"
@@ -714,7 +714,7 @@ def cubefit_gen(cube11name, ncomp=2, paraname = None, modname = None, chisqname 
         savename = "{0}_guesses.fits".format(os.path.splitext(paraname)[0], "parameter_maps")
         fitcubefile = fits.PrimaryHDU(data=guesses, header=hdr_new)
         fitcubefile.writeto(savename ,overwrite=True)
-        return guesses
+        #return guesses
 
     # set some of the fiteach() inputs to that used in GAS DR1 reduction
     kwargs = {'integral':False, 'verbose_level':3, 'signal_cut':2}
