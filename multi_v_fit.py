@@ -304,8 +304,9 @@ def moment_guesses(moment1, moment2, ncomp, sigmin=0.04, tex_guess=3.2, tau_gues
     if moment0 is not None:
         # normalize the moment 0 map with respect to the norm_ref percentile value
         # e.g., 95 percentile value being normalized to have a value of 0.95
-        norm_ref = 95.0
+        norm_ref = 99.5
         mom0high = np.percentile(moment0[np.isfinite(moment0)], norm_ref)
+        print "moment 0 value at {0} percentile: {1}".format(norm_ref, mom0high)
         m0Norm = moment0.copy()*norm_ref/100.0/mom0high
 
         print "[WARNING]: moment0 map is provided, thus the user-provided tex and tau will not be used"
@@ -625,7 +626,7 @@ def cubefit_gen(cube11name, ncomp=2, paraname = None, modname = None, chisqname 
         v_median = np.median(m1[np.isfinite(m1)])
         print "median velocity: {0}".format(v_median)
 
-        if True:
+        if False:
             # save the moment maps for diagnostic purposes
             import os
             hdr_new = copy.deepcopy(pcube.header)
