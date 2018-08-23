@@ -173,9 +173,10 @@ def DR1_run(region='NGC1333', multicore=8, linename = "oneone", snr_min=5.0):
 
 
 def super_run(linename = "oneone"):
-    DR1_run(region='NGC1333', multicore=8, linename=linename)
 
-    run(region='L1688')
+    DR1_run(region='L1688', multicore=8, linename=linename)
+    #DR1_run(region='NGC1333', multicore=8, linename=linename)
+
     #special_run(region='L1448', linename="oneone")
     #special_run(region='L1448', linename="twotwo")
     #special_run(region='OrionB_NGC2023-2024')
