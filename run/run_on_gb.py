@@ -157,6 +157,20 @@ def make_dir(dirpath):
 
 #=======================================================================================================================
 
+def run_L1688(n_comp=2):
+    # for testing purpose
+    region='L1688'
+    multicore=8
+    linename = "oneone"
+    snr_min=5.0
+    reg = Region(region, root='DR1_rebase3', linename=linename)
+    reg.OneOneFile = '{2}/{0}/DR1/{0}_NH3_{3}_{1}_trim.fits'.format(reg.region, reg.root, reg.cubeDir, reg.line_root)
+    reg.RMSFile = '{2}/{0}/DR1/{0}_NH3_{3}_{1}_rms_QA_trim.fits'.format(reg.region, reg.root, reg.cubeDir, reg.line_root)
+    reg.SingVParaFile = None
+    reg.fit_cube(n_comp=n_comp, multicore=multicore, snr_min=snr_min, mask_function = None, iterfit=True)
+    return reg
+
+
 def DR1_run(region='NGC1333', multicore=8, linename = "oneone", snr_min=5.0):
 
     # for running on DR1 regions
@@ -166,10 +180,11 @@ def DR1_run(region='NGC1333', multicore=8, linename = "oneone", snr_min=5.0):
     reg.RMSFile = '{2}/{0}/DR1/{0}_NH3_{3}_{1}_rms_QA_trim.fits'.format(reg.region, reg.root, reg.cubeDir, reg.line_root)
     reg.SingVParaFile = None
 
-    reg.fit_cube(n_comp=2, multicore=multicore, snr_min=snr_min, mask_function = None, iterfit=True)
+    #reg.fit_cube(n_comp=2, multicore=multicore, snr_min=snr_min, mask_function = None, iterfit=True)
     reg.fit_cube(n_comp=1, multicore=multicore, snr_min=snr_min, mask_function = None, iterfit=True)
-    reg.calc_aic()
-    reg.calc_chisq()
+    #reg.calc_aic()
+    #reg.calc_chisq()
+    return reg
 
 
 def super_run(linename = "oneone"):
@@ -195,10 +210,11 @@ def special_run(region='L1448', multicore=8, linename = "oneone"):
 
     regOb.OneOneFile = '{2}/{0}/{0}_NH3_{3}_{1}.fits'.format(regOb.region, 'all_rebase_multi', regOb.cubeDir, regOb.line_root)
 
-    regOb.fit_cube(n_comp=2, multicore=multicore, snr_min=3.0, mask_function = None, iterfit=True)
+    #regOb.fit_cube(n_comp=2, multicore=multicore, snr_min=3.0, mask_function = None, iterfit=True)
     regOb.fit_cube(n_comp=1, multicore=multicore, snr_min=3.0, mask_function = None, iterfit=True)
-    regOb.calc_aic()
-    regOb.calc_chisq()
+    #regOb.calc_aic()
+    #regOb.calc_chisq()
+    return regOb
 
 
 def run(region='L1448', multicore=8, root='all_rebase3'):
