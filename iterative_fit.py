@@ -74,6 +74,7 @@ def cubefit(cubename, downsampfactor=2, **kwargs):
         kwargs_cnv['paraname'] = "{0}_cnv.fits".format(os.path.splitext(kwargs['paraname'])[0], "parameter_maps")
         # turn the moment edge trim off for now. Something seems to be wrong
         kwargs_cnv['momedgetrim'] = False
+        kwargs_cnv['modname'] = None
 
         # fit the convolved cube to serve as parameter guesses for the full resolution fitting
         cnv_pcube = mvf.cubefit_gen(cnv_cubename, **kwargs_cnv)
