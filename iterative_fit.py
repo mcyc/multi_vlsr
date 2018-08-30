@@ -102,8 +102,10 @@ def cubefit(cubename, downsampfactor=2, **kwargs):
     kwargs['guesses'] = guess_from_cnvpara(data_cnv, hdr_cnv, hdr_final, downsampfactor=2)
 
     # make the **kwargs comptiable with mvf.cubefit_gen(), i.e., remove parameter that are only specific to this method
-    kwargs['modname'] = "{0}_{1}_iter.fits".format(os.path.splitext(cubename)[0], "modelcube")
+    '''
+    kwargs['modname'] = "{0}_{1}_iter.fits".format(os.path.splitext(kwargs['modname'])[0], "modelcube")
     kwargs['paraname'] = "{0}_iter.fits".format(os.path.splitext(kwargs['paraname'])[0], "parameter_maps")
+    '''
 
     pcube = mvf.cubefit_gen(cubename, **kwargs)
 
