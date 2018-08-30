@@ -41,9 +41,13 @@ class Region(object):
             print "[ERROR]: NH3 lines beyond twotwo has yet to be implemented"
 
         # create directories if they don't exist
+
+        print "testing"
+        '''
         make_dir(self.paraDir)
         make_dir(self.modelDir)
         make_dir(self.cleanParaDir)
+        '''
 
         self.root = root
         if rootPara is None:
@@ -87,6 +91,9 @@ class Region(object):
         self.SepVModelFile = '{2}/{0}_NH3_{4}_{1}_{3}VModel.fits'.format(self.region, self.root, self.modelDir, n_comp,
                                                                          self.line_root)
 
+        print self.ModelFile
+        return None
+
         if iterfit:
             # perform iternative fitting
             kwargs = {'ncomp':n_comp, 'paraname':self.NewParaFile, 'modname':self.ModelFile, 'chisqname':self.ChisqFile,
@@ -117,23 +124,30 @@ class Region(object):
 
     def calc_aic(self, n_comp1=1, n_comp2=2):
         # calculate the aic values over the same spectral windows for two given models
-        modpath1 = '{2}/{0}_NH3_{4}_{1}_{3}comp_model.fits'.format(self.region, self.root, self.modelDir, n_comp1,
-                                                                   self.line_root)
-        modpath2 = '{2}/{0}_NH3_{4}_{1}_{3}comp_model.fits'.format(self.region, self.root, self.modelDir, n_comp2,
-                                                                   self.line_root)
+
+        modNameSp = self.ModelFile.split("comp_model")
+        modpath1 = '{0}{1}{2}{3}'.format(modNameSp[0][:-1], n_comp1, "comp_model", modNameSp[1])
+        modpath2 = '{0}{1}{2}{3}'.format(modNameSp[0][:-1], n_comp2, "comp_model", modNameSp[1])
         aiccpath = "{0}/{1}_NH3_{4}_{2}v{3}comp_aicc.fits".format(self.cleanParaDir, self.region, n_comp2, n_comp1,
                                                                   self.line_root)
+        print modpath1
+        print modpath2
+        return None
+
         aic.fits_comp_AICc(self.OneOneFile, modpath1, modpath2, aiccpath)
+
 
 
     def calc_chisq(self, n_comp1=1, n_comp2=2):
         # calculate the reduced chi-squared values over the same spectral windows two given models
-        modpath1 = '{2}/{0}_NH3_{4}_{1}_{3}comp_model.fits'.format(self.region, self.root, self.modelDir, n_comp1,
-                                                                   self.line_root)
-        modpath2 = '{2}/{0}_NH3_{4}_{1}_{3}comp_model.fits'.format(self.region, self.root, self.modelDir, n_comp2,
-                                                                   self.line_root)
+        modNameSp = self.ModelFile.split("comp_model")
+        modpath1 = '{0}{1}{2}{3}'.format(modNameSp[0][:-1], n_comp1, "comp_model", modNameSp[1])
+        modpath2 = '{0}{1}{2}{3}'.format(modNameSp[0][:-1], n_comp2, "comp_model", modNameSp[1])
         chisqpath = "{0}/{1}_NH3_{4}_{2}v{3}comp_redchisq.fits".format(self.cleanParaDir, self.region, n_comp2, n_comp1,
                                                                        self.line_root)
+        print modpath1
+        print modpath2
+        return None
         aic.fits_comp_chisq(self.OneOneFile, modpath1, modpath2, chisqpath, reduced = True)
 
 
@@ -180,10 +194,10 @@ def DR1_run(region='NGC1333', multicore=8, linename = "oneone", snr_min=5.0):
     reg.RMSFile = '{2}/{0}/DR1/{0}_NH3_{3}_{1}_rms_QA_trim.fits'.format(reg.region, reg.root, reg.cubeDir, reg.line_root)
     reg.SingVParaFile = None
 
-    #reg.fit_cube(n_comp=2, multicore=multicore, snr_min=snr_min, mask_function = None, iterfit=True)
+    reg.fit_cube(n_comp=2, multicore=multicore, snr_min=snr_min, mask_function = None, iterfit=True)
     reg.fit_cube(n_comp=1, multicore=multicore, snr_min=snr_min, mask_function = None, iterfit=True)
-    #reg.calc_aic()
-    #reg.calc_chisq()
+    reg.calc_aic()
+    reg.calc_chisq()
     return reg
 
 
@@ -210,10 +224,10 @@ def special_run(region='L1448', multicore=8, linename = "oneone"):
 
     regOb.OneOneFile = '{2}/{0}/{0}_NH3_{3}_{1}.fits'.format(regOb.region, 'all_rebase_multi', regOb.cubeDir, regOb.line_root)
 
-    #regOb.fit_cube(n_comp=2, multicore=multicore, snr_min=3.0, mask_function = None, iterfit=True)
+    regOb.fit_cube(n_comp=2, multicore=multicore, snr_min=3.0, mask_function = None, iterfit=True)
     regOb.fit_cube(n_comp=1, multicore=multicore, snr_min=3.0, mask_function = None, iterfit=True)
-    #regOb.calc_aic()
-    #regOb.calc_chisq()
+    regOb.calc_aic()
+    regOb.calc_chisq()
     return regOb
 
 
