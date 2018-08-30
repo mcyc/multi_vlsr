@@ -42,12 +42,9 @@ class Region(object):
 
         # create directories if they don't exist
 
-        print "testing"
-        '''
         make_dir(self.paraDir)
         make_dir(self.modelDir)
         make_dir(self.cleanParaDir)
-        '''
 
         self.root = root
         if rootPara is None:
@@ -88,11 +85,7 @@ class Region(object):
                                                                           n_comp, self.line_root)
 
         self.SNRFile = '{2}/{0}_{3}vcomp_SNR_eachV_{1}.fits'.format(self.region, self.rootPara, self.paraDir, n_comp)
-        self.SepVModelFile = '{2}/{0}_NH3_{4}_{1}_{3}VModel.fits'.format(self.region, self.root, self.modelDir, n_comp,
-                                                                         self.line_root)
-
-        print self.ModelFile
-        return None
+        self.SepVModelFile = '{2}/{0}_NH3_{4}_{1}_{3}VModel.fits'.format(self.region, self.root, self.modelDir, n_comp,                                                                  self.line_root)
 
         if iterfit:
             # perform iternative fitting
@@ -130,9 +123,6 @@ class Region(object):
         modpath2 = '{0}{1}{2}{3}'.format(modNameSp[0][:-1], n_comp2, "comp_model", modNameSp[1])
         aiccpath = "{0}/{1}_NH3_{4}_{2}v{3}comp_aicc.fits".format(self.cleanParaDir, self.region, n_comp2, n_comp1,
                                                                   self.line_root)
-        print modpath1
-        print modpath2
-        return None
 
         aic.fits_comp_AICc(self.OneOneFile, modpath1, modpath2, aiccpath)
 
@@ -145,9 +135,7 @@ class Region(object):
         modpath2 = '{0}{1}{2}{3}'.format(modNameSp[0][:-1], n_comp2, "comp_model", modNameSp[1])
         chisqpath = "{0}/{1}_NH3_{4}_{2}v{3}comp_redchisq.fits".format(self.cleanParaDir, self.region, n_comp2, n_comp1,
                                                                        self.line_root)
-        print modpath1
-        print modpath2
-        return None
+
         aic.fits_comp_chisq(self.OneOneFile, modpath1, modpath2, chisqpath, reduced = True)
 
 
@@ -166,7 +154,6 @@ def make_dir(dirpath):
     except OSError as e:
         if e.errno != errno.EEXIST:
             raise
-
 
 
 #=======================================================================================================================
