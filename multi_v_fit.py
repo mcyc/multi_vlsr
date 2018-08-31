@@ -14,7 +14,7 @@ from spectral_cube import SpectralCube
 from astropy.utils.console import ProgressBar
 from skimage.morphology import remove_small_objects,disk,opening,binary_erosion #, closing
 
-
+import os, errno
 from os import path
 
 import ammonia_multiv as ammv
@@ -503,7 +503,7 @@ def get_singv_tau11(singv_para):
 
 
 def cubefit_gen(cube11name, ncomp=2, paraname = None, modname = None, chisqname = None, guesses = None, errmap11name = None,
-            multicore = 1, mask_function = None, snr_min=3.0, linename="oneone", momedgetrim=True):
+            multicore = 1, mask_function = None, snr_min=3.0, linename="oneone", momedgetrim=True, saveguess=False):
     '''
     Perform n velocity component fit on the GAS ammonia 1-1 data.
     (This should be the function to call for all future codes if it has been proven to be reliable)
@@ -605,13 +605,6 @@ def cubefit_gen(cube11name, ncomp=2, paraname = None, modname = None, chisqname 
     mask = (snr>3)*planemask*footprint_mask
     print "mask size: {0}, shape: {1}".format(mask[mask].size, mask.shape)
 
-    '''
-    import matplotlib.pyplot as plt
-    plt.imshow(mask.any(axis=0), origin='lower')
-    plt.show()
-    plt.clf()
-    '''
-
     maskcube = cube.with_mask(mask.astype(bool))
     maskcube = maskcube.with_spectral_unit(u.km/u.s,velocity_convention='radio')
 
@@ -702,16 +695,26 @@ def cubefit_gen(cube11name, ncomp=2, paraname = None, modname = None, chisqname 
     guesses[3::4][guesses[3::4] > taumax] = taumax
     guesses[3::4][guesses[3::4] < taumin] = taumin
 
-    if True:
+    if saveguess:
         # save the guesses for diagnostic purposes
-        import os
         hdr_new = copy.deepcopy(pcube.header)
         hdr_new['CDELT3']= 1
         hdr_new['CTYPE3']= 'FITPAR'
         hdr_new['CRVAL3']= 0
         hdr_new['CRPIX3']= 1
 
-        savename = "{0}_guesses.fits".format(os.path.splitext(paraname)[0], "parameter_maps")
+
+        savedir = "{0}/{1}".format(path.dirname(paraname), "guesses")
+
+        try:
+            os.makedirs(savedir)
+        except OSError as e:
+            if e.errno != errno.EEXIST:
+                raise
+
+        savename = "{0}_guesses.fits".format(path.splitext(paraname)[0], "parameter_maps")
+        savename = "{0}/{1}".format(savedir,path.basename(savename))
+
         fitcubefile = fits.PrimaryHDU(data=guesses, header=hdr_new)
         fitcubefile.writeto(savename ,overwrite=True)
         #return guesses
