@@ -9,10 +9,12 @@ from spectral_cube import SpectralCube
 import astropy.units as u
 from astropy.utils.console import ProgressBar
 import pyspeckit
+from pyspeckit.spectrum.units import SpectroscopicAxis
 import gc
 
 # import from this directory
 import ammonia_hf_multiv as amhf
+reload(amhf)
 
 #=======================================================================================================================
 
@@ -228,20 +230,27 @@ def deblend_cube(paraFile, cubeRefFile, deblendFile, vmin=4.0, vmax=11.0, T_bg =
     cube = cube.spectral_slab(vmin*u.km/u.s,vmax*u.km/u.s)
 
     # generate an empty SpectralCube to house the deblended cube
-    deblend = np.zeros(cube.shape)
-    hdr = cube.wcs.to_header()
+    if f_spcsamp is None:
+        deblend = np.zeros(cube.shape)
+        hdr = cube.wcs.to_header()
+    else:
+        deblend = np.zeros((cube.shape[0]*int(f_spcsamp), cube.shape[1], cube.shape[2]))
+        wcs_new = cube.wcs.deepcopy()
+        # adjust the spectral reference value
+        wcs_new.wcs.crpix[2] = wcs_new.wcs.crpix[2]*int(f_spcsamp)
+        hdr = wcs_new.to_header()
+
     mcube = SpectralCube(deblend, cube.wcs, header=hdr)
 
-    # change the spectral sampling relative to the reference cube
-    if f_spcsamp is not None:
-        spaxis = mcube.spectral_axis.value
-        spaxis = np.interp(np.arange(0, len(spaxis), 1.0/f_spcsamp), np.arange(0, len(spaxis)), spaxis)
-        mcube.spectral_interpolate(spectral_grid=spaxis, suppress_smooth_warning=False, fill_value=0.0)
-
+    '''
+    xarr = SpectroscopicAxis(mcube.spectral_axis.value, unit = mcube.spectral_axis.unit,
+                             refX=mcube._header['RESTFRQ'], velocity_convention='radio')
+    '''
     # convert back to an unit that the ammonia hf model can handle (i.e. Hz) without having to create a
-    # pyspeckit.spectrum.units.SpectroscopicAxis object
+    # pyspeckit.spectrum.units.SpectroscopicAxis object (which runs rather slow for model building in comparison)
     mcube = mcube.with_spectral_unit(u.Hz, velocity_convention='radio')
     xarr = mcube.spectral_axis
+
 
     # remove the error components
     n_para = n_comp*4
@@ -253,11 +262,21 @@ def deblend_cube(paraFile, cubeRefFile, deblendFile, vmin=4.0, vmax=11.0, T_bg =
     isvalid = np.any(np.isfinite(para),axis=0)
     valid_pixels = zip(xx[isvalid], yy[isvalid])
 
+    # set linewidth to a fix value upon request
+    if sigv_fixed is not None:
+        para[1::4, isvalid] = sigv_fixed
+        '''
+        # reduce the tau just see what's up
+        para[3::4, isvalid] = para[3::4, isvalid]/10.0
+        '''
+
     def model_a_pixel(xy):
         x,y = int(xy[0]), int(xy[1])
+        # nh3_vtau_singlemodel_deblended takes Hz as the spectral unit
         models = [amhf.nh3_vtau_singlemodel_deblended(xarr, Tex=tex, tau=tau, xoff_v=vel, width=width)
                   for vel, width, tex, tau in zip(para[::4, y,x], para[1::4, y,x], para[2::4, y,x], para[3::4, y,x])]
-        mcube.base[:,y,x] = np.nansum(np.array(models), axis=0)
+
+        mcube._data[:,y,x] = np.nansum(np.array(models), axis=0)
 
     for xy in ProgressBar(list(valid_pixels)):
         model_a_pixel(xy)
