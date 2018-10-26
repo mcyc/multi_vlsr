@@ -158,6 +158,7 @@ def make_dir(dirpath):
 
 #=======================================================================================================================
 
+'''
 def run_L1688(n_comp=2):
     # for testing purpose
     region='L1688'
@@ -170,7 +171,16 @@ def run_L1688(n_comp=2):
     reg.SingVParaFile = None
     reg.fit_cube(n_comp=n_comp, multicore=multicore, snr_min=snr_min, mask_function = None, iterfit=True)
     return reg
+'''
 
+def run(region='L1448', multicore=8, root='all_rebase3'):
+    # wrapper to run individual regions on a go
+    regOb = Region(region, root=root)
+    regOb.fit_cube(n_comp=2, multicore=multicore, snr_min=5.0, mask_function = None, iterfit=True)
+    regOb.fit_cube(n_comp=1, multicore=multicore, snr_min=5.0, mask_function= None, iterfit=True)
+    regOb.calc_aic()
+    regOb.calc_chisq()
+    return reg
 
 def DR1_run(region='NGC1333', multicore=8, linename = "oneone", snr_min=5.0):
 
@@ -189,6 +199,7 @@ def DR1_run(region='NGC1333', multicore=8, linename = "oneone", snr_min=5.0):
 
 
 def super_run(linename = "oneone"):
+    # note: likely hard on memory, especially gc.collect is ont used
 
     DR1_run(region='L1688', multicore=8, linename=linename)
     #DR1_run(region='NGC1333', multicore=8, linename=linename)
@@ -218,14 +229,7 @@ def special_run(region='L1448', multicore=8, linename = "oneone"):
     return regOb
 
 
-def run(region='L1448', multicore=8, root='all_rebase3'):
-    # wrapper to run individual regions on a go
 
-    regOb = Region(region, root=root)
-    regOb.fit_cube(n_comp=1, multicore=multicore, snr_min=5.0, mask_function = None)
-    regOb.fit_cube(n_comp=2, multicore=multicore, snr_min=5.0, mask_function = None)
-    regOb.calc_aic()
-    regOb.calc_chisq()
 
 
 '''
