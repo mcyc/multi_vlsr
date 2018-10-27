@@ -180,7 +180,7 @@ def run(region='L1448', multicore=8, root='all_rebase3'):
     regOb.fit_cube(n_comp=1, multicore=multicore, snr_min=5.0, mask_function= None, iterfit=True)
     regOb.calc_aic()
     regOb.calc_chisq()
-    return reg
+    return regOb
 
 def DR1_run(region='NGC1333', multicore=8, linename = "oneone", snr_min=5.0):
 
