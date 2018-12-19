@@ -49,6 +49,7 @@ def deblend_cube(paraFile, cubeRefFile, deblendFile, vmin=4.0, vmax=11.0, T_bg =
 
     # deconvolve linewidth if requested (to be used with SCMS for filament ID)
     if deconvolve_linewidth is not None:
+        print deconvolve_linewidth
         para[1::4] = np.sqrt(para[1::4]**2 - deconvolve_linewidth**2)
 
     # open the reference cube file
@@ -61,7 +62,7 @@ def deblend_cube(paraFile, cubeRefFile, deblendFile, vmin=4.0, vmax=11.0, T_bg =
         mcube.write(deblendFile, overwrite=True)
 
     if convolve:
-        savename = "{0}_cnv.fits".format(os.path.splitext(deblendFile)[0], ".fits")
+        savename = "{0}_cnv.fits".format(os.path.splitext(deblendFile)[0])
         convolve_sky_byfactor(mcube, factor=2, savename=savename, edgetrim_width=None, downsample=False)
 
     gc.collect()
@@ -92,11 +93,14 @@ def deblend(para, specCubeRef, vmin=4.0, vmax=11.0, f_spcsamp = None, tau_wgt = 
     if f_spcsamp is None:
         deblend = np.zeros(cube.shape)
         hdr = cube.wcs.to_header()
+        wcs_new = cube.wcs
     else:
         deblend = np.zeros((cube.shape[0]*int(f_spcsamp), cube.shape[1], cube.shape[2]))
         wcs_new = cube.wcs.deepcopy()
         # adjust the spectral reference value
         wcs_new.wcs.crpix[2] = wcs_new.wcs.crpix[2]*int(f_spcsamp)
+        # adjust the spaxel size
+        wcs_new.wcs.cdelt[2] = wcs_new.wcs.cdelt[2]/int(f_spcsamp)
         hdr = wcs_new.to_header()
 
     # retain the beam information
@@ -104,7 +108,7 @@ def deblend(para, specCubeRef, vmin=4.0, vmax=11.0, f_spcsamp = None, tau_wgt = 
     hdr['BMIN'] = cube.header['BMIN']
     hdr['BPA'] = cube.header['BPA']
 
-    mcube = SpectralCube(deblend, cube.wcs, header=hdr)
+    mcube = SpectralCube(deblend, wcs_new, header=hdr)
 
     # convert back to an unit that the ammonia hf model can handle (i.e. Hz) without having to create a
     # pyspeckit.spectrum.units.SpectroscopicAxis object (which runs rather slow for model building in comparison)

@@ -111,7 +111,7 @@ class Region(object):
         clean_map.clean_onecomp(ParaFile1, self.CleanParaFile_1comp, snrname = None, rm_sml_obj = True, snr_min = 3.0)
 
 
-    def deblend_2comp(self, vmin, vmax, res_boost=1.0, fixsigma=True, tau_wgt=0.1, forSCMS=True):
+    def deblend_2comp(self, vmin, vmax, res_boost=1.0, fixsigma=False, tau_wgt=0.1, forSCMS=True):
         # default tau_wgt of 0.1 is roughly the optical depth of one of the sattallite hyepr fine lines
 
         if not hasattr(self, 'CleanParaFile_2comp'):
@@ -135,29 +135,34 @@ class Region(object):
         sigv = v_rez*n_pix_nyq_samp/fwhm_per_sig
         sigv = sigv/res_boost
 
+
         if fixsigma:
-            root_sigma = "NyqFixSig"
+            root_sigma = "NyqFixSig_"
         else:
             root_sigma = ""
 
         # make a deblended cube at the native resolution
-        if res_boost == 1.0:
-            self.DeblendFile = "{0}/{1}_NH3_11_{2}_2vcomp_deblended_{3}.fits".format(self.deblendDir, self.region,
-                                                                                           root_sigma, self.root)
-        else:
-            self.DeblendFile = "{0}/{1}_NH3_11_{2}_2vcomp_deblended_{3}_{4}xRes.fits".format(self.deblendDir,
-                                                                                            self.region, self.root,
-                                                                                            root_sigma, int(res_boost))
+        self.DeblendFile = "{0}/{1}_NH3_11_{2}2vcomp_deblended_{3}.fits".format(self.deblendDir, self.region,
+                                                                                 root_sigma, self.root)
+
+        if res_boost != 1.0:
+            self.DeblendFile = "{0}_{1}xRes.fits".format(os.path.splitext(self.DeblendFile)[0], int(res_boost))
 
         kwargs = {'vmin':vmin, 'vmax':vmax, 'f_spcsamp':res_boost, 'tau_wgt':tau_wgt}
+
         if fixsigma:
+            print "fixed!"
             kwargs['sigv_fixed']=sigv
+
+        if forSCMS:
+            kwargs['deconvolve_linewidth'] = v_rez
+            self.DeblendFile = "{0}_forSCMS.fits".format(os.path.splitext(self.DeblendFile)[0])
 
         deblend_cube.deblend_cube(ParaFile, self.OneOneFile, self.DeblendFile, **kwargs)
 
 
 
-    def deblend_individual(self, vmin, vmax, res_boost=1.0, fixsigma=True, tau_wgt=0.1):
+    def deblend_individual(self, vmin, vmax, res_boost=1.0, fixsigma=False, tau_wgt=0.1):
         # default tau_wgt of 0.1 is roughly the optical depth of one of the sattallite hyepr fine lines
 
         if not hasattr(self, 'CleanParaFile_2comp'):
@@ -271,7 +276,8 @@ def master_deblend(tau_wgt=0.1):
 
     #deblend(reg='B1', vmin=5.3, vmax=8.1, tau_wgt=tau_wgt)
     #deblend(reg='L1448', vmin=2.5, vmax=6.5, tau_wgt=tau_wgt)
-    deblend(reg='HC2', vmin=4.3, vmax=7.2, tau_wgt=tau_wgt)
+    #deblend(reg='HC2', vmin=4.3, vmax=7.2, tau_wgt=tau_wgt)
+    deblend_4SCMS(reg='L1448', vmin=2.5, vmax=6.5, tau_wgt=tau_wgt)
 
 
 def clean_reg(reg = 'L1448'):
@@ -280,6 +286,9 @@ def clean_reg(reg = 'L1448'):
     #region = Region(reg, linename = "twotwo")
     #region.clean_map()
     return None
+
+def deblend_4SCMS(reg = 'HC2', vmin=4, vmax=7, **kwargs):
+    deblend(reg, vmin, vmax, res_boost=2.0, forSCMS=True, **kwargs)
 
 def deblend(reg = 'HC2', vmin=4, vmax=7, **kwargs):
     region = Region(reg)
