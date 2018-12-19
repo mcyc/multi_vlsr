@@ -22,7 +22,7 @@ reload(amhf)
 #=======================================================================================================================
 
 def deblend_cube(paraFile, cubeRefFile, deblendFile, vmin=4.0, vmax=11.0, T_bg = 0.0, sigv_fixed = None,
-                 f_spcsamp = None, tau_wgt = 0.1, convolve=True):
+                 f_spcsamp = None, tau_wgt = 0.1, convolve=True, deconvolve_linewidth=None):
 
     # tau_wgt is to account for the fact that the fitted tau parameter is the total tau of all the hyperfines combined
     # a more realistic tau value to adopt will thus be that of the main hyperfines, where the lines becomes optically
@@ -37,14 +37,25 @@ def deblend_cube(paraFile, cubeRefFile, deblendFile, vmin=4.0, vmax=11.0, T_bg =
     para, hdr_para = fits.getdata(paraFile, header = True)
     n_comp = hdr_para['NAXIS3']/8
 
+    # remove the error components
+    n_para = n_comp*4
+    para = para[:n_para]
+    assert para.shape[0] == n_para
+
+    # set linewidth to a fix value upon request
+    if sigv_fixed is not None:
+        isvalid = np.any(np.isfinite(para), axis=0)
+        para[1::4, isvalid] = sigv_fixed
+
+    # deconvolve linewidth if requested (to be used with SCMS for filament ID)
+    if deconvolve_linewidth is not None:
+        para[1::4] = np.sqrt(para[1::4]**2 - deconvolve_linewidth**2)
+
     # open the reference cube file
     cube = SpectralCube.read(cubeRefFile)
 
-    kwargs = {'vmin':vmin, 'vmax':vmax, 'sigv_fixed':sigv_fixed, 'f_spcsamp':f_spcsamp, 'tau_wgt':tau_wgt}
-    mcube = deblend(para, n_comp, specCubeRef=cube, **kwargs)
-
-    cube = cube.with_spectral_unit(u.km/u.s, velocity_convention='radio')
-
+    kwargs = {'vmin':vmin, 'vmax':vmax, 'f_spcsamp':f_spcsamp, 'tau_wgt':tau_wgt}
+    mcube = deblend(para, specCubeRef=cube, **kwargs)
 
     if deblendFile != None:
         mcube.write(deblendFile, overwrite=True)
@@ -58,7 +69,7 @@ def deblend_cube(paraFile, cubeRefFile, deblendFile, vmin=4.0, vmax=11.0, T_bg =
 
 
 
-def deblend(para, n_comp, specCubeRef, vmin=4.0, vmax=11.0, sigv_fixed = None, f_spcsamp = None, tau_wgt = 0.1):
+def deblend(para, specCubeRef, vmin=4.0, vmax=11.0, f_spcsamp = None, tau_wgt = 0.1):
 
     # tau_wgt is to account for the fact that the fitted tau parameter is the total tau of all the hyperfines combined
     # a more realistic tau value to adopt will thus be that of the main hyperfines, where the lines becomes optically
@@ -100,20 +111,10 @@ def deblend(para, n_comp, specCubeRef, vmin=4.0, vmax=11.0, sigv_fixed = None, f
     mcube = mcube.with_spectral_unit(u.Hz, velocity_convention='radio')
     xarr = mcube.spectral_axis
 
-
-    # remove the error components
-    n_para = n_comp*4
-    para = para[:n_para]
-    assert para.shape[0] == n_para
-
     yy,xx = np.indices(para.shape[1:])
     # a pixel is valid as long as it has a single finite value
     isvalid = np.any(np.isfinite(para),axis=0)
     valid_pixels = zip(xx[isvalid], yy[isvalid])
-
-    # set linewidth to a fix value upon request
-    if sigv_fixed is not None:
-        para[1::4, isvalid] = sigv_fixed
 
     def model_a_pixel(xy):
         x,y = int(xy[0]), int(xy[1])
