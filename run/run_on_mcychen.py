@@ -111,7 +111,8 @@ class Region(object):
         clean_map.clean_onecomp(ParaFile1, self.CleanParaFile_1comp, snrname = None, rm_sml_obj = True, snr_min = 3.0)
 
 
-    def deblend_2comp(self, vmin, vmax, res_boost = 1.0, fixsigma=True):
+    def deblend_2comp(self, vmin, vmax, res_boost=1.0, fixsigma=True, tau_wgt=0.1, forSCMS=True):
+        # default tau_wgt of 0.1 is roughly the optical depth of one of the sattallite hyepr fine lines
 
         if not hasattr(self, 'CleanParaFile_2comp'):
             self.clean_map_2comp()
@@ -135,25 +136,71 @@ class Region(object):
         sigv = sigv/res_boost
 
         if fixsigma:
-            root_sigma = "_NyqFixSig"
+            root_sigma = "NyqFixSig"
         else:
             root_sigma = ""
 
         # make a deblended cube at the native resolution
         if res_boost == 1.0:
-            self.DeblendFile = "{0}/{1}_NH3_11_{2}_2vcomp_deblended{3}.fits".format(self.deblendDir, self.region,
+            self.DeblendFile = "{0}/{1}_NH3_11_{2}_2vcomp_deblended_{3}.fits".format(self.deblendDir, self.region,
                                                                                            root_sigma, self.root)
         else:
-            self.DeblendFile = "{0}/{1}_NH3_11_{2}_2vcomp_deblended{3}_{4}xRes.fits".format(self.deblendDir,
+            self.DeblendFile = "{0}/{1}_NH3_11_{2}_2vcomp_deblended_{3}_{4}xRes.fits".format(self.deblendDir,
+                                                                                            self.region, self.root,
+                                                                                            root_sigma, int(res_boost))
+
+        kwargs = {'vmin':vmin, 'vmax':vmax, 'f_spcsamp':res_boost, 'tau_wgt':tau_wgt}
+        if fixsigma:
+            kwargs['sigv_fixed']=sigv
+
+        deblend_cube.deblend_cube(ParaFile, self.OneOneFile, self.DeblendFile, **kwargs)
+
+
+
+    def deblend_individual(self, vmin, vmax, res_boost=1.0, fixsigma=True, tau_wgt=0.1):
+        # default tau_wgt of 0.1 is roughly the optical depth of one of the sattallite hyepr fine lines
+
+        if not hasattr(self, 'CleanParaFile_2comp'):
+            self.clean_map_2comp()
+
+        if not hasattr(self, 'deblendDir'):
+            self.deblendDir = "{0}/{1}".format(self.cubeDir, "deblended")
+            make_dir(self.deblendDir)
+
+        ParaFile = self.CleanParaFile_2comp
+
+        # the velocity resolution of each channel
+        v_rez = 0.0724
+        # the number of pixels to sample a FWHM beam at nyquist limit
+        n_pix_nyq_samp = 3 # conforming to GAS spatial sampling
+        # conversion factor between FWHM and sigma
+        fwhm_per_sig = 2.355
+
+        # fixed the linewidth at the narrowest allowed by the nyquist sampling
+        # the following value is ~0.0769 km/s if n_pix_nyq_samp = 2.5
+        sigv = v_rez*n_pix_nyq_samp/fwhm_per_sig
+        sigv = sigv/res_boost
+
+        if fixsigma:
+            root_sigma = "NyqFixSig"
+        else:
+            root_sigma = ""
+
+        # make a deblended cube at the native resolution
+        if res_boost == 1.0:
+            self.DeblendFile = "{0}/{1}_NH3_11_{2}_2vcomp_deblended_{3}.fits".format(self.deblendDir, self.region,
+                                                                                           root_sigma, self.root)
+        else:
+            self.DeblendFile = "{0}/{1}_NH3_11_{2}_2vcomp_deblended_{3}_{4}xRes.fits".format(self.deblendDir,
                                                                                             self.region, self.root,
                                                                                             root_sigma, int(res_boost))
 
         if fixsigma:
             deblend_cube.deblend_cube(ParaFile, self.OneOneFile, self.DeblendFile, vmin=vmin, vmax=vmax, T_bg=0.0,
-                                  sigv_fixed=sigv, f_spcsamp=res_boost)
+                                  sigv_fixed=sigv, f_spcsamp=res_boost, tau_wgt=tau_wgt)
         else:
             deblend_cube.deblend_cube(ParaFile, self.OneOneFile, self.DeblendFile, vmin=vmin, vmax=vmax, T_bg=0.0,
-                                      f_spcsamp=res_boost)
+                                      f_spcsamp=res_boost, tau_wgt=tau_wgt)
 
 
         #outfile = "{0}/{1}_NH3_11_{2}_2vcomp_deblended.fits".format(self.deblendDir, self.region, self.root)
@@ -213,6 +260,20 @@ def make_dir(dirpath):
 ########################################################################################################################
 # user inputs
 
+def master_deblend(tau_wgt=0.1):
+
+    '''
+    region = Region("L1448")
+    region.deblend_2comp(vmin=2.5, vmax=6.5, tau_wgt=tau_wgt)
+    '''
+
+    #deblend_DR1(reg='NGC1333', vmin=5.2, vmax=9.5, linename="oneone", tau_wgt=tau_wgt)
+
+    #deblend(reg='B1', vmin=5.3, vmax=8.1, tau_wgt=tau_wgt)
+    #deblend(reg='L1448', vmin=2.5, vmax=6.5, tau_wgt=tau_wgt)
+    deblend(reg='HC2', vmin=4.3, vmax=7.2, tau_wgt=tau_wgt)
+
+
 def clean_reg(reg = 'L1448'):
     region = Region(reg, linename = "oneone")
     region.clean_map()
@@ -222,7 +283,13 @@ def clean_reg(reg = 'L1448'):
 
 def deblend(reg = 'HC2', vmin=4, vmax=7, **kwargs):
     region = Region(reg)
-    region.deblend_2comp(vmin, vmax, *kwargs)
+    region.deblend_2comp(vmin, vmax, **kwargs)
+
+'''
+def deblend_tau_test(reg="L1448", vmin=3, vmax=6, tau_wgt = 0.25, **kwargs):
+    region = Region(reg)
+    region.deblend_2comp(vmin, vmax, tau_wgt=tau_wgt, **kwargs)
+'''
 
 def clean_DR1_reg(reg='NGC1333', linename = "oneone"):
     region = Region(reg, linename=linename, root='DR1_rebase3')
