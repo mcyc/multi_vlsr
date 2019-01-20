@@ -648,10 +648,10 @@ def cubefit_gen(cube11name, ncomp=2, paraname = None, modname = None, chisqname 
     # set the fit parameter limits (consistent with GAS DR1)
     #Tbg = 2.8       # K
     Texmin = 3.0    # K; a more reasonable lower limit (5 K T_kin, 1e3 cm^-3 density, 1e13 cm^-2 column, 3km/s sigma)
-    Texmax = 100    # K; only possible for high column density (1e8? cm^-3, 1e16 cm^-2, 0.1 km/s sig, and ~100 K T_kin)
+    Texmax = 40    # K; DR1 T_k for Orion A is < 35 K. T_k = 40 at 1e5 cm^-3, 1e15 cm^-2, and 0.1 km/s yields Tex = 37K
     sigmin = 0.04   # km/s
-    sigmax = 3.0    # km/s; for Larson's law, a 10pc cloud has sigma = 2.6 km/s
-    taumax = 100.0  # a reasonable upper limit for GAS data. May have to double check for VLA or KEYSTONE data.
+    sigmax = 2.5    # km/s; for Larson's law, a 10pc cloud has sigma = 2.6 km/s
+    taumax = 100.0  # a reasonable upper limit for GAS data. At 10K and 1e5 cm^-3 & 3e15 cm^-2 -> 70
     taumin = 0.01   # it's hard to get lower than this even at 1e3 cm^-3, 1e13 cm^-2, 3 km/s linewidth, and high Tkin
     eps = 0.001 # a small perturbation that can be used in guesses
 
