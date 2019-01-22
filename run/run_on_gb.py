@@ -191,8 +191,8 @@ def DR1_run(region='NGC1333', multicore=8, linename = "oneone", snr_min=5.0):
     reg.RMSFile = '{2}/{0}/DR1/{0}_NH3_{3}_{1}_rms_QA_trim.fits'.format(reg.region, reg.root, reg.cubeDir, reg.line_root)
     reg.SingVParaFile = None
 
-    reg.fit_cube(n_comp=2, multicore=multicore, snr_min=snr_min, mask_function = None, iterfit=True)
     reg.fit_cube(n_comp=1, multicore=multicore, snr_min=snr_min, mask_function = None, iterfit=True)
+    reg.fit_cube(n_comp=2, multicore=multicore, snr_min=snr_min, mask_function = None, iterfit=True)
     reg.calc_aic()
     reg.calc_chisq()
     return reg
@@ -201,8 +201,8 @@ def DR1_run(region='NGC1333', multicore=8, linename = "oneone", snr_min=5.0):
 def super_run(linename = "oneone"):
     # note: likely hard on memory, especially gc.collect is ont used
 
-    DR1_run(region='L1688', multicore=8, linename=linename)
-    #DR1_run(region='NGC1333', multicore=8, linename=linename)
+    #DR1_run(region='L1688', multicore=8, linename=linename)
+    DR1_run(region='NGC1333', multicore=14, linename=linename)
 
     #special_run(region='L1448', linename="oneone")
     #special_run(region='L1448', linename="twotwo")
