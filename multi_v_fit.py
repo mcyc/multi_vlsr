@@ -652,7 +652,7 @@ def cubefit_gen(cube11name, ncomp=2, paraname = None, modname = None, chisqname 
     sigmin = 0.04   # km/s
     sigmax = 2.5    # km/s; for Larson's law, a 10pc cloud has sigma = 2.6 km/s
     taumax = 100.0  # a reasonable upper limit for GAS data. At 10K and 1e5 cm^-3 & 3e15 cm^-2 -> 70
-    taumin = 0.01   # it's hard to get lower than this even at 1e3 cm^-3, 1e13 cm^-2, 3 km/s linewidth, and high Tkin
+    taumin = 0.2   # it's hard to get lower than this even at 1e3 cm^-3, 1e13 cm^-2, 1 km/s linewidth, 40 K -> 0.15
     eps = 0.001 # a small perturbation that can be used in guesses
 
     # get the guesses based on moment maps
