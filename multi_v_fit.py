@@ -310,8 +310,8 @@ def moment_guesses(moment1, moment2, ncomp, sigmin=0.04, tex_guess=3.2, tau_gues
         print "moment 0 value at {0} percentile: {1}".format(norm_ref, mom0high)
         # may want to modify this normalization to be something a little simpler or physical (i.e., 99.73/100 ~ 1)
         m0Norm = moment0.copy()*norm_ref/100.0/mom0high
-        tex_guess = np.sqrt(m0Norm*tex_max)
-        tau_guess = np.sqrt(m0Norm*tau_max)
+        tex_guess = m0Norm*tex_max
+        tau_guess = m0Norm*tau_max
 
     m1 = moment1
     m2 = moment2
