@@ -307,13 +307,14 @@ def moment_guesses(moment1, moment2, ncomp, sigmin=0.04, tex_guess=3.2, tau_gues
         norm_ref = 99.73
         mom0high = np.percentile(moment0[np.isfinite(moment0)], norm_ref)
         print "moment 0 value at {0} percentile: {1}".format(norm_ref, mom0high)
+        # may want to modify this normalization to be something a little simpler or physical (i.e., 99.73/100 ~ 1)
         m0Norm = moment0.copy()*norm_ref/100.0/mom0high
 
         print "[WARNING]: moment0 map is provided, thus the user-provided tex and tau will not be used"
-        tex_guess = m0Norm*tex_max
+        tex_guess = np.sqrt(m0Norm*tex_max)
         tex_guess[tex_guess < tex_min] = tex_min
         tex_guess[tex_guess > tex_max] = tex_max
-        tau_guess = m0Norm*tau_max
+        tau_guess = np.sqrt(m0Norm*tau_max)
         tau_guess[tau_guess < tau_min] = tau_min
         tau_guess[tau_guess > tau_max] = tau_max
 
@@ -652,7 +653,7 @@ def cubefit_gen(cube11name, ncomp=2, paraname = None, modname = None, chisqname 
     sigmin = 0.04   # km/s
     sigmax = 2.5    # km/s; for Larson's law, a 10pc cloud has sigma = 2.6 km/s
     taumax = 100.0  # a reasonable upper limit for GAS data. At 10K and 1e5 cm^-3 & 3e15 cm^-2 -> 70
-    taumin = 0.2   # it's hard to get lower than this even at 1e3 cm^-3, 1e13 cm^-2, 1 km/s linewidth, 40 K -> 0.15
+    taumin = 0.2   # note: at 1e3 cm^-3, 1e13 cm^-2, 1 km/s linewidth, 40 K -> 0.15
     eps = 0.001 # a small perturbation that can be used in guesses
 
     # get the guesses based on moment maps
