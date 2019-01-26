@@ -282,7 +282,7 @@ def main_hf_moments(maskcube, window_hwidth, v_atpeak=None, snr_thresh=None):
     return m0, m1, m2
 
 
-def moment_guesses(moment1, moment2, ncomp, sigmin=0.04, tex_guess=3.2, tau_guess=0.5, moment0=None):
+def moment_guesses(moment1, moment2, ncomp, sigmin=0.07, tex_guess=3.2, tau_guess=0.5, moment0=None):
     '''
     Make reasonable guesses for the multiple component fits
     :param moment1:
@@ -391,7 +391,7 @@ def make_guesses(sigv_para_name, n_comp = 2, tex_guess =10.0, tau_guess = 0.5):
     tex[tex > Tmax] = Tmax
 
     # lower limit of the sigma guess
-    sigmin = 0.04
+    sigmin = 0.07
 
     # Guess linewidth (the current recipe works okay, but potential improvements can be made).
     gs_sig = 0.5*sigma
@@ -647,7 +647,7 @@ def cubefit_gen(cube11name, ncomp=2, paraname = None, modname = None, chisqname 
     #Tbg = 2.8       # K
     Texmin = 3.0    # K; a more reasonable lower limit (5 K T_kin, 1e3 cm^-3 density, 1e13 cm^-2 column, 3km/s sigma)
     Texmax = 40    # K; DR1 T_k for Orion A is < 35 K. T_k = 40 at 1e5 cm^-3, 1e15 cm^-2, and 0.1 km/s yields Tex = 37K
-    sigmin = 0.04   # km/s
+    sigmin = 0.07   # km/s
     sigmax = 2.5    # km/s; for Larson's law, a 10pc cloud has sigma = 2.6 km/s
     taumax = 100.0  # a reasonable upper limit for GAS data. At 10K and 1e5 cm^-3 & 3e15 cm^-2 -> 70
     taumin = 0.2   # note: at 1e3 cm^-3, 1e13 cm^-2, 1 km/s linewidth, 40 K -> 0.15
