@@ -316,11 +316,6 @@ def moment_guesses(moment1, moment2, ncomp, sigmin=0.04, tex_guess=3.2, tau_gues
     m1 = moment1
     m2 = moment2
 
-    #print "moment 1:"
-    #print m1
-    #print "moment 2"
-    #print m2
-
     # Guess linewidth (the current recipe works okay, but potential improvements can be made.
     gs_sig = m2/ncomp
     gs_sig[gs_sig < sigmin] = 0.08 # narrow enough to be purely thermal @ ~10 K
@@ -338,22 +333,23 @@ def moment_guesses(moment1, moment2, ncomp, sigmin=0.04, tex_guess=3.2, tau_gues
     if ncomp == 2:
         #sigmaoff = 0.25
         sigmaoff = 0.4
-        gg[0,:,:] = m1 - sigmaoff*m2   # v0 centriod
-        gg[1,:,:] = gs_sig             # v0 width
-        gg[2,:,:] = tex_guess          # v0 T_ex
-        gg[3,:,:] = tau_guess          # v0 tau
-        gg[4,:,:] = m1 + sigmaoff*m2   # v1 centriod
-        gg[5,:,:] = gs_sig             # v1 width
-        gg[6,:,:] = tex_guess*0.8          # v1 T_ex
-        gg[7,:,:] = tau_guess*0.25      # v1 tau
+        tau2_frac = 0.25                    # the tau weight of the second component relative to the total fraction
+        gg[0,:,:] = m1 - sigmaoff*m2        # v0 centriod
+        gg[1,:,:] = gs_sig                  # v0 width
+        gg[2,:,:] = tex_guess               # v0 T_ex
+        gg[3,:,:] = tau_guess*(1-tau2_frac)  # v0 tau
+        gg[4,:,:] = m1 + sigmaoff*m2        # v1 centriod
+        gg[5,:,:] = gs_sig                  # v1 width
+        gg[6,:,:] = tex_guess*0.8           # v1 T_ex
+        gg[7,:,:] = tau_guess*tau2_frac      # v1 tau
 
     # using a generalized receipe that have not been tested (lots of room for improvement!)
     if ncomp > 2:
         for i in range (0, ncomp):
             gg[i,  :,:] = m1+(-1.0+i*1.0/ncomp)*0.5*m2 # v0 centriod (step through a range fo velocities within sigma_v)
-            gg[i+1,:,:] = gs_sig             # v0 width
-            gg[i+2,:,:] = tex_guess*0.8      # v0 T_ex
-            gg[i+3,:,:] = tau_guess*0.25     # v0 tau
+            gg[i+1,:,:] = gs_sig                   # v0 width
+            gg[i+2,:,:] = tex_guess*0.8            # v0 T_ex
+            gg[i+3,:,:] = tau_guess/ncomp*0.25     # v0 tau
 
     #print "guesses:"
     #print gg
