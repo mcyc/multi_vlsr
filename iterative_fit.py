@@ -251,20 +251,30 @@ def guess_from_cnvpara(data_cnv, header_cnv, header_target, downsampfactor=2):
 
     mmask = master_mask(data_cnv)
 
-    def tautex_renorm(taumap, texmap, tau_thresh = 0.1):
+    def tautex_renorm(taumap, texmap, tau_thresh = 0.3, tex_thresh = 10.0):
+
         # attempt to re-normalize the tau & text values at the optically thin regime (where the two are degenerate)
         isthin = np.logical_and(taumap < tau_thresh, np.isfinite(taumap))
         texmap[isthin] = texmap[isthin]*taumap[isthin]/tau_thresh
         taumap[isthin] = tau_thresh
+
+        # optically thin gas are also unlikely to have high spatial density and thus high Tex
+        tex_thin = 3.5      # note: at Tk = 30K, n = 1e3, N = 1e13, & sig = 0.2 km.s --> Tex = 3.49 K, tau = 0.8
+        hightex = np.logical_and(texmap > tex_thresh, np.isfinite(texmap))
+        texmap[hightex] = tex_thin
+        taumap[hightex] = texmap[hightex]*taumap[hightex]/tex_thin
+
+        # note, tau values that are too low will be taken care of by refine_each_comp()
+
         return taumap, texmap
 
     def refine_each_comp(guess_comp, mask=None):
         # refine guesses for each component, with values outside ranges specified below removed
 
         Tex_min = 3.0
-        Tex_max = 10.0
-        Tau_min = 0.01
-        Tau_max = 10.0
+        Tex_max = 8.0
+        Tau_min = 0.2
+        Tau_max = 8.0
 
         disksize = 1.0
 
