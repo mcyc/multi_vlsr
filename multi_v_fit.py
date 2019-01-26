@@ -289,6 +289,7 @@ def moment_guesses(moment1, moment2, ncomp, sigmin=0.07, tex_guess=3.2, tau_gues
     :param moment2:
     :param ncomp:
     :param sigmin:
+        <float> default at 0.07 km/s, the spectral resolution of the GAS channels
     :param tex_guess:
     :param tau_guess:
     :return:
@@ -318,7 +319,8 @@ def moment_guesses(moment1, moment2, ncomp, sigmin=0.07, tex_guess=3.2, tau_gues
 
     # Guess linewidth (the current recipe works okay, but potential improvements can be made.
     gs_sig = m2/ncomp
-    gs_sig[gs_sig < sigmin] = 0.08 # narrow enough to be purely thermal @ ~10 K
+    gs_sig[gs_sig < sigmin] = sigmin
+    # note 0.08 k is narrow enough to be purely thermal @ ~10 K
 
     # there are 4 parameters for each v-component
     gg = np.zeros((ncomp*4,)+m1.shape)

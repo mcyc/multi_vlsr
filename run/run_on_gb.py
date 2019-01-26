@@ -8,6 +8,7 @@ import multi_v_fit as mvf
 import iterative_fit as itf
 import aic
 import clean_map
+import time
 
 
 #=======================================================================================================================
@@ -184,6 +185,9 @@ def run(region='L1448', multicore=8, root='all_rebase3'):
 
 def DR1_run(region='NGC1333', multicore=8, linename = "oneone", snr_min=5.0):
 
+    # start timing
+    start_time = time.time()
+
     # for running on DR1 regions
     reg = Region(region, root='DR1_rebase3', linename=linename)
 
@@ -195,6 +199,12 @@ def DR1_run(region='NGC1333', multicore=8, linename = "oneone", snr_min=5.0):
     reg.fit_cube(n_comp=2, multicore=multicore, snr_min=snr_min, mask_function = None, iterfit=True)
     reg.calc_aic()
     reg.calc_chisq()
+
+    elapsed_time = time.time() - start_time
+    # print elapsed_time
+    print "total time ellapsed"
+    print time.strftime("%H:%M:%S", time.gmtime(elapsed_time))
+    
     return reg
 
 
