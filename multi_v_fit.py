@@ -298,7 +298,7 @@ def moment_guesses(moment1, moment2, ncomp, sigmin=0.04, tex_guess=3.2, tau_gues
     # a spectrum with tex and tau values both below the specified minima has an intensity below the expected GAS rms
     tex_max = 8.0
     tau_max = 1.0
-    tex_min = 3.2
+    tex_min = 3.1
     tau_min = 0.4
 
     if moment0 is not None:
