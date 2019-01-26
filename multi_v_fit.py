@@ -299,7 +299,7 @@ def moment_guesses(moment1, moment2, ncomp, sigmin=0.04, tex_guess=3.2, tau_gues
     tex_max = 8.0
     tau_max = 1.0
     tex_min = 3.1
-    tau_min = 0.4
+    tau_min = 0.3
 
     if moment0 is not None:
         print "[WARNING]: moment0 map is provided, thus the user-provided tex and tau will not be used"
