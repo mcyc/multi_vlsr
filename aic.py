@@ -114,13 +114,18 @@ def get_comp_AICc(cube, model1, model2, p1, p2):
     mask2 = model2 > 0
     mask = np.logical_or(mask1, mask2)
 
-    N = np.sum(mask, axis=0)
+    #N = np.sum(mask, axis=0)
 
     chi1, N1 = mvf.get_chisq(cube, model1, expand=20, reduced = False, usemask = True, mask = mask)
     chi2, N2 = mvf.get_chisq(cube, model2, expand=20, reduced = False, usemask = True, mask = mask)
 
-    aicc1 = AICc(chi1, p1, N)
-    aicc2 = AICc(chi2, p2, N)
+    #aicc1 = AICc(chi1, p1, N)
+    #aicc2 = AICc(chi2, p2, N)
+
+    # I need a way to double check that N1 and N2 are the same
+
+    aicc1 = AICc(chi1, p1, N1)
+    aicc2 = AICc(chi2, p2, N1)
 
     return aicc1, aicc2
 
