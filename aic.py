@@ -53,20 +53,8 @@ def run():
     aiccname = "{0}/two_v_comp/NGC1333_2v1comp_aicc.fits".format(baseDir)
 
     fits_comp_AICc(cubename, model1name, model2name, aiccname)
-    '''
-    cube = SpectralCube.read(cubename)
-    mod1, hdr1 = fits.getdata(model1name, header = True)
-    mod2, hdr2 = fits.getdata(model2name, header = True)
 
-    aicc1, aicc2 = get_comp_AICc(cube, mod1, mod2, p1 = 4, p2 = 8)
 
-    hdr_new = cube.wcs.celestial.to_header()
-    hdr_new['PLANE1'] = "AICc values for the 1 component fit model"
-    hdr_new['PLANE1'] = "AICc values for the 2 component fit model"
-
-    aicccube = fits.PrimaryHDU(data=np.array([aicc1, aicc2]), header=cube.wcs.celestial.to_header())
-    aicccube.writeto(aiccname, overwrite=True)
-    '''
 
 def fits_comp_chisq(cubepath, modpath1, modpath2, savepath, reduced = True):
     cube = SpectralCube.read(cubepath)
@@ -89,6 +77,7 @@ def fits_comp_chisq(cubepath, modpath1, modpath2, savepath, reduced = True):
     chicube.writeto(savepath, overwrite=True)
 
 
+
 def chi():
     # generate aic maps
 
@@ -102,25 +91,7 @@ def chi():
 
 
     fits_comp_chisq(cubename, model1name, model2name, chi_name, reduced = True)
-    '''
-    cube = SpectralCube.read(cubename)
-    mod1, hdr1 = fits.getdata(model1name, header = True)
-    mod2, hdr2 = fits.getdata(model2name, header = True)
 
-    hdr_new = cube.wcs.celestial.to_header()
-    hdr_new['PLANE1'] = "AICc values for the 1 component fit model"
-    hdr_new['PLANE1'] = "AICc values for the 2 component fit model"
-
-    mask1 = mod1 > 0
-    mask2 = mod2 > 0
-    mask = np.logical_or(mask1, mask2)
-
-    chi1 = mvf.get_chisq(cube, mod1, expand=20, reduced = True, usemask = True, mask = mask)
-    chi2 = mvf.get_chisq(cube, mod2, expand=20, reduced = True, usemask = True, mask = mask)
-
-    chicube = fits.PrimaryHDU(data=np.array([chi1, chi2]), header=cube.wcs.celestial.to_header())
-    chicube.writeto(chi_name, overwrite=True)
-    '''
 
 
 def get_comp_AICc(cube, model1, model2, p1, p2):
@@ -154,6 +125,7 @@ def get_comp_AICc(cube, model1, model2, p1, p2):
     return aicc1, aicc2
 
 
+
 def AIC(chisq, p):
     '''
     Calculate the Akaike information criterion based on the provided chi-squared values
@@ -164,6 +136,7 @@ def AIC(chisq, p):
     :return:
     '''
     return chisq + 2*p
+
 
 
 def AICc(chisq, p, N):
