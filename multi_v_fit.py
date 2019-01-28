@@ -612,12 +612,15 @@ def cubefit_gen(cube11name, ncomp=2, paraname = None, modname = None, chisqname 
     if guesses is not None:
         v_guess = guesses[::4]
         v_guess[v_guess == 0] = np.nan
+    else:
+        v_guess = np.nan
 
     if np.isfinite(v_guess).sum() > 0:
         v_guess = v_guess[np.isfinite(v_guess)]
         v_median = np.median(v_guess)
         print "The median of the user provided velocities is: {0}".format(v_median)
         m0, m1, m2 = main_hf_moments(maskcube, window_hwidth=v_peak_hwidth, v_atpeak=v_median)
+
     else:
         m0, m1, m2 = main_hf_moments(maskcube, window_hwidth=v_peak_hwidth)
         v_median = np.median(m1[np.isfinite(m1)])
