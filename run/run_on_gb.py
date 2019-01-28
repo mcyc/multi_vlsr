@@ -124,8 +124,10 @@ class Region(object):
         modpath2 = '{0}{1}{2}{3}'.format(modNameSp[0][:-1], n_comp2, "comp_model", modNameSp[1])
         aiccpath = "{0}/{1}_NH3_{4}_{2}v{3}comp_aicc.fits".format(self.cleanParaDir, self.region, n_comp2, n_comp1,
                                                                   self.line_root)
+        lnkpath = "{0}/{1}_NH3_{4}_{2}v{3}comp_aicc_lnK.fits".format(self.cleanParaDir, self.region, n_comp2, n_comp1,
+                                                                  self.line_root)
 
-        aic.fits_comp_AICc(self.OneOneFile, modpath1, modpath2, aiccpath)
+        aic.fits_comp_AICc(self.OneOneFile, modpath1, modpath2, aiccpath, lnkpath)
 
 
 
@@ -204,7 +206,7 @@ def DR1_run(region='NGC1333', multicore=8, linename = "oneone", snr_min=5.0):
     # print elapsed_time
     print "total time ellapsed"
     print time.strftime("%H:%M:%S", time.gmtime(elapsed_time))
-    
+
     return reg
 
 
