@@ -71,7 +71,7 @@ class Region(object):
         print "time elapsed: {0}:{1}".format(delta_time/60, delta_time%60)
 
 
-    def fit_cube(self, n_comp, multicore=8, snr_min=5.0, mask_function=None, iterfit=True):
+    def fit_cube(self, n_comp, multicore=8, snr_min=5.0, mask_function=None, iterfit=True, refOneCompCnv=False):
 
         self.start_timing()
 
@@ -93,7 +93,15 @@ class Region(object):
             kwargs = {'ncomp':n_comp, 'paraname':self.NewParaFile, 'modname':self.ModelFile, 'chisqname':self.ChisqFile,
                       'guesses':None, 'errmap11name':None, 'multicore':multicore, 'snr_min':snr_min,
                       'mask_function':mask_function, 'linename':self.linename}
-            self.paraCubes = itf.cubefit(self.OneOneFile, downsampfactor=2, **kwargs)
+
+            if refOneCompCnv:
+                singCompRef='{2}/{0}_NH3_{4}_{3}vcomp_parameter_maps_{1}_cnv.fits'.format(self.region, self.rootPara,
+                                                                                          self.paraDir, 1, self.line_root)
+                self.paraCubes = itf.cubefit_wTauTexCnvRef(self.OneOneFile, singCompRef, downsampfactor=2, **kwargs)
+
+            else:
+                self.paraCubes = itf.cubefit(self.OneOneFile, downsampfactor=2, **kwargs)
+
 
         else:
             # Note: it may be better not to use the single component fit as our Guesses; less errors to propagate
@@ -130,7 +138,6 @@ class Region(object):
         aic.fits_comp_AICc(self.OneOneFile, modpath1, modpath2, aiccpath, lnkpath)
 
 
-
     def calc_chisq(self, n_comp1=1, n_comp2=2):
         # calculate the reduced chi-squared values over the same spectral windows two given models
         modNameSp = self.ModelFile.split("comp_model")
@@ -140,6 +147,15 @@ class Region(object):
                                                                        self.line_root)
 
         aic.fits_comp_chisq(self.OneOneFile, modpath1, modpath2, chisqpath, reduced = True)
+
+
+    def fit_2comp(self, fit1comp=True):
+        kwargs = {'multicore':multicore, 'snr_min':snr_min, 'mask_function':None, 'iterfit':True}
+        if fit1comp:
+            self.fit_cube(n_comp=1, **kwargs)
+        self.fit_cube(n_comp=2, refOneCompCnv=True, **kwargs)
+        self.calc_aic()
+        self.calc_chisq()
 
 
     def clean_paramap(self):
@@ -197,10 +213,14 @@ def DR1_run(region='NGC1333', multicore=8, linename = "oneone", snr_min=5.0):
     reg.RMSFile = '{2}/{0}/DR1/{0}_NH3_{3}_{1}_rms_QA_trim.fits'.format(reg.region, reg.root, reg.cubeDir, reg.line_root)
     reg.SingVParaFile = None
 
+    '''
     reg.fit_cube(n_comp=1, multicore=multicore, snr_min=snr_min, mask_function = None, iterfit=True)
     reg.fit_cube(n_comp=2, multicore=multicore, snr_min=snr_min, mask_function = None, iterfit=True)
     reg.calc_aic()
     reg.calc_chisq()
+    '''
+
+    reg.fit_2comp(self, fit1comp=False)
 
     elapsed_time = time.time() - start_time
     # print elapsed_time
