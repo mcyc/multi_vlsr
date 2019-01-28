@@ -149,8 +149,8 @@ class Region(object):
         aic.fits_comp_chisq(self.OneOneFile, modpath1, modpath2, chisqpath, reduced = True)
 
 
-    def fit_2comp(self, fit1comp=True):
-        kwargs = {'multicore':multicore, 'snr_min':snr_min, 'mask_function':None, 'iterfit':True}
+    def fit_2comp(self, fit1comp=True, multicore=8, snr_min=5.0, iterfit=True):
+        kwargs = {'multicore':multicore, 'snr_min':snr_min, 'mask_function':None, 'iterfit':iterfit}
         if fit1comp:
             self.fit_cube(n_comp=1, **kwargs)
         self.fit_cube(n_comp=2, refOneCompCnv=True, **kwargs)
@@ -220,7 +220,8 @@ def DR1_run(region='NGC1333', multicore=8, linename = "oneone", snr_min=5.0):
     reg.calc_chisq()
     '''
 
-    reg.fit_2comp(self, fit1comp=False)
+    #reg.fit_2comp(fit1comp=True, multicore=multicore, snr_min=snr_min, iterfit=True)
+    reg.fit_2comp(fit1comp=False, multicore=multicore, snr_min=snr_min, iterfit=True)
 
     elapsed_time = time.time() - start_time
     # print elapsed_time
