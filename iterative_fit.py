@@ -51,7 +51,7 @@ def example():
 
 #=======================================================================================================================
 
-def cubefit(cubename, downsampfactor=2, **kwargs):
+def cubefit(cubename, downsampfactor=2, cnv_guesses=None, **kwargs):
 
     root = "conv{0}Xbeam".format(int(np.rint(downsampfactor)))
 
@@ -76,6 +76,10 @@ def cubefit(cubename, downsampfactor=2, **kwargs):
         kwargs_cnv['momedgetrim'] = False
         kwargs_cnv['modname'] = None
 
+        if cnv_guesses is not None:
+            kwargs_cnv['saveguess'] = True
+            kwargs_cnv['guesses'] = cnv_guesses
+
         # fit the convolved cube to serve as parameter guesses for the full resolution fitting
         cnv_pcube = mvf.cubefit_gen(cnv_cubename, **kwargs_cnv)
 
@@ -99,6 +103,37 @@ def cubefit(cubename, downsampfactor=2, **kwargs):
     hdr_final = get_celestial_hdr(cube_hdr)
 
     kwargs['guesses'] = guess_from_cnvpara(data_cnv, hdr_cnv, hdr_final, downsampfactor=2)
+
+    '''
+    if oneCompCnvTauTexRef is not None:
+        # use single component fit of the convolved cube for guesses
+        gref, hdr_gref = fits.getdata(oneCompCnvParaRef, header=True)
+        sing_guesses = guess_from_cnvpara(gref, hdr_gref, hdr_final, downsampfactor=2)
+
+        # using a similar recipe as moment_guesses from multi_v_fit.py
+        if ncomp == 2:
+            # sigmaoff = 0.25
+            sigmaoff = 0.4
+            tau2_frac = 0.25  # the tau weight of the second component relative to the total fraction
+            gg[0, :, :] = m1 - sigmaoff * m2  # v0 centriod
+            gg[1, :, :] = gs_sig  # v0 width
+            gg[2, :, :] = tex_guess  # v0 T_ex
+            gg[3, :, :] = tau_guess * (1 - tau2_frac)  # v0 tau
+            gg[4, :, :] = m1 + sigmaoff * m2  # v1 centriod
+            gg[5, :, :] = gs_sig  # v1 width
+            gg[6, :, :] = tex_guess * 0.75  # v1 T_ex
+            gg[7, :, :] = tau_guess * tau2_frac  # v1 tau
+
+        # using a generalized receipe that have not been tested (lots of room for improvement!)
+        if ncomp > 2:
+            for i in range(0, ncomp):
+                gg[i, :, :] = m1 + (
+                            -1.0 + i * 1.0 / ncomp) * 0.5 * m2  # v0 centriod (step through a range fo velocities within sigma_v)
+                gg[i + 1, :, :] = gs_sig  # v0 width
+                gg[i + 2, :, :] = tex_guess * 0.8  # v0 T_ex
+                gg[i + 3, :, :] = tau_guess / ncomp * 0.25  # v0 tau
+    '''
+
 
     pcube = mvf.cubefit_gen(cubename, **kwargs)
 
