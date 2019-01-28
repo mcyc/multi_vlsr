@@ -78,7 +78,6 @@ def cubefit(cubename, downsampfactor=2, **kwargs):
 
         # fit the convolved cube to serve as parameter guesses for the full resolution fitting
         cnv_pcube = mvf.cubefit_gen(cnv_cubename, **kwargs_cnv)
-        # print "cnv pcube.parcube has shape of: {0}".format(cnv_pcube.parcube.shape)
 
         print "_____________________________________"
         print "fitting convolved cube"
@@ -100,12 +99,6 @@ def cubefit(cubename, downsampfactor=2, **kwargs):
     hdr_final = get_celestial_hdr(cube_hdr)
 
     kwargs['guesses'] = guess_from_cnvpara(data_cnv, hdr_cnv, hdr_final, downsampfactor=2)
-
-    # make the **kwargs comptiable with mvf.cubefit_gen(), i.e., remove parameter that are only specific to this method
-    '''
-    kwargs['modname'] = "{0}_{1}_iter.fits".format(os.path.splitext(kwargs['modname'])[0], "modelcube")
-    kwargs['paraname'] = "{0}_iter.fits".format(os.path.splitext(kwargs['paraname'])[0], "parameter_maps")
-    '''
 
     pcube = mvf.cubefit_gen(cubename, **kwargs)
 
@@ -229,6 +222,7 @@ def mask_cleaning(mask):
     mask = dilation(mask, disk(1))
     mask = remove_small_holes(mask, 9)
     return mask
+
 
 def master_mask(pcube):
     # create a 2D mask over where any of the paramater map has finite values
