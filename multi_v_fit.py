@@ -612,10 +612,13 @@ def cubefit_gen(cube11name, ncomp=2, paraname = None, modname = None, chisqname 
     if guesses is not None:
         v_guess = guesses[::4]
         v_guess[v_guess == 0] = np.nan
-        v_guess = v_guess[np.isfinite(v_guess)]
-        v_median = np.median(v_guess)
-        print "The median of the user provided velocities is: {0}".format(v_median)
-        m0, m1, m2 = main_hf_moments(maskcube, window_hwidth=v_peak_hwidth, v_atpeak=v_median)
+        if np.isfinite(v_guess) > 0:
+            v_guess = v_guess[np.isfinite(v_guess)]
+            v_median = np.median(v_guess)
+            print "The median of the user provided velocities is: {0}".format(v_median)
+            m0, m1, m2 = main_hf_moments(maskcube, window_hwidth=v_peak_hwidth, v_atpeak=v_median)
+        else:
+            m0, m1, m2 = main_hf_moments(maskcube, window_hwidth=v_peak_hwidth)
 
     else:
         m0, m1, m2 = main_hf_moments(maskcube, window_hwidth=v_peak_hwidth)
@@ -624,7 +627,6 @@ def cubefit_gen(cube11name, ncomp=2, paraname = None, modname = None, chisqname 
 
         if False:
             # save the moment maps for diagnostic purposes
-            import os
             hdr_new = copy.deepcopy(pcube.header)
             hdr_new['CDELT3']= 1
             hdr_new['CTYPE3']= 'FITPAR'

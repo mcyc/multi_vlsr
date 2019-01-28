@@ -59,7 +59,7 @@ def cubefit_wTauTexCnvRef(cubename, singCompRef, downsampfactor=2, **kwargs):
     gTau = gref[3]
 
     ncomp = kwargs['ncomp']
-    gg = np.zeros((ncomp*4,)+gref[0].shape)
+    gg = np.zeros((ncomp*4,)+gTex.shape)
     gg[:] = np.nan
 
     # using a similar recipe as moment_guesses from multi_v_fit.py
