@@ -111,7 +111,7 @@ def cubefit(cubename, downsampfactor=2, cnv_guesses=None, **kwargs):
         kwargs_cnv['modname'] = None
 
         if cnv_guesses is not None:
-            kwargs_cnv['saveguess'] = True
+            #kwargs_cnv['saveguess'] = True
             kwargs_cnv['guesses'] = cnv_guesses
 
         # fit the convolved cube to serve as parameter guesses for the full resolution fitting
