@@ -612,7 +612,7 @@ def cubefit_gen(cube11name, ncomp=2, paraname = None, modname = None, chisqname 
     if guesses is not None:
         v_guess = guesses[::4]
         v_guess[v_guess == 0] = np.nan
-        if np.isfinite(v_guess) > 0:
+        if np.isfinite(v_guess).sum() > 0:
             v_guess = v_guess[np.isfinite(v_guess)]
             v_median = np.median(v_guess)
             print "The median of the user provided velocities is: {0}".format(v_median)
