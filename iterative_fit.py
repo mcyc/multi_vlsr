@@ -72,7 +72,7 @@ def cubefit_wTauTexCnvRef(cubename, singCompRef, downsampfactor=2, **kwargs):
         tau2_frac = 0.25                    # the tau weight of the second component relative to the total fraction
         gg[2,:,:] = gTex                # v0 T_ex
         gg[3,:,:] = gTau*(1-tau2_frac)  # v0 tau
-        gg[6,:,:] = gTex*0.75           # v1 T_ex
+        gg[6,:,:] = gTex*0.8            # v1 T_ex
         gg[7,:,:] = gTau*tau2_frac      # v1 tau
 
     if ncomp > 2:

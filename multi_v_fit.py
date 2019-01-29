@@ -343,7 +343,7 @@ def moment_guesses(moment1, moment2, ncomp, sigmin=0.07, tex_guess=3.2, tau_gues
         gg[3,:,:] = tau_guess*(1-tau2_frac)  # v0 tau
         gg[4,:,:] = m1 + sigmaoff*m2         # v1 centriod
         gg[5,:,:] = gs_sig                   # v1 width
-        gg[6,:,:] = tex_guess*0.75           # v1 T_ex
+        gg[6,:,:] = tex_guess*0.8            # v1 T_ex
         gg[7,:,:] = tau_guess*tau2_frac      # v1 tau
 
     # using a generalized receipe that have not been tested (lots of room for improvement!)
@@ -620,7 +620,6 @@ def cubefit_gen(cube11name, ncomp=2, paraname = None, modname = None, chisqname 
         v_median = np.median(v_guess)
         print "The median of the user provided velocities is: {0}".format(v_median)
         m0, m1, m2 = main_hf_moments(maskcube, window_hwidth=v_peak_hwidth, v_atpeak=v_median)
-
     else:
         m0, m1, m2 = main_hf_moments(maskcube, window_hwidth=v_peak_hwidth)
         v_median = np.median(m1[np.isfinite(m1)])
