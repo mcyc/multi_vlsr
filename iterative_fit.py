@@ -136,12 +136,15 @@ def cubefit(cubename, downsampfactor=2, cnv_guesses=None, **kwargs):
     cube_hdr = fits.getheader(cubename)
     hdr_final = get_celestial_hdr(cube_hdr)
 
+    '''
     if cnv_guesses is not None:
         # use the provided convolved guesses, particularly Tau & Tex
-        # note: may want to make this a seperate option from the guess for the convolved fit
+        # note: may want to make this a separate option from the guess for the convolved fit
+        # note: this approach may cause some interpolation issues
         cnv_guesses[cnv_guesses==0] = np.nan
         gmask = np.isfinite(cnv_guesses)
         data_cnv[0:npara*ncomp][gmask] = cnv_guesses[gmask]
+    '''
 
 
     kwargs['guesses'] = guess_from_cnvpara(data_cnv, hdr_cnv, hdr_final, downsampfactor=2)
