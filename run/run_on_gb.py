@@ -150,6 +150,7 @@ class Region(object):
 
 
     def fit_2comp(self, fit1comp=True, multicore=8, snr_min=5.0, iterfit=True):
+        # note: this method doesn't seem to provide much of an improvement over the current method of guessing
         kwargs = {'multicore':multicore, 'snr_min':snr_min, 'mask_function':None, 'iterfit':iterfit}
         if fit1comp:
             self.fit_cube(n_comp=1, **kwargs)
@@ -213,15 +214,12 @@ def DR1_run(region='NGC1333', multicore=8, linename = "oneone", snr_min=5.0):
     reg.RMSFile = '{2}/{0}/DR1/{0}_NH3_{3}_{1}_rms_QA_trim.fits'.format(reg.region, reg.root, reg.cubeDir, reg.line_root)
     reg.SingVParaFile = None
 
-    '''
     reg.fit_cube(n_comp=1, multicore=multicore, snr_min=snr_min, mask_function = None, iterfit=True)
     reg.fit_cube(n_comp=2, multicore=multicore, snr_min=snr_min, mask_function = None, iterfit=True)
     reg.calc_aic()
     reg.calc_chisq()
-    '''
 
-    #reg.fit_2comp(fit1comp=True, multicore=multicore, snr_min=snr_min, iterfit=True)
-    reg.fit_2comp(fit1comp=False, multicore=multicore, snr_min=snr_min, iterfit=True)
+    #reg.fit_2comp(fit1comp=False, multicore=multicore, snr_min=snr_min, iterfit=True)
 
     elapsed_time = time.time() - start_time
     # print elapsed_time
