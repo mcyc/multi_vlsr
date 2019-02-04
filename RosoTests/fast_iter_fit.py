@@ -19,29 +19,43 @@ def fit_2comp(cubename, guesses, **kwargs):
     # get the cube we wish to fit
     cube = SpectralCube.read(cubename)
 
-    #median_cube =
-
-    #return cube
+    mean_spec = get_mean_spec(cube, linename=kwargs['linename'])
 
     spectrum = get_cubespec(cube)
 
-    # perform the one component fit
-    kwargs['ncomp'] = 1
-    spec_1comp = fit_spec(spectrum=spectrum.copy(), guesses=guesses, **kwargs)
+    def iter_fit(spc_cnv, spc, ncomp):
+        # a function to fit the convovled spctrum (spc_cnv) first, and use the fitted result to fit the native spectrum
+        kwargs['ncomp'] = ncomp
+        # fit the mean spectrum first
+        sp_cnv = fit_spec(spectrum=spc_cnv.copy(), guesses=guesses, **kwargs)
+        gg = sp_cnv.specfit.modelpars
+        gg = np.array([gg]).swapaxes(0, 1)
+        # use the mean spectrum
+        return fit_spec(spectrum=spc.copy(), guesses=gg, **kwargs)
 
-    # perform the two component fit
-
-
+    # perform fits iteratively
+    spec_1comp = iter_fit(mean_spec, spectrum, ncomp=1)
+    #spec_2comp = iter_fit(mean_spec, spectrum, ncomp=2)
 
     return spec_1comp
+
     #spectrum.specfit.modelpars
     #spc.specfit.modelerrs
+
+
+def get_mean_spec(cube, linename="oneone"):
+    # get the mean spectrum of the entire cube
+    # note: masking may be desired in case of nan values
+    if not isinstance(cube, SpectralCube):
+        cube = SpectralCube.read(cube)
+
+    spc = cube.mean(axis=(1, 2))
+    return prep_spec(spc, linename)
 
 
 
 def get_cubespec(cube, refpix=None, linename="oneone"):
     # read a cube file and extract only the spectrum at the reference pixel
-
     if not isinstance(cube, SpectralCube):
         cube = SpectralCube.read(cube)
 
@@ -166,35 +180,6 @@ def cubefit(cubename, downsampfactor=2, refpix=None, guesses=None, **kwargs):
 
     return fit_spec(spectrum=cnv_spectrum, guesses=guesses, **kwargs)
 
-    '''
-    kwargs_cnv = kwargs.copy()
-    kwargs_cnv['paraname'] = None
-    kwargs_cnv['momedgetrim'] = False
-
-    # fit the convolved cube to serve as parameter guesses for the full resolution fitting
-    cnv_pcube = mvf.cubefit_gen(cnv_cubename, **kwargs_cnv)
-
-    return cnv_pcube
-
-    #data_cnv, hdr_cnv = fits.getdata(kwargs_cnv['paraname'], header=True)
-    npara = 4
-    ncomp = int(cnv_pcube.parcube.shape[0]/npara)/2
-
-
-
-    # the target header for the regridding
-    cube_hdr = fits.getheader(cubename)
-    hdr_final = get_celestial_hdr(cube_hdr)
-
-    kwargs['guesses'] = guess_from_cnvpara(data_cnv, hdr_cnv, hdr_final, downsampfactor=2)
-
-    pcube = mvf.cubefit_gen(cubename, **kwargs)
-
-    # write the fitted parameters into a fits file
-    mvf.save_pcube(pcube, kwargs['paraname'], ncomp=ncomp)
-
-    return pcube
-    '''
 
 #-----------------------------------------------------------------------------------------------------------------------
 
@@ -228,6 +213,7 @@ def main_hf_moments(spectrum, window_hwidth, v_atpeak=None):
     moments = slice.moments(unit=u.km/u.s)
 
     return moments[1], moments[2], moments[3]
+
 
 def moment_guesses(moment1, moment2, ncomp, sigmin=0.07, tex_guess=3.2, tau_guess=0.5, moment0=None):
     '''
