@@ -1,6 +1,7 @@
 import numpy as np
 from astropy.io import fits
 from collections import defaultdict
+from astropy.table import Table
 
 import nh3_testcubes as ntc
 reload(ntc)
@@ -15,19 +16,16 @@ def run(nBorder=2, nCubes=2):
               'TwoTwoLine':False}
 
     #ntc.generate_cubes(**kwargs)
-    return read_cubes(cubeDir=outDir,nCubes=nCubes)
+    truepara = read_cubes(cubeDir=outDir,nCubes=nCubes)
+    return write_table(truepara)
 
 
 def read_cubes(cubeDir, nCubes):
 
     truekwds = ['NCOMP', 'LOGN1', 'LOGN2', 'VLSR1', 'VLSR2', 'SIG1', 'SIG2', 'TKIN1', 'TKIN2', 'TMAX', 'RMS']
-    #truepara = dict.fromkeys(truekwds, [])
     truepara = defaultdict(list)
 
     nDigits = int(np.ceil(np.log10(nCubes)))
-
-
-
 
     for i in range(nCubes):
         cubename = cubeDir + '/random_cube_NH3_11_'+ '{0}'.format(i).zfill(nDigits) + '.fits'
@@ -36,5 +34,18 @@ def read_cubes(cubeDir, nCubes):
             truepara[key].append(hdr[key])
 
     return truepara
+
+
+def write_table(dict):
+
+    names = []
+    data = []
+    for key, value in dict.iteritems():
+        names.append(key)
+        data.append(value)
+
+    t = Table(data, names=names)
+
+    return t
 
 
