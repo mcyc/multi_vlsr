@@ -10,9 +10,80 @@ import sys, os #, errno, time
 sys.path.insert(1, os.path.join(sys.path[0], '..'))
 import multi_v_fit as mvf
 import iterative_fit as itf
+import ammonia_multiv as ammv
 
 
-def cubefit(cubename, downsampfactor=2, refpix=None, **kwargs):
+def fit_2comp():
+    fit_spec()
+
+def fit_spec(spectrum, ncomp, guesses):
+
+    fitter = ammv.nh3_multi_v_model_generator(n_comp = ncomp, linenames=[linename])
+    pcube.specfit.Registry.add_fitter('nh3_multi_v', fitter, fitter.npars)
+
+    v_peak_hwidth = 3.0 # km/s (should be sufficient for GAS Orion, but may not be enough for KEYSTONE)
+
+    if guesses is not None:
+        v_guess = guesses[::4]
+        v_guess[v_guess == 0] = np.nan
+        v_median = np.nanmedian(v_guess)
+        print "The median of the user provided velocities is: {0}".format(v_median)
+        m0, m1, m2 = main_hf_moments(spectrum, window_hwidth=v_peak_hwidth, v_atpeak=v_median)
+    else:
+        m0, m1, m2 = main_hf_moments(spectrum, window_hwidth=v_peak_hwidth)
+        v_median = np.median(m1[np.isfinite(m1)])
+        print "median velocity: {0}".format(v_median)
+
+    # set the fit parameter limits (consistent with GAS DR1)
+    #Tbg = 2.8       # K
+    Texmin = 3.0    # K; a more reasonable lower limit (5 K T_kin, 1e3 cm^-3 density, 1e13 cm^-2 column, 3km/s sigma)
+    Texmax = 40    # K; DR1 T_k for Orion A is < 35 K. T_k = 40 at 1e5 cm^-3, 1e15 cm^-2, and 0.1 km/s yields Tex = 37K
+    sigmin = 0.07   # km/s
+    sigmax = 2.5    # km/s; for Larson's law, a 10pc cloud has sigma = 2.6 km/s
+    taumax = 100.0  # a reasonable upper limit for GAS data. At 10K and 1e5 cm^-3 & 3e15 cm^-2 -> 70
+    taumin = 0.2   # note: at 1e3 cm^-3, 1e13 cm^-2, 1 km/s linewidth, 40 K -> 0.15
+    eps = 0.001 # a small perturbation that can be used in guesses
+
+    
+
+def main_hf_moments(spectrum, window_hwidth, v_atpeak=None):
+    '''
+    find moments for the main hyperfine lines
+
+    :param spectrum:
+        <pyspeckit.spectrum.classes.Spectrum>
+        the spectrum to take the momentw of
+
+    :param window_hwidth: float
+        half-width of the window (in km/s) to be used to isolate the main hyperfine lines from the rest of the spectrum
+
+    -------
+    :return: m0
+    :return: m1
+    :return: m2
+    '''
+
+    if v_atpeak is None:
+        # use the whole moment map to estimate the speak of the spectrum
+        moments = spectrum.moments(unit=u.km/u.s)
+        v_atpeak = moments[2]
+
+    vmax = v_atpeak + window_hwidth
+    vmin = v_atpeak - window_hwidth
+
+    # Extract the spectrum within the window defined around the main hyperfine components and take moments
+    slice = spectrum.slice(vmin, vmax, unit=u.km/u.s)
+    moments = slice.moments(unit=u.km/u.s)
+
+    return moments[1], moments[2], moments[3]
+
+
+
+def cubefit(cubename, downsampfactor=2, refpix=None, guesses=None, **kwargs):
+    '''
+    cubefit(cube11name, ncomp=2, paraname=None, modname=None, chisqname=None, errmap11name=None,
+                multicore=1, mask_function=None, snr_min=3.0, linename="oneone", momedgetrim=True, saveguess=False):
+    '''
 
     '''
     root = "conv{0}Xbeam".format(int(np.rint(downsampfactor)))
@@ -37,11 +108,7 @@ def cubefit(cubename, downsampfactor=2, refpix=None, **kwargs):
     if cnv_spectrum.xarr.refX is None:
         cnv_spectrum.xarr.refX = freq_dict[kwargs['linename']]*u.Hz
     cnv_spectrum.xarr.velocity_convention = 'radio'
-
-    fitter = ammv.nh3_multi_v_model_generator(n_comp = ncomp, linenames=[linename])
-    pcube.specfit.Registry.add_fitter('nh3_multi_v', fitter, fitter.npars)
-
-
+    cnv_spectrum.xarr = cnv_spectrum.xarr.as_unit(u.km/u.s)
 
     return cnv_spectrum
 
