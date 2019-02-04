@@ -42,10 +42,11 @@ def get_cubespec(cubename, refpix=None, linename="oneone"):
 
 
 
-def fit_spec(spectrum, ncomp, guesses):
+def fit_spec(spectrum, ncomp, guesses, linename="oneone"):
 
     fitter = ammv.nh3_multi_v_model_generator(n_comp = ncomp, linenames=[linename])
-    pcube.specfit.Registry.add_fitter('nh3_multi_v', fitter, fitter.npars)
+    #pcube.specfit.Registry.add_fitter('nh3_multi_v', fitter, fitter.npars)
+    spectrum.specfit.Registry.add_fitter('nh3_multi_v', fitter, fitter.npars)
 
     v_peak_hwidth = 3.0 # km/s (should be sufficient for GAS Orion, but may not be enough for KEYSTONE)
 
@@ -93,7 +94,7 @@ def cubefit(cubename, downsampfactor=2, refpix=None, guesses=None, **kwargs):
 
     cnv_spectrum = get_cubespec(cubename)
 
-    return cnv_spectrum
+    return fit_spec(spectrum=cnv_spectrum, ncomp=kwargs['ncomp'], guesses=guesses, linename=kwargs['linename'])
 
     kwargs_cnv = kwargs.copy()
     kwargs_cnv['paraname'] = None
