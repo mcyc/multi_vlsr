@@ -11,17 +11,39 @@ sys.path.insert(1, os.path.join(sys.path[0], '..'))
 import multi_v_fit as mvf
 import iterative_fit as itf
 import ammonia_multiv as ammv
+reload(ammv)
 
 #-----------------------------------------------------------------------------------------------------------------------
 
-def fit_2comp():
-    fit_spec()
+def fit_2comp(cubename, guesses, **kwargs):
+    # get the cube we wish to fit
+    cube = SpectralCube.read(cubename)
+
+    #median_cube =
+
+    #return cube
+
+    spectrum = get_cubespec(cube)
+
+    # perform the one component fit
+    kwargs['ncomp'] = 1
+    spec_1comp = fit_spec(spectrum=spectrum.copy(), guesses=guesses, **kwargs)
+
+    # perform the two component fit
 
 
-def get_cubespec(cubename, refpix=None, linename="oneone"):
+
+    return spec_1comp
+    #spectrum.specfit.modelpars
+    #spc.specfit.modelerrs
+
+
+
+def get_cubespec(cube, refpix=None, linename="oneone"):
     # read a cube file and extract only the spectrum at the reference pixel
 
-    cube = SpectralCube.read(cubename)
+    if not isinstance(cube, SpectralCube):
+        cube = SpectralCube.read(cube)
 
     if refpix is None:
         # use the central pixel as reference
@@ -30,9 +52,14 @@ def get_cubespec(cubename, refpix=None, linename="oneone"):
 
     spc = cube[:, refpix[0], refpix[1]]
 
+    return prep_spec(spc, linename)
+
+
+def prep_spec(OneDSpectrum, linename="oneone"):
+    # take a spectral_cube OneDSpectrum and make it a pyspeckit Spectrum ready to be fitted
+    spc = OneDSpectrum
     spectrum = pyspeckit.Spectrum(data=spc.value, xarr=spc.spectral_axis, unit=spc.unit,
                                       xarrkwargs={'unit': spc.spectral_axis.unit})
-
     if spectrum.xarr.refX is None:
         spectrum.xarr.refX = freq_dict[linename]*u.Hz
     spectrum.xarr.velocity_convention = 'radio'
@@ -41,11 +68,14 @@ def get_cubespec(cubename, refpix=None, linename="oneone"):
     return spectrum
 
 
+def fit_spec(spectrum, guesses, **kwargs):
 
-def fit_spec(spectrum, ncomp, guesses, linename="oneone"):
+    ncomp = kwargs['ncomp']
 
-    fitter = ammv.nh3_multi_v_model_generator(n_comp = ncomp, linenames=[linename])
-    #pcube.specfit.Registry.add_fitter('nh3_multi_v', fitter, fitter.npars)
+    if not 'linename' in kwargs:
+        kwargs['linename'] = "oneone"
+
+    fitter = ammv.nh3_multi_v_model_generator(n_comp=ncomp, linenames=[kwargs['linename']])
     spectrum.specfit.Registry.add_fitter('nh3_multi_v', fitter, fitter.npars)
 
     v_peak_hwidth = 3.0 # km/s (should be sufficient for GAS Orion, but may not be enough for KEYSTONE)
@@ -105,7 +135,13 @@ def fit_spec(spectrum, ncomp, guesses, linename="oneone"):
     guesses[3::4][guesses[3::4] > taumax] = taumax
     guesses[3::4][guesses[3::4] < taumin] = taumin
 
-    return gg
+    spectrum.specfit(fittype='nh3_multi_v', guesses=guesses,
+                     limitedmax=[True,True,True,True]*ncomp,
+                     maxpars=[vmax, sigmax, Texmax, taumax]*ncomp,
+                     limitedmin=[True,True,True,True]*ncomp,
+                     minpars=[vmin, sigmin, Texmin, taumin]*ncomp, **kwargs)
+
+    return spectrum
 
 
 
@@ -128,7 +164,7 @@ def cubefit(cubename, downsampfactor=2, refpix=None, guesses=None, **kwargs):
 
     cnv_spectrum = get_cubespec(cubename)
 
-    return fit_spec(spectrum=cnv_spectrum, ncomp=kwargs['ncomp'], guesses=guesses, linename=kwargs['linename'])
+    return fit_spec(spectrum=cnv_spectrum, guesses=guesses, **kwargs)
 
     '''
     kwargs_cnv = kwargs.copy()
