@@ -12,9 +12,35 @@ import multi_v_fit as mvf
 import iterative_fit as itf
 import ammonia_multiv as ammv
 
+#-----------------------------------------------------------------------------------------------------------------------
 
 def fit_2comp():
     fit_spec()
+
+
+def get_cubespec(cubename, refpix=None, linename="oneone"):
+    # read a cube file and extract only the spectrum at the reference pixel
+
+    cube = SpectralCube.read(cubename)
+
+    if refpix is None:
+        # use the central pixel as reference
+        shape = cube._data.shape
+        refpix = (shape[1]/2, shape[2]/2)
+
+    spc = cube[:, refpix[0], refpix[1]]
+
+    spectrum = pyspeckit.Spectrum(data=spc.value, xarr=spc.spectral_axis, unit=spc.unit,
+                                      xarrkwargs={'unit': spc.spectral_axis.unit})
+
+    if spectrum.xarr.refX is None:
+        spectrum.xarr.refX = freq_dict[linename]*u.Hz
+    spectrum.xarr.velocity_convention = 'radio'
+    spectrum.xarr = spectrum.xarr.as_unit(u.km/u.s)
+
+    return spectrum
+
+
 
 def fit_spec(spectrum, ncomp, guesses):
 
@@ -44,38 +70,10 @@ def fit_spec(spectrum, ncomp, guesses):
     taumin = 0.2   # note: at 1e3 cm^-3, 1e13 cm^-2, 1 km/s linewidth, 40 K -> 0.15
     eps = 0.001 # a small perturbation that can be used in guesses
 
-    
+    return m1
 
-def main_hf_moments(spectrum, window_hwidth, v_atpeak=None):
-    '''
-    find moments for the main hyperfine lines
 
-    :param spectrum:
-        <pyspeckit.spectrum.classes.Spectrum>
-        the spectrum to take the momentw of
 
-    :param window_hwidth: float
-        half-width of the window (in km/s) to be used to isolate the main hyperfine lines from the rest of the spectrum
-
-    -------
-    :return: m0
-    :return: m1
-    :return: m2
-    '''
-
-    if v_atpeak is None:
-        # use the whole moment map to estimate the speak of the spectrum
-        moments = spectrum.moments(unit=u.km/u.s)
-        v_atpeak = moments[2]
-
-    vmax = v_atpeak + window_hwidth
-    vmin = v_atpeak - window_hwidth
-
-    # Extract the spectrum within the window defined around the main hyperfine components and take moments
-    slice = spectrum.slice(vmin, vmax, unit=u.km/u.s)
-    moments = slice.moments(unit=u.km/u.s)
-
-    return moments[1], moments[2], moments[3]
 
 
 
@@ -93,22 +91,7 @@ def cubefit(cubename, downsampfactor=2, refpix=None, guesses=None, **kwargs):
     cnv_cube = convolve_sky(cubename, factor=downsampfactor)
     '''
 
-    cnv_cube = SpectralCube.read(cubename)
-
-    if refpix is None:
-        # use the central pixel as reference
-        shape = cnv_cube._data.shape
-        refpix = (shape[1]/2, shape[2]/2)
-
-    cnv_spc = cnv_cube[:, refpix[0], refpix[1]]
-
-    cnv_spectrum = pyspeckit.Spectrum(data=cnv_spc.value, xarr=cnv_spc.spectral_axis, unit=cnv_spc.unit,
-                                      xarrkwargs={'unit': cnv_spc.spectral_axis.unit})
-
-    if cnv_spectrum.xarr.refX is None:
-        cnv_spectrum.xarr.refX = freq_dict[kwargs['linename']]*u.Hz
-    cnv_spectrum.xarr.velocity_convention = 'radio'
-    cnv_spectrum.xarr = cnv_spectrum.xarr.as_unit(u.km/u.s)
+    cnv_spectrum = get_cubespec(cubename)
 
     return cnv_spectrum
 
@@ -141,6 +124,38 @@ def cubefit(cubename, downsampfactor=2, refpix=None, guesses=None, **kwargs):
     return pcube
 
 
+#-----------------------------------------------------------------------------------------------------------------------
+
+def main_hf_moments(spectrum, window_hwidth, v_atpeak=None):
+    '''
+    find moments for the main hyperfine lines
+
+    :param spectrum:
+        <pyspeckit.spectrum.classes.Spectrum>
+        the spectrum to take the momentw of
+
+    :param window_hwidth: float
+        half-width of the window (in km/s) to be used to isolate the main hyperfine lines from the rest of the spectrum
+
+    -------
+    :return: m0
+    :return: m1
+    :return: m2
+    '''
+
+    if v_atpeak is None:
+        # use the whole moment map to estimate the speak of the spectrum
+        moments = spectrum.moments(unit=u.km/u.s)
+        v_atpeak = moments[2]
+
+    vmax = v_atpeak + window_hwidth
+    vmin = v_atpeak - window_hwidth
+
+    # Extract the spectrum within the window defined around the main hyperfine components and take moments
+    slice = spectrum.slice(vmin, vmax, unit=u.km/u.s)
+    moments = slice.moments(unit=u.km/u.s)
+
+    return moments[1], moments[2], moments[3]
 
 
 def guess_from_cnvpara(data_cnv, header_cnv, header_target):
