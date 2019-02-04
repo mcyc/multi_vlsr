@@ -98,12 +98,10 @@ def fit_spec(spectrum, guesses, **kwargs):
         v_guess = guesses[::4]
         v_guess[v_guess == 0] = np.nan
         v_median = np.nanmedian(v_guess)
-        print "The median of the user provided velocities is: {0}".format(v_median)
         m0, m1, m2 = main_hf_moments(spectrum, window_hwidth=v_peak_hwidth, v_atpeak=v_median)
     else:
         m0, m1, m2 = main_hf_moments(spectrum, window_hwidth=v_peak_hwidth)
         v_median = np.median(m1[np.isfinite(m1)])
-        print "median velocity: {0}".format(v_median)
 
     # define acceptable v range based on the provided or determined median velocity
     vmax = v_median + v_peak_hwidth
@@ -241,7 +239,6 @@ def moment_guesses(moment1, moment2, ncomp, sigmin=0.07, tex_guess=3.2, tau_gues
         # e.g., 95 percentile value being normalized to have a value of 0.95
         norm_ref = 99.73
         mom0high = np.percentile(moment0[np.isfinite(moment0)], norm_ref)
-        print "moment 0 value at {0} percentile: {1}".format(norm_ref, mom0high)
         # may want to modify this normalization to be something a little simpler or physical (i.e., 99.73/100 ~ 1)
         m0Norm = moment0.copy()*norm_ref/100.0/mom0high
         tex_guess = m0Norm*tex_max
