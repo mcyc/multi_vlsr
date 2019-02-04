@@ -61,6 +61,10 @@ def fit_spec(spectrum, ncomp, guesses, linename="oneone"):
         v_median = np.median(m1[np.isfinite(m1)])
         print "median velocity: {0}".format(v_median)
 
+    # define acceptable v range based on the provided or determined median velocity
+    vmax = v_median + v_peak_hwidth
+    vmin = v_median - v_peak_hwidth
+
     # set the fit parameter limits (consistent with GAS DR1)
     #Tbg = 2.8       # K
     Texmin = 3.0    # K; a more reasonable lower limit (5 K T_kin, 1e3 cm^-3 density, 1e13 cm^-2 column, 3km/s sigma)
@@ -71,7 +75,37 @@ def fit_spec(spectrum, ncomp, guesses, linename="oneone"):
     taumin = 0.2   # note: at 1e3 cm^-3, 1e13 cm^-2, 1 km/s linewidth, 40 K -> 0.15
     eps = 0.001 # a small perturbation that can be used in guesses
 
-    return m1
+    # get the guesses based on moment maps
+    # tex and tau guesses are chosen to reflect low density, diffusive gas that are likley to have low SNR
+    gg = moment_guesses(np.array([m1]), np.array([m2]), ncomp, sigmin=sigmin, moment0=np.array([m0]))
+
+    if guesses is None:
+        guesses = gg
+
+    else:
+        # fill in the blanks with moment guesses
+        guesses[guesses==0] = np.nan
+        gmask = np.isfinite(guesses)
+        guesses[~gmask] = gg[~gmask]
+
+        # fill in the failed sigma guesses with moment guesses
+        gmask = guesses[1::4] < sigmin
+        guesses[1::4][gmask] = gg[1::4][gmask]
+
+        print "user provided guesses accepted"
+
+    # The guesses should be fine in the first case, but just in case, make sure the guesses are confined within the
+    # appropriate limits
+    guesses[::4][guesses[::4] > vmax] = vmax
+    guesses[::4][guesses[::4] < vmin] = vmin
+    guesses[1::4][guesses[1::4] > sigmax] = sigmax
+    guesses[1::4][guesses[1::4] < sigmin] = sigmin + eps
+    guesses[2::4][guesses[2::4] > Texmax] = Texmax
+    guesses[2::4][guesses[2::4] < Texmin] = Texmin
+    guesses[3::4][guesses[3::4] > taumax] = taumax
+    guesses[3::4][guesses[3::4] < taumin] = taumin
+
+    return gg
 
 
 
@@ -96,6 +130,7 @@ def cubefit(cubename, downsampfactor=2, refpix=None, guesses=None, **kwargs):
 
     return fit_spec(spectrum=cnv_spectrum, ncomp=kwargs['ncomp'], guesses=guesses, linename=kwargs['linename'])
 
+    '''
     kwargs_cnv = kwargs.copy()
     kwargs_cnv['paraname'] = None
     kwargs_cnv['momedgetrim'] = False
@@ -123,7 +158,7 @@ def cubefit(cubename, downsampfactor=2, refpix=None, guesses=None, **kwargs):
     mvf.save_pcube(pcube, kwargs['paraname'], ncomp=ncomp)
 
     return pcube
-
+    '''
 
 #-----------------------------------------------------------------------------------------------------------------------
 
@@ -158,6 +193,90 @@ def main_hf_moments(spectrum, window_hwidth, v_atpeak=None):
 
     return moments[1], moments[2], moments[3]
 
+def moment_guesses(moment1, moment2, ncomp, sigmin=0.07, tex_guess=3.2, tau_guess=0.5, moment0=None):
+    '''
+    Make reasonable guesses for the multiple component fits
+    :param moment1:
+    :param moment2:
+    :param ncomp:
+    :param sigmin:
+        <float> default at 0.07 km/s, the spectral resolution of the GAS channels
+    :param tex_guess:
+    :param tau_guess:
+    :return:
+    '''
+
+    # define max and min values of tex and tau to use for the test
+    # a spectrum with tex and tau values both below the specified minima has an intensity below the expected GAS rms
+    tex_max = 8.0
+    tau_max = 1.0
+    tex_min = 3.1
+    tau_min = 0.3
+
+    if moment0 is not None:
+        print "[WARNING]: moment0 map is provided, thus the user-provided tex and tau will not be used"
+        # normalize the moment 0 map with respect to the norm_ref percentile value
+        # e.g., 95 percentile value being normalized to have a value of 0.95
+        norm_ref = 99.73
+        mom0high = np.percentile(moment0[np.isfinite(moment0)], norm_ref)
+        print "moment 0 value at {0} percentile: {1}".format(norm_ref, mom0high)
+        # may want to modify this normalization to be something a little simpler or physical (i.e., 99.73/100 ~ 1)
+        m0Norm = moment0.copy()*norm_ref/100.0/mom0high
+        tex_guess = m0Norm*tex_max
+        tau_guess = m0Norm*tau_max
+
+    m1 = moment1
+    m2 = moment2
+
+    # Guess linewidth (the current recipe works okay, but potential improvements can be made.
+    gs_sig = m2/ncomp
+    gs_sig[gs_sig < sigmin] = sigmin
+    # note 0.08 k is narrow enough to be purely thermal @ ~10 K
+
+    # there are 4 parameters for each v-component
+    gg = np.zeros((ncomp*4,)+m1.shape)
+
+    if ncomp == 1:
+        gg[0,:] = m1                 # v0 centriod
+        gg[1,:] = gs_sig             # v0 width
+        gg[2,:] = tex_guess          # v0 T_ex
+        gg[3,:] = tau_guess          # v0 tau
+
+    # using a working recipe (assuming a bright and a faint componet)
+    if ncomp == 2:
+        #sigmaoff = 0.25
+        sigmaoff = 0.4
+        tau2_frac = 0.25                    # the tau weight of the second component relative to the total fraction
+        gg[0,:] = m1 - sigmaoff*m2         # v0 centriod
+        gg[1,:] = gs_sig                   # v0 width
+        gg[2,:] = tex_guess                # v0 T_ex
+        gg[3,:] = tau_guess*(1-tau2_frac)  # v0 tau
+        gg[4,:] = m1 + sigmaoff*m2         # v1 centriod
+        gg[5,:] = gs_sig                   # v1 width
+        gg[6,:] = tex_guess*0.8            # v1 T_ex
+        gg[7,:] = tau_guess*tau2_frac      # v1 tau
+
+    # using a generalized receipe that have not been tested (lots of room for improvement!)
+    if ncomp > 2:
+        for i in range (0, ncomp):
+            gg[i,  :] = m1+(-1.0+i*1.0/ncomp)*0.5*m2 # v0 centriod (step through a range fo velocities within sigma_v)
+            gg[i+1,:] = gs_sig                   # v0 width
+            gg[i+2,:] = tex_guess*0.8            # v0 T_ex
+            gg[i+3,:] = tau_guess/ncomp*0.25     # v0 tau
+
+    #print "guesses:"
+    #print gg
+
+    # ensure the tex and tau guesses falls within the guessing limits
+    tex_guess[tex_guess < tex_min] = tex_min
+    tex_guess[tex_guess > tex_max] = tex_max
+    tau_guess[tau_guess < tau_min] = tau_min
+    tau_guess[tau_guess > tau_max] = tau_max
+
+    return gg
+
+
+#-----------------------------------------------------------------------------------------------------------------------
 
 def guess_from_cnvpara(data_cnv, header_cnv, header_target):
     # a wrapper to make guesses based on the parameters fitted to the convolved data
