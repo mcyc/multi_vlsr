@@ -22,7 +22,7 @@ import iterative_fit as itf
 #-----------------------------------------------------------------------------------------------------------------------
 # wrappers to run on different machines
 
-def run_uvic(nCubes=10000, nBorder=1, make_cubes=True, nBlocks=10):
+def run_uvic(nCubes=10000, nBorder=1, make_cubes=False, nBlocks=10):
 
     workDir = "/nfs/lican13/home/mcychen/Documents/GAS_Project/data/fake_cube_tests"
 
@@ -56,11 +56,14 @@ def run_on_mc(nCubes=100, nBorder=1, make_cubes=True):
 #-----------------------------------------------------------------------------------------------------------------------
 # core functions
 
-def run_tests(nCubes, workDir, tablename=None):
+def run_tests(nCubes, workDir, cubeSubDir=None, tablename=None):
     # ignore warnings
     warnings.filterwarnings('ignore')
 
-    cubeDir = "{}/random_cubes".format(workDir)
+    if cubeSubDir is None:
+        cubeDir = "{}/random_cubes".format(workDir)
+    else:
+        cubeDir = "{}/{}".format(workDir, cubeSubDir)
 
     if tablename is None:
         tableName = "{}/cube_test_results.txt".format(workDir)
