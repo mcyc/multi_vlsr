@@ -9,20 +9,71 @@ import warnings
 
 import nh3_testcubes as ntc
 import fast_iter_fit as fifit
+import fit_2comp as f2p
 reload(ntc)
 reload(fifit)
+reload(f2p)
 
 import sys, os, time
 # add the parent directory to the paths
 sys.path.insert(1, os.path.join(sys.path[0], '..'))
 import iterative_fit as itf
+
 #-----------------------------------------------------------------------------------------------------------------------
+# wrappers to run on different machines
+
+def run_gb(nCubes=10000, nBorder=1, make_cubes=True):
+    workDir = "/lustre/pipeline/scratch/GAS/images/MChen_FakeCubes"
+    if make_cubes:
+        generate_cubes(nBorder, nCubes, workDir)
+
+    return None
+    #return run_tests(nCubes, workDir)
 
 
+def run_on_mc(nCubes=100, nBorder=1, make_cubes=True):
+    workDir = '/Users/mcychen/Desktop'
+
+    if make_cubes:
+        generate_cubes(nBorder, nCubes, workDir)
+
+    return run_tests(nCubes, workDir)
+
+#-----------------------------------------------------------------------------------------------------------------------
+# core functions
+
+def run_tests(nCubes, workDir):
+    # ignore warnings
+    warnings.filterwarnings('ignore')
+
+    cubeDir = "{}/random_cubes".format(workDir)
+    tableName = "{}/cube_test_results.txt".format(workDir)
+
+    dict_truepara = read_cubes(cubeDir=cubeDir, nCubes=nCubes)
+
+    start_time = time.time()
+    print("------------- start fitting ----------------")
+    results = run_fit(cubeDir=cubeDir, nCubes=nCubes)
+    elapsed_time = time.time() - start_time
+    print("-------- total runtime for cube fit --------")
+    print(time.strftime("%H:%M:%S", time.gmtime(elapsed_time)))
+
+    dict_fitpara = sort_fit_results(results)
+    dict_final = merge_two_dicts(dict_truepara, dict_fitpara)
+
+    return write_table(dict_final, outname=tableName)
+
+
+def generate_cubes(nBorder, nCubes, workDir):
+    cubeDir = "{}/random_cubes".format(workDir)
+    # generating nCubes number of test cubes
+    kwargs = {'nCubes':nCubes, 'nBorder':nBorder, 'noise_rms':0.1, 'output_dir':cubeDir, 'random_seed':None,
+              'TwoTwoLine':False}
+    ntc.generate_cubes(**kwargs)
 
 
 def read_cubes(cubeDir, nCubes):
-
+    #
     truekwds = ['NCOMP', 'LOGN1', 'LOGN2', 'VLSR1', 'VLSR2', 'SIG1', 'SIG2', 'TKIN1', 'TKIN2', 'TMAX', 'RMS']
     truepara = defaultdict(list)
 
@@ -38,7 +89,7 @@ def read_cubes(cubeDir, nCubes):
 
 
 def write_table(dict, outname=None, **kwargs):
-
+    #
     names = []
     data = []
     for key, value in dict.iteritems():
@@ -53,10 +104,7 @@ def write_table(dict, outname=None, **kwargs):
     return table
 
 
-
 def run_fit(cubeDir, nCubes):
-    import fit_2comp as f2p
-    reload(f2p)
     # perform iternative fitting
 
     nDigits = int(np.ceil(np.log10(nCubes)))
@@ -71,38 +119,6 @@ def run_fit(cubeDir, nCubes):
     para1, err1, para2, err2, likelyhood = f2p.run(cubenames, guesses_pp=None, kwargs_pp=kwargs, ncpu=None)
     return para1, err1, para2, err2, likelyhood
 
-
-def run(nBorder=1, nCubes=24):
-    # ignore warnings
-    warnings.filterwarnings('ignore')
-
-    workDir = '/Users/mcychen/Desktop'
-    cubeDir = "{}/random_cubes".format(workDir)
-    tableName = "{}/cube_test_results.txt".format(workDir)
-
-    if False:
-        generate_cubes(nBorder, nCubes, cubeDir)
-
-
-    dict_truepara = read_cubes(cubeDir=cubeDir, nCubes=nCubes)
-
-    #run_fit(cubeDir=outDir, nCubes=nCubes, n_comp=1)
-
-    #return write_table(tab_truepara, outname=tableName)
-
-
-    start_time = time.time()
-    print("------------- start fitting ----------------")
-    results = run_fit(cubeDir=cubeDir, nCubes=nCubes)
-    elapsed_time = time.time() - start_time
-    print("-------- total runtime for cube fit --------")
-    print(time.strftime("%H:%M:%S", time.gmtime(elapsed_time)))
-
-
-    dict_fitpara = sort_fit_results(results)
-    dict_final = merge_two_dicts(dict_truepara, dict_fitpara)
-
-    return write_table(dict_final, outname=tableName)
 
 
 def sort_fit_results(results):
@@ -145,12 +161,15 @@ def sort_fit_results(results):
     return fitpara
 
 
-def generate_cubes(nBorder, nCubes, cubeDir):
-    # generating nCubes number of test cubes
-    kwargs = {'nCubes':nCubes, 'nBorder':nBorder, 'noise_rms':0.1, 'output_dir':cubeDir, 'random_seed':None,
-              'TwoTwoLine':False}
-    ntc.generate_cubes(**kwargs)
+def merge_two_dicts(x, y):
+    # merges two dictionaries into one
+    z = x.copy()   # start with x's keys and values
+    z.update(y)    # modifies z with y's keys and values & returns None
+    return z
 
+
+#-----------------------------------------------------------------------------------------------------------------------
+# test functions that are likley no longer needed (i.e., clean up needed)
 
 def test(nBorder=2, nCubes=4):
     workDir = '/Users/mcychen/Desktop'
@@ -172,7 +191,4 @@ def tt():
 
     return mean_spec
 
-def merge_two_dicts(x, y):
-    z = x.copy()   # start with x's keys and values
-    z.update(y)    # modifies z with y's keys and values & returns None
-    return z
+
