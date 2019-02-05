@@ -11,7 +11,9 @@ sys.path.insert(1, os.path.join(sys.path[0], '..'))
 import multi_v_fit as mvf
 import iterative_fit as itf
 import ammonia_multiv as ammv
-reload(ammv)
+import aic
+reload(mvf)
+
 
 #-----------------------------------------------------------------------------------------------------------------------
 
@@ -35,9 +37,25 @@ def fit_2comp(cubename, guesses, **kwargs):
 
     # perform fits iteratively
     spec_1comp = iter_fit(mean_spec, spectrum, ncomp=1)
-    #spec_2comp = iter_fit(mean_spec, spectrum, ncomp=2)
+    spec_2comp = iter_fit(mean_spec, spectrum, ncomp=2)
 
-    return spec_1comp
+    def get_comp_AICc(spectrum1, spectrum2, p1, p2):
+        model1 = spectrum1.specfit.model
+        model2 = spectrum2.specfit.model
+        mask1 = model1 > 0
+        mask2 = model2 > 0
+        mask = np.logical_or(mask1, mask2)
+        chi1, N1 = get_chisq(spectrum1, expand=20, reduced=False, usemask=True, mask=mask)
+        chi2, N2 = get_chisq(spectrum2, expand=20, reduced=False, usemask=True, mask=mask)
+        aicc1 = aic.AICc(chi1, p1, N1)
+        aicc2 = aic.AICc(chi2, p2, N1)
+        likelyhood = (aicc1 - aicc2) / 2.0
+        return likelyhood
+
+    likelyhood = get_comp_AICc(spec_1comp, spec_2comp, p1=4, p2=8)
+    print "likelyhood: {}".format(likelyhood)
+
+    return spec_1comp, spec_2comp, likelyhood
 
     #spectrum.specfit.modelpars
     #spc.specfit.modelerrs
@@ -51,7 +69,6 @@ def get_mean_spec(cube, linename="oneone"):
 
     spc = cube.mean(axis=(1, 2))
     return prep_spec(spc, linename)
-
 
 
 def get_cubespec(cube, refpix=None, linename="oneone"):
@@ -134,7 +151,7 @@ def fit_spec(spectrum, guesses, **kwargs):
         gmask = guesses[1::4] < sigmin
         guesses[1::4][gmask] = gg[1::4][gmask]
 
-        print "user provided guesses accepted"
+        #print "user provided guesses accepted"
 
     # The guesses should be fine in the first case, but just in case, make sure the guesses are confined within the
     # appropriate limits
@@ -234,7 +251,7 @@ def moment_guesses(moment1, moment2, ncomp, sigmin=0.07, tex_guess=3.2, tau_gues
     tau_min = 0.3
 
     if moment0 is not None:
-        print "[WARNING]: moment0 map is provided, thus the user-provided tex and tau will not be used"
+        #print "[WARNING]: moment0 map is provided, thus the user-provided tex and tau will not be used"
         # normalize the moment 0 map with respect to the norm_ref percentile value
         # e.g., 95 percentile value being normalized to have a value of 0.95
         norm_ref = 99.73
@@ -293,6 +310,67 @@ def moment_guesses(moment1, moment2, ncomp, sigmin=0.07, tex_guess=3.2, tau_gues
     tau_guess[tau_guess > tau_max] = tau_max
 
     return gg
+
+
+def get_chisq(spectrum, expand=20, reduced=True, usemask=True, mask=None):
+    '''
+    cube : SpectralCube
+
+    model: numpy array
+
+    expand : int
+        Expands the region where the residual is evaluated by this many channels in the spectral dimension
+
+    reduced : boolean
+        Whether or not to return the reduced chi-squared value or not
+
+    usemask: boolean
+        Whether or not to mask out some parts of the data.
+        If no mask is provided, it masks out samples with model values of zero.
+
+    mask: boolean array
+        A mask stating which array elements the chi-squared values are calculated from
+    '''
+
+    import scipy.ndimage as nd
+
+    model = spectrum.specfit.model
+
+    if usemask:
+        if mask is None:
+            mask = model > 0
+    else:
+        mask = ~np.isnan(model)
+
+    residual = spectrum.specfit.residuals
+
+    # This calculates chisq over the region where the fit is non-zero
+    # plus a buffer of size set by the expand keyword.
+
+    selem = np.ones(expand, dtype=np.bool)
+    #selem.shape += (1, 1,)
+    mask = nd.binary_dilation(mask, selem)
+    mask = mask.astype(np.float)
+    chisq = np.sum((residual * mask) ** 2, axis=0)
+
+    if reduced:
+        chisq /= np.sum(mask, axis=0)
+
+    # This produces a robust estimate of the RMS along every line of sight:
+    # (alternatively, we can use mad_std from astropy?)
+    diff = residual - np.roll(residual, 2, axis=0)
+    rms = 1.4826 * np.nanmedian(np.abs(diff), axis=0) / 2 ** 0.5
+
+    chisq /= rms ** 2
+
+    if reduced:
+        # return the reduce chi-squares values
+        return chisq
+
+    else:
+        # return the ch-squared values and the number of data points used
+        return chisq, np.sum(mask, axis=0)
+
 
 
 #-----------------------------------------------------------------------------------------------------------------------

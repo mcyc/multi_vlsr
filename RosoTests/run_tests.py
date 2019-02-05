@@ -2,6 +2,7 @@ import numpy as np
 from astropy.io import fits
 from collections import defaultdict
 from astropy.table import Table
+from multiprocessing import Pool, cpu_count
 
 
 import nh3_testcubes as ntc
@@ -15,21 +16,7 @@ sys.path.insert(1, os.path.join(sys.path[0], '..'))
 import iterative_fit as itf
 #-----------------------------------------------------------------------------------------------------------------------
 
-def run(nBorder=2, nCubes=2):
 
-    workDir = '/Users/mcychen/Desktop'
-    outDir = "{}/random_cubes".format(workDir)
-    tableName = "{}/cube_test_results.txt".format(workDir)
-
-    kwargs = {'nCubes':nCubes, 'nBorder':nBorder, 'noise_rms':0.1, 'output_dir':outDir, 'random_seed':None,
-              'TwoTwoLine':False}
-
-    #ntc.generate_cubes(**kwargs)
-    tab_truepara = read_cubes(cubeDir=outDir, nCubes=nCubes)
-
-    run_fit(cubeDir=outDir, nCubes=nCubes, n_comp=1)
-
-    return write_table(tab_truepara, outname=tableName)
 
 
 def read_cubes(cubeDir, nCubes):
@@ -65,26 +52,51 @@ def write_table(dict, outname=None, **kwargs):
 
 
 
-def run_fit(cubeDir, nCubes, n_comp=1):
+def run_fit(cubeDir, nCubes):
+    import fit_2comp as f2p
+    reload(f2p)
     # perform iternative fitting
 
     nDigits = int(np.ceil(np.log10(nCubes)))
 
+    cubenames = []
     for i in range(nCubes):
         cubename = cubeDir + '/random_cube_NH3_11_'+ '{0}'.format(i).zfill(nDigits) + '.fits'
-        paraname = cubeDir + '/paraMaps_NH3_11_'+ '{0}'.format(i).zfill(nDigits) + '{}comp.fits'.format(n_comp)
-        kwargs = {'ncomp': n_comp, 'paraname': paraname,
-                  'guesses':None, 'multicore':1, 'snr_min':3, 'linename':"oneone"}
+        cubenames.append(cubename)
 
-        '''
-        'modname': self.ModelFile, 'chisqname': self.ChisqFile, 'mask_function': mask_function
-        '''
+    kwargs = {'paraname': None, 'snr_min':3, 'linename':"oneone"} #, 'multicore':1 'ncomp': n_comp,
 
-        paraCubes = fifit.cubefit(cubename, downsampfactor=2, **kwargs)
-        return paraCubes
+    para1, err1, para2, err2, likelyhood = f2p.run(cubenames, guesses_pp=None, kwargs_pp=kwargs, ncpu=None)
+    return para1, err1, para2, err2, likelyhood
 
 
-def test(nBorder=2, nCubes=2):
+def run(nBorder=1, nCubes=6):
+
+    workDir = '/Users/mcychen/Desktop'
+    cubeDir = "{}/random_cubes".format(workDir)
+    tableName = "{}/cube_test_results.txt".format(workDir)
+
+    if False:
+        generate_cubes(nBorder, nCubes, cubeDir)
+
+
+    #tab_truepara = read_cubes(cubeDir=outDir, nCubes=nCubes)
+
+    #run_fit(cubeDir=outDir, nCubes=nCubes, n_comp=1)
+
+    #return write_table(tab_truepara, outname=tableName)
+
+    return run_fit(cubeDir=cubeDir, nCubes=nCubes)
+
+
+def generate_cubes(nBorder, nCubes, cubeDir):
+    # generating nCubes number of test cubes
+    kwargs = {'nCubes':nCubes, 'nBorder':nBorder, 'noise_rms':0.1, 'output_dir':cubeDir, 'random_seed':None,
+              'TwoTwoLine':False}
+    ntc.generate_cubes(**kwargs)
+
+
+def test(nBorder=2, nCubes=4):
     workDir = '/Users/mcychen/Desktop'
     outDir = "{}/random_cubes".format(workDir)
 
