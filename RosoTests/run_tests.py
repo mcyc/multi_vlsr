@@ -22,7 +22,7 @@ import iterative_fit as itf
 #-----------------------------------------------------------------------------------------------------------------------
 # wrappers to run on different machines
 
-def run_uvic(nCubes=10000, nBorder=1, make_cubes=False, nBlocks=10):
+def run_uvic(nCubes=10000, nBorder=1, make_cubes=True, nBlocks=10):
 
     workDir = "/nfs/lican13/home/mcychen/Documents/GAS_Project/data/fake_cube_tests"
 
