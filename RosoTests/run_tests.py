@@ -22,13 +22,27 @@ import iterative_fit as itf
 #-----------------------------------------------------------------------------------------------------------------------
 # wrappers to run on different machines
 
-def run_gb(nCubes=10000, nBorder=1, make_cubes=True):
+def run_uvic(nCubes=10000, nBorder=1, make_cubes=True, nBlocks=10):
+
+    workDir = "/Users/mcychen/Documents/GAS_Project/data/fake_cube_tests"
+
+    for i in range(nBlocks):
+        if make_cubes:
+            cubeSubDir = "random_cubes_{}".format(i)
+            generate_cubes(nBorder, nCubes/nBlocks, workDir, cubeSubDir=cubeSubDir)
+
+        tablename = "cube_test_results_{}.txt".format(i)
+        run_tests(nCubes, workDir, tablename=tablename)
+
+    return None
+
+
+def run_gb(nCubes=10000, nBorder=1, make_cubes=False):
     workDir = "/lustre/pipeline/scratch/GAS/images/MChen_FakeCubes"
     if make_cubes:
         generate_cubes(nBorder, nCubes, workDir)
 
-    return None
-    #return run_tests(nCubes, workDir)
+    return run_tests(nCubes, workDir)
 
 
 def run_on_mc(nCubes=100, nBorder=1, make_cubes=True):
@@ -42,12 +56,16 @@ def run_on_mc(nCubes=100, nBorder=1, make_cubes=True):
 #-----------------------------------------------------------------------------------------------------------------------
 # core functions
 
-def run_tests(nCubes, workDir):
+def run_tests(nCubes, workDir, tablename=None):
     # ignore warnings
     warnings.filterwarnings('ignore')
 
     cubeDir = "{}/random_cubes".format(workDir)
-    tableName = "{}/cube_test_results.txt".format(workDir)
+
+    if tablename is None:
+        tableName = "{}/cube_test_results.txt".format(workDir)
+    else:
+        tableName = "{}/{}".format(workDir, tablename)
 
     dict_truepara = read_cubes(cubeDir=cubeDir, nCubes=nCubes)
 
@@ -64,8 +82,11 @@ def run_tests(nCubes, workDir):
     return write_table(dict_final, outname=tableName)
 
 
-def generate_cubes(nBorder, nCubes, workDir):
-    cubeDir = "{}/random_cubes".format(workDir)
+def generate_cubes(nBorder, nCubes, workDir, cubeSubDir=None):
+    if cubeSubDir is None:
+        cubeDir = "{}/random_cubes".format(workDir)
+    else
+        cubeDir = "{}/{}".format(workDir, cubeSubDir)
     # generating nCubes number of test cubes
     kwargs = {'nCubes':nCubes, 'nBorder':nBorder, 'noise_rms':0.1, 'output_dir':cubeDir, 'random_seed':None,
               'TwoTwoLine':False}
