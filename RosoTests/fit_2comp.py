@@ -8,6 +8,7 @@ import aic
 import fast_iter_fit as fifit
 reload(fifit)
 from multiprocessing import Pool, cpu_count
+import tqdm
 
 def run(cubenames, guesses_pp, kwargs_pp, ncpu=None):
     global guesses, kwargs
@@ -18,11 +19,19 @@ def run(cubenames, guesses_pp, kwargs_pp, ncpu=None):
         ncpu = cpu_count() - 1
 
     pool = Pool(ncpu)  # Create a multiprocessing Pool
-    #spec_1comp, spec_2comp, likelyhood = zip(*pool.map(fit_2comp, cubenames))
-    #out1, out2, out3 = zip(*pool.map(calc_stuff, range(0, 10 * offset, offset)))
-    #return spec_1comp, spec_2comp, likelyhood
 
-    para1, err1, para2, err2, likelyhood = zip(*pool.map(fit_2comp, cubenames))
+    '''
+    for i, _ in tqdm(enumerate(p.imap_unordered(_foo, range(0, max_)))):
+        pbar.update()
+    '''
+
+    results = []
+    for i in tqdm.tqdm(pool.imap(fit_2comp, cubenames), total=len(cubenames), mininterval=0.01):
+        results.append(i)
+
+    para1, err1, para2, err2, likelyhood = zip(*results)
+    #para1, err1, para2, err2, likelyhood = zip(*(tqdm.tqdm(pool.imap(fit_2comp, cubenames), total=len(cubenames))))
+
     return para1, err1, para2, err2, likelyhood
 
 
