@@ -24,11 +24,11 @@ import iterative_fit as itf
 
 def run_uvic(nCubes=10000, nBorder=1, make_cubes=True, nBlocks=10):
 
-    workDir = "/Users/mcychen/Documents/GAS_Project/data/fake_cube_tests"
+    workDir = "/nfs/lican13/home/mcychen/Documents/GAS_Project/data/fake_cube_tests"
 
     for i in range(nBlocks):
         if make_cubes:
-            cubeSubDir = "random_cubes_{}".format(i)
+            cubeSubDir = "random_cubes{}".format(i)
             generate_cubes(nBorder, nCubes/nBlocks, workDir, cubeSubDir=cubeSubDir)
 
         tablename = "cube_test_results_{}.txt".format(i)
