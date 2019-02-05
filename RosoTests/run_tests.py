@@ -85,7 +85,7 @@ def run_tests(nCubes, workDir, tablename=None):
 def generate_cubes(nBorder, nCubes, workDir, cubeSubDir=None):
     if cubeSubDir is None:
         cubeDir = "{}/random_cubes".format(workDir)
-    else
+    else:
         cubeDir = "{}/{}".format(workDir, cubeSubDir)
     # generating nCubes number of test cubes
     kwargs = {'nCubes':nCubes, 'nBorder':nBorder, 'noise_rms':0.1, 'output_dir':cubeDir, 'random_seed':None,
