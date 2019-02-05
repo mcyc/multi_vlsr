@@ -27,10 +27,9 @@ def run_uvic(nCubes=10000, nBorder=1, make_cubes=False, nBlocks=10):
     workDir = "/nfs/lican13/home/mcychen/Documents/GAS_Project/data/fake_cube_tests"
 
     for i in range(nBlocks):
+        cubeSubDir = "random_cubes{}".format(i)
         if make_cubes:
-            cubeSubDir = "random_cubes{}".format(i)
             generate_cubes(nBorder, nCubes/nBlocks, workDir, cubeSubDir=cubeSubDir)
-
         tablename = "cube_test_results_{}.txt".format(i)
         run_tests(nCubes, workDir, cubeSubDir=cubeSubDir, tablename=tablename)
 
