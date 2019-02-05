@@ -32,7 +32,7 @@ def run_uvic(nCubes=10000, nBorder=1, make_cubes=False, nBlocks=10):
             generate_cubes(nBorder, nCubes/nBlocks, workDir, cubeSubDir=cubeSubDir)
 
         tablename = "cube_test_results_{}.txt".format(i)
-        run_tests(nCubes, workDir, tablename=tablename)
+        run_tests(nCubes, workDir, cubeSubDir=cubeSubDir, tablename=tablename)
 
     return None
 
