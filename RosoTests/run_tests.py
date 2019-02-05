@@ -3,6 +3,8 @@ from astropy.io import fits
 from collections import defaultdict
 from astropy.table import Table
 from multiprocessing import Pool, cpu_count
+import warnings
+
 
 
 import nh3_testcubes as ntc
@@ -10,7 +12,7 @@ import fast_iter_fit as fifit
 reload(ntc)
 reload(fifit)
 
-import sys, os #, errno, time
+import sys, os, time
 # add the parent directory to the paths
 sys.path.insert(1, os.path.join(sys.path[0], '..'))
 import iterative_fit as itf
@@ -70,7 +72,9 @@ def run_fit(cubeDir, nCubes):
     return para1, err1, para2, err2, likelyhood
 
 
-def run(nBorder=1, nCubes=6):
+def run(nBorder=1, nCubes=24):
+    # ignore warnings
+    warnings.filterwarnings('ignore')
 
     workDir = '/Users/mcychen/Desktop'
     cubeDir = "{}/random_cubes".format(workDir)
@@ -80,13 +84,65 @@ def run(nBorder=1, nCubes=6):
         generate_cubes(nBorder, nCubes, cubeDir)
 
 
-    #tab_truepara = read_cubes(cubeDir=outDir, nCubes=nCubes)
+    dict_truepara = read_cubes(cubeDir=cubeDir, nCubes=nCubes)
 
     #run_fit(cubeDir=outDir, nCubes=nCubes, n_comp=1)
 
     #return write_table(tab_truepara, outname=tableName)
 
-    return run_fit(cubeDir=cubeDir, nCubes=nCubes)
+
+    start_time = time.time()
+    print("------------- start fitting ----------------")
+    results = run_fit(cubeDir=cubeDir, nCubes=nCubes)
+    elapsed_time = time.time() - start_time
+    print("-------- total runtime for cube fit --------")
+    print(time.strftime("%H:%M:%S", time.gmtime(elapsed_time)))
+
+
+    dict_fitpara = sort_fit_results(results)
+    dict_final = merge_two_dicts(dict_truepara, dict_fitpara)
+
+    return write_table(dict_final, outname=tableName)
+
+
+def sort_fit_results(results):
+    '''
+    #para1, err1, para2, err2, likelyhood
+
+    fitkwds = ['NCOMP_FIT', 'VLSR1_FIT', 'VLSR2_FIT', 'SIG1_FIT', 'SIG2_FIT', 'TEX1_FIT', 'TEX2_FIT', 'TAU1_FIT',
+               'TAU2_FIT', 'LN_K_21']
+    '''
+
+    kwds_paraCompA = ['VLSR1_FIT', 'SIG1_FIT', 'TEX1_FIT', 'TAU1_FIT']
+    kwds_paraCompB = ['VLSR2_FIT', 'SIG2_FIT', 'TEX2_FIT', 'TAU2_FIT']
+    kwds_paraCompAB = kwds_paraCompA + kwds_paraCompB
+
+    kwds_errCompA = ['eVLSR1_FIT', 'eSIG1_FIT', 'eTEX1_FIT', 'eTAU1_FIT']
+    kwds_errCompB = ['eVLSR2_FIT', 'eSIG2_FIT', 'eTEX2_FIT', 'eTAU2_FIT']
+    kwds_errCompAB = kwds_errCompA + kwds_errCompB
+
+    fitpara = defaultdict(list)
+
+    for i, lkhood in enumerate(results[-1]):
+
+        fitpara['LN_K_21'].append(lkhood)
+
+        if lkhood > 5:
+            fitpara['NCOMP_FIT'].append(2)
+            for j, key in enumerate(kwds_paraCompAB):
+                fitpara[key].append(results[2][i][j])
+            for j, key in enumerate(kwds_errCompAB):
+                fitpara[key].append(results[3][i][j])
+
+        else:
+            fitpara['NCOMP_FIT'].append(1)
+            for j, (keyA, keyB) in enumerate(zip(kwds_paraCompA, kwds_paraCompB)):
+                fitpara[keyA].append(results[0][i][j])
+                fitpara[keyB].append(np.nan)
+            for j, (keyA, keyB) in enumerate(zip(kwds_errCompA, kwds_errCompB)):
+                fitpara[keyA].append(results[1][i][j])
+                fitpara[keyB].append(np.nan)
+    return fitpara
 
 
 def generate_cubes(nBorder, nCubes, cubeDir):
@@ -102,3 +158,21 @@ def test(nBorder=2, nCubes=4):
 
     return run_fit(cubeDir=outDir, nCubes=nCubes, n_comp=1)
 
+
+def tt():
+
+    workDir = '/Users/mcychen/Desktop'
+    cubeDir = "{}/random_cubes".format(workDir)
+    cubename = cubeDir + '/random_cube_NH3_11_0.fits'
+
+    from spectral_cube import SpectralCube
+    cube = SpectralCube.read(cubename)
+
+    mean_spec = fifit.get_mean_spec(cube, linename='oneone')
+
+    return mean_spec
+
+def merge_two_dicts(x, y):
+    z = x.copy()   # start with x's keys and values
+    z.update(y)    # modifies z with y's keys and values & returns None
+    return z

@@ -12,6 +12,7 @@ import multi_v_fit as mvf
 import iterative_fit as itf
 import ammonia_multiv as ammv
 import aic
+import warnings
 reload(mvf)
 
 
@@ -66,7 +67,6 @@ def get_mean_spec(cube, linename="oneone"):
     # note: masking may be desired in case of nan values
     if not isinstance(cube, SpectralCube):
         cube = SpectralCube.read(cube)
-
     spc = cube.mean(axis=(1, 2))
     return prep_spec(spc, linename)
 
@@ -90,7 +90,7 @@ def prep_spec(OneDSpectrum, linename="oneone"):
     # take a spectral_cube OneDSpectrum and make it a pyspeckit Spectrum ready to be fitted
     spc = OneDSpectrum
     spectrum = pyspeckit.Spectrum(data=spc.value, xarr=spc.spectral_axis, unit=spc.unit,
-                                      xarrkwargs={'unit': spc.spectral_axis.unit})
+                                      xarrkwargs={'unit': spc.spectral_axis.unit}, header=spc.header)
     if spectrum.xarr.refX is None:
         spectrum.xarr.refX = freq_dict[linename]*u.Hz
     spectrum.xarr.velocity_convention = 'radio'
