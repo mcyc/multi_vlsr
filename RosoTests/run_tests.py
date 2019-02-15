@@ -44,7 +44,7 @@ def run_gb(nCubes=10000, nBorder=1, make_cubes=False):
     return run_tests(nCubes, workDir)
 
 
-def run_on_mc(nCubes=100, nBorder=1, make_cubes=True):
+def run_on_mc(nCubes=2, nBorder=1, make_cubes=True):
     workDir = '/Users/mcychen/Desktop'
 
     if make_cubes:
@@ -202,6 +202,7 @@ def test(nBorder=2, nCubes=4):
 
 
 def tt():
+    reload(fifit)
 
     workDir = '/Users/mcychen/Desktop'
     cubeDir = "{}/random_cubes".format(workDir)
@@ -210,7 +211,13 @@ def tt():
     from spectral_cube import SpectralCube
     cube = SpectralCube.read(cubename)
 
-    mean_spec = fifit.get_mean_spec(cube, linename='oneone')
+    #return fifit.get_cubespec(cube, refpix=None, linename="oneone")
+
+    mask = np.array([[False, False, False],
+                     [True,  True, True],
+                     [False, True, False]])
+
+    mean_spec = fifit.get_mean_spec(cube, linename='oneone', mask=mask)
 
     return mean_spec
 

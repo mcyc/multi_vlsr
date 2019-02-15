@@ -5,6 +5,7 @@ from spectral_cube import SpectralCube
 from radio_beam import Beam
 import pyspeckit
 from pyspeckit.spectrum.models.ammonia_constants import freq_dict, voff_lines_dict
+from astropy.stats import mad_std
 import sys, os #, errno, time
 # add the parent directory to the paths
 sys.path.insert(1, os.path.join(sys.path[0], '..'))
@@ -22,7 +23,12 @@ def fit_2comp(cubename, guesses, **kwargs):
     # get the cube we wish to fit
     cube = SpectralCube.read(cubename)
 
-    mean_spec = get_mean_spec(cube, linename=kwargs['linename'])
+    # bing 4 pixels into a spectrum to emulate a cube that is convolved to twice the resolution
+    mask = np.array([[False, False, False],
+                     [True,  True, True],
+                     [False, True, False]])
+
+    mean_spec = get_mean_spec(cube, linename=kwargs['linename'], mask=mask)
 
     spectrum = get_cubespec(cube)
 
@@ -62,12 +68,19 @@ def fit_2comp(cubename, guesses, **kwargs):
     #spc.specfit.modelerrs
 
 
-def get_mean_spec(cube, linename="oneone"):
+def get_mean_spec(cube, linename="oneone", mask=None):
     # get the mean spectrum of the entire cube
     # note: masking may be desired in case of nan values
     if not isinstance(cube, SpectralCube):
         cube = SpectralCube.read(cube)
-    spc = cube.mean(axis=(1, 2))
+
+    if mask is not None:
+        if mask.ndim == 2:
+            mask = np.broadcast_to(mask, cube.shape)
+        spc = (cube.with_mask(mask)).mean(axis=(1, 2))
+    else:
+        spc = cube.mean(axis=(1, 2))
+
     return prep_spec(spc, linename)
 
 
@@ -124,13 +137,17 @@ def fit_spec(spectrum, guesses, **kwargs):
     vmax = v_median + v_peak_hwidth
     vmin = v_median - v_peak_hwidth
 
+    # estimate the rms level, and pass to the spectrum
+    rms = get_rms(spectrum, window_hwidth=v_peak_hwidth, v_atpeak=v_median)
+    spectrum.error = rms*np.ones_like(spectrum.data)
+
     # set the fit parameter limits (consistent with GAS DR1)
     #Tbg = 2.8       # K
     Texmin = 3.0    # K; a more reasonable lower limit (5 K T_kin, 1e3 cm^-3 density, 1e13 cm^-2 column, 3km/s sigma)
     Texmax = 40    # K; DR1 T_k for Orion A is < 35 K. T_k = 40 at 1e5 cm^-3, 1e15 cm^-2, and 0.1 km/s yields Tex = 37K
     sigmin = 0.07   # km/s
     sigmax = 2.5    # km/s; for Larson's law, a 10pc cloud has sigma = 2.6 km/s
-    taumax = 100.0  # a reasonable upper limit for GAS data. At 10K and 1e5 cm^-3 & 3e15 cm^-2 -> 70
+    taumax = 100.0  # a reasonable upper lim it for GAS data. At 10K and 1e5 cm^-3 & 3e15 cm^-2 -> 70
     taumin = 0.2   # note: at 1e3 cm^-3, 1e13 cm^-2, 1 km/s linewidth, 40 K -> 0.15
     eps = 0.001 # a small perturbation that can be used in guesses
 
@@ -228,6 +245,30 @@ def main_hf_moments(spectrum, window_hwidth, v_atpeak=None):
     moments = slice.moments(unit=u.km/u.s)
 
     return moments[1], moments[2], moments[3]
+
+
+
+def get_rms(spectrum, window_hwidth, v_atpeak):
+
+    s = spectrum
+
+    #vsys = ThisRegion['VAVG'] * u.km / u.s
+    vsys = v_atpeak*u.km/u.s
+    #throw = 2 * u.km / u.s + ThisRegion['VRANGE'] * u.km / u.s / 2
+    throw = window_hwidth*u.km/u.s
+    voff11 = voff_lines_dict['oneone']
+
+    mask = np.ones(s.shape[0], dtype=np.bool)
+
+    for deltav in voff11:
+        mask *= (np.abs(s.xarr - (deltav * u.km / u.s + vsys)) > throw)
+
+    d_rms = s.data.copy()
+
+
+
+    return mad_std(d_rms[mask])
+
 
 
 def moment_guesses(moment1, moment2, ncomp, sigmin=0.07, tex_guess=3.2, tau_guess=0.5, moment0=None):

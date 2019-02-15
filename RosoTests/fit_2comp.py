@@ -27,6 +27,7 @@ def run(cubenames, guesses_pp, kwargs_pp, ncpu=None):
     '''
 
     results = []
+    print "cube length: {}".format(len(cubenames))
     for i in tqdm.tqdm(pool.imap(fit_2comp, cubenames), total=len(cubenames), mininterval=0.01):
         results.append(i)
         gc.collect()
