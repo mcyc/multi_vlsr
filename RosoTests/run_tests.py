@@ -44,7 +44,7 @@ def run_gb(nCubes=10000, nBorder=1, make_cubes=False):
     return run_tests(nCubes, workDir)
 
 
-def run_on_mc(nCubes=2, nBorder=1, make_cubes=True):
+def run_on_mc(nCubes=1, nBorder=1, make_cubes=True):
     workDir = '/Users/mcychen/Desktop'
 
     if make_cubes:

@@ -43,6 +43,10 @@ def generate_cubes(nCubes=2, nBorder=1, noise_rms=0.1, output_dir='random_cubes'
     Voff1 = np.random.rand(nCubes) * 5 - 2.5
     Voff2 = np.random.rand(nCubes) * 5 - 2.5
 
+    # to ensure the second component always have larger vlsr
+    swap_mask =  Voff1 > Voff2
+    Voff1[swap_mask], Voff2[swap_mask] = Voff2[swap_mask], Voff1[swap_mask]
+
     logN1 = 13 + 2 * np.random.rand(nCubes)
     logN2 = 13 + 2 * np.random.rand(nCubes)
 
@@ -73,7 +77,7 @@ def generate_cubes(nCubes=2, nBorder=1, noise_rms=0.1, output_dir='random_cubes'
                'WCSAXES': 3,
                'CRPIX1': 2,
                'CRPIX2': 2,
-               'CRPIX3': 500,
+               'CRPIX3': 501,
                'CDELT1': -0.008554169991270138,
                'CDELT2': 0.008554169991270138,
                'CDELT3': 5720.0,
@@ -130,7 +134,7 @@ def generate_cubes(nCubes=2, nBorder=1, noise_rms=0.1, output_dir='random_cubes'
 
             cube11[:, yy, xx] = spec11
             Tmax11 = np.max(cube11[:, nBorder, nBorder])
-            cube11 += np.random.randn(*cube11.shape) * noise_rms
+            #cube11 += np.random.randn(*cube11.shape) * noise_rms
 
             if TwoTwoLine:
                 if nComps[i] == 1:
@@ -142,9 +146,11 @@ def generate_cubes(nCubes=2, nBorder=1, noise_rms=0.1, output_dir='random_cubes'
 
                 cube22[:, yy, xx] = spec22
                 Tmax22 = np.max(cube22[:, nBorder, nBorder])
-                cube22 += np.random.randn(*cube22.shape) * noise_rms
+                #cube22 += np.random.randn(*cube22.shape) * noise_rms
 
+        cube11 += np.random.randn(*cube11.shape) * noise_rms
         hdu11 = fits.PrimaryHDU(cube11)
+
         for kk in hdrkwds:
             hdu11.header[kk] = hdrkwds[kk]
             for kk, vv in zip(truekwds, [nComps[i], logN1[i], logN2[i],
@@ -161,6 +167,7 @@ def generate_cubes(nCubes=2, nBorder=1, noise_rms=0.1, output_dir='random_cubes'
                       overwrite=True)
 
         if TwoTwoLine:
+            cube22 += np.random.randn(*cube22.shape) * noise_rms
             hdu22 = fits.PrimaryHDU(cube22)
 
             for kk in hdrkwds:
@@ -176,6 +183,7 @@ def generate_cubes(nCubes=2, nBorder=1, noise_rms=0.1, output_dir='random_cubes'
             hdu22.writeto(output_dir + '/random_cube_NH3_22_'
                           + '{0}'.format(i).zfill(nDigits) + '.fits',
                           overwrite=True)
+
 
 if __name__ == '__main__':
     print(sys.argv)

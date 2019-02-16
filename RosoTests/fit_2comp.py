@@ -16,8 +16,24 @@ def run(cubenames, guesses_pp, kwargs_pp, ncpu=None):
     guesses = guesses_pp
     kwargs = kwargs_pp
 
-    if ncpu is not None:
+    ncpu = 1
+    results = []
+
+    if ncpu is None:
         ncpu = cpu_count() - 1
+        print "number of cpu used: {}".format(ncpu)
+
+    elif ncpu == 1:
+        # single processing
+        print "number of cpu specified is {}, no multi-processing is used".format(ncpu)\
+        #for cubename in cubenames:
+
+        for cubename in tqdm.tqdm(cubenames, total=len(cubenames), mininterval=0.01):
+            results.append(fit_2comp(cubename))
+            gc.collect()
+        para1, err1, para2, err2, likelyhood = zip(*results)
+        return para1, err1, para2, err2, likelyhood
+
 
     pool = Pool(ncpu)  # Create a multiprocessing Pool
 
@@ -26,7 +42,7 @@ def run(cubenames, guesses_pp, kwargs_pp, ncpu=None):
         pbar.update()
     '''
 
-    results = []
+    #results = []
     print "cube length: {}".format(len(cubenames))
     for i in tqdm.tqdm(pool.imap(fit_2comp, cubenames), total=len(cubenames), mininterval=0.01):
         results.append(i)
@@ -60,6 +76,11 @@ def fit_2comp(cubename):
     spec_1comp = iter_fit(mean_spec, spectrum, ncomp=1)
     spec_2comp = iter_fit(mean_spec, spectrum, ncomp=2)
 
+    #mask1 = spectrum1.specfit.model > 0
+    #mask2 = spectrum2.specfit.model > 0
+    #mask = np.logical_or(mask1, mask2)
+
+
     def get_comp_AICc(spectrum1, spectrum2, p1, p2):
         model1 = spectrum1.specfit.model
         model2 = spectrum2.specfit.model
@@ -70,6 +91,10 @@ def fit_2comp(cubename):
         chi2, N2 = fifit.get_chisq(spectrum2, expand=20, reduced=False, usemask=True, mask=mask)
         aicc1 = aic.AICc(chi1, p1, N1)
         aicc2 = aic.AICc(chi2, p2, N1)
+
+        #rms1 = get_rms(spectrum2, expand=50, reduced=False, usemask=True, mask=mask)
+        rms2 = fifit.get_rms(spectrum2, expand=20, usemask=True, mask=mask)
+
         likelyhood = (aicc1 - aicc2) / 2.0
         return likelyhood
 

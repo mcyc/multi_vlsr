@@ -138,8 +138,8 @@ def fit_spec(spectrum, guesses, **kwargs):
     vmin = v_median - v_peak_hwidth
 
     # estimate the rms level, and pass to the spectrum
-    rms = get_rms(spectrum, window_hwidth=v_peak_hwidth, v_atpeak=v_median)
-    spectrum.error = rms*np.ones_like(spectrum.data)
+    #rms = get_rms(spectrum, window_hwidth=v_peak_hwidth, v_atpeak=v_median)
+    #spectrum.error = rms*np.ones_like(spectrum.data)
 
     # set the fit parameter limits (consistent with GAS DR1)
     #Tbg = 2.8       # K
@@ -248,7 +248,7 @@ def main_hf_moments(spectrum, window_hwidth, v_atpeak=None):
 
 
 
-def get_rms(spectrum, window_hwidth, v_atpeak):
+def get_rms_prefit(spectrum, window_hwidth, v_atpeak):
 
     s = spectrum
 
@@ -411,6 +411,40 @@ def get_chisq(spectrum, expand=20, reduced=True, usemask=True, mask=None):
     else:
         # return the ch-squared values and the number of data points used
         return chisq, np.sum(mask, axis=0)
+
+
+def get_rms(spectrum, expand=20, usemask=True, mask=None):
+    '''
+    return rms over where no model is fitted
+    '''
+
+    import scipy.ndimage as nd
+
+    model = spectrum.specfit.model
+
+    if usemask:
+        if mask is None:
+            mask = model > 0
+    else:
+        mask = ~np.isnan(model)
+
+    residual = spectrum.specfit.residuals
+
+    # Mask over the region where the fit is non-zero plus a buffer of size set by the expand keyword.
+    selem = np.ones(expand, dtype=np.bool)
+    #selem.shape += (1, 1,)
+    mask = nd.binary_dilation(mask, selem)
+    #mask = mask.astype(np.float)
+
+    # Now get where the emission is zero and estimate the rms
+    # This produces a robust estimate of the RMS along every line of sight:
+    # (alternatively, we can use mad_std from astropy?)
+    diff = residual - np.roll(residual, 2, axis=0)
+    diff = diff[~mask]
+    rms = 1.4826 * np.nanmedian(np.abs(diff), axis=0) / 2 ** 0.5
+    print "mad_std: {}".format(mad_std(residual[~mask]))
+    print "rms: {}".format(rms)
+    return rms
 
 
 
