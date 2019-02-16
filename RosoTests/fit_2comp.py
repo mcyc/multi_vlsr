@@ -16,7 +16,6 @@ def run(cubenames, guesses_pp, kwargs_pp, ncpu=None):
     guesses = guesses_pp
     kwargs = kwargs_pp
 
-    ncpu = 1
     results = []
 
     if ncpu is None:
@@ -31,16 +30,11 @@ def run(cubenames, guesses_pp, kwargs_pp, ncpu=None):
         for cubename in tqdm.tqdm(cubenames, total=len(cubenames), mininterval=0.01):
             results.append(fit_2comp(cubename))
             gc.collect()
-        para1, err1, para2, err2, likelyhood = zip(*results)
-        return para1, err1, para2, err2, likelyhood
+        para1, err1, para2, err2, likelyhood, rms = zip(*results)
+        return para1, err1, para2, err2, likelyhood, rms
 
 
     pool = Pool(ncpu)  # Create a multiprocessing Pool
-
-    '''
-    for i, _ in tqdm(enumerate(p.imap_unordered(_foo, range(0, max_)))):
-        pbar.update()
-    '''
 
     #results = []
     print "cube length: {}".format(len(cubenames))
@@ -48,10 +42,10 @@ def run(cubenames, guesses_pp, kwargs_pp, ncpu=None):
         results.append(i)
         gc.collect()
 
-    para1, err1, para2, err2, likelyhood = zip(*results)
+    para1, err1, para2, err2, likelyhood, rms = zip(*results)
     #para1, err1, para2, err2, likelyhood = zip(*(tqdm.tqdm(pool.imap(fit_2comp, cubenames), total=len(cubenames))))
 
-    return para1, err1, para2, err2, likelyhood
+    return para1, err1, para2, err2, likelyhood, rms
 
 
 def fit_2comp(cubename):
@@ -76,33 +70,33 @@ def fit_2comp(cubename):
     spec_1comp = iter_fit(mean_spec, spectrum, ncomp=1)
     spec_2comp = iter_fit(mean_spec, spectrum, ncomp=2)
 
-    #mask1 = spectrum1.specfit.model > 0
-    #mask2 = spectrum2.specfit.model > 0
-    #mask = np.logical_or(mask1, mask2)
+    # mask over were both models are non-zero
+    mask1 = spec_1comp.specfit.model > 0
+    mask2 = spec_2comp.specfit.model > 0
+    mask = np.logical_or(mask1, mask2)
 
-
-    def get_comp_AICc(spectrum1, spectrum2, p1, p2):
-        model1 = spectrum1.specfit.model
-        model2 = spectrum2.specfit.model
-        mask1 = model1 > 0
-        mask2 = model2 > 0
+    def get_comp_AICc(spectrum1, spectrum2, p1, p2, mask):
         mask = np.logical_or(mask1, mask2)
         chi1, N1 = fifit.get_chisq(spectrum1, expand=20, reduced=False, usemask=True, mask=mask)
         chi2, N2 = fifit.get_chisq(spectrum2, expand=20, reduced=False, usemask=True, mask=mask)
         aicc1 = aic.AICc(chi1, p1, N1)
         aicc2 = aic.AICc(chi2, p2, N1)
-
-        #rms1 = get_rms(spectrum2, expand=50, reduced=False, usemask=True, mask=mask)
-        rms2 = fifit.get_rms(spectrum2, expand=20, usemask=True, mask=mask)
-
         likelyhood = (aicc1 - aicc2) / 2.0
         return likelyhood
 
-    likelyhood = get_comp_AICc(spec_1comp, spec_2comp, p1=4, p2=8)
+    # calculate the likelihood
+    likelyhood = get_comp_AICc(spec_1comp, spec_2comp, p1=4, p2=8, mask=mask)
+
+    # calculate the rms at where the better fitted model is non-zero
+    if likelyhood > 5:
+        rms = fifit.get_rms(spec_2comp, expand=10, usemask=True, mask=mask2)
+    else:
+        rms = fifit.get_rms(spec_1comp, expand=10, usemask=True, mask=mask1)
+
 
     # returning objects in  multiprocessing is tricky, thus we are only returing fitted values here
     para1 = spec_1comp.specfit.modelpars
     err1 = spec_1comp.specfit.modelerrs
     para2 = spec_2comp.specfit.modelpars
     err2 = spec_2comp.specfit.modelerrs
-    return para1, err1, para2, err2, likelyhood
+    return para1, err1, para2, err2, likelyhood, rms

@@ -438,12 +438,10 @@ def get_rms(spectrum, expand=20, usemask=True, mask=None):
 
     # Now get where the emission is zero and estimate the rms
     # This produces a robust estimate of the RMS along every line of sight:
-    # (alternatively, we can use mad_std from astropy?)
     diff = residual - np.roll(residual, 2, axis=0)
     diff = diff[~mask]
     rms = 1.4826 * np.nanmedian(np.abs(diff), axis=0) / 2 ** 0.5
-    print "mad_std: {}".format(mad_std(residual[~mask]))
-    print "rms: {}".format(rms)
+    #print "rms: {}; \t sample size: {}".format(rms, len(diff))
     return rms
 
 

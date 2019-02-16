@@ -44,7 +44,7 @@ def run_gb(nCubes=10000, nBorder=1, make_cubes=False):
     return run_tests(nCubes, workDir)
 
 
-def run_on_mc(nCubes=1, nBorder=1, make_cubes=True):
+def run_on_mc(nCubes=10, nBorder=1, make_cubes=True):
     workDir = '/Users/mcychen/Desktop'
 
     if make_cubes:
@@ -72,6 +72,8 @@ def run_tests(nCubes, workDir, cubeSubDir=None, tablename=None):
     dict_truepara = read_cubes(cubeDir=cubeDir, nCubes=nCubes)
 
     start_time = time.time()
+    print("")
+    print("############################################")
     print("------------- start fitting ----------------")
     results = run_fit(cubeDir=cubeDir, nCubes=nCubes)
     elapsed_time = time.time() - start_time
@@ -92,6 +94,7 @@ def generate_cubes(nBorder, nCubes, workDir, cubeSubDir=None):
     # generating nCubes number of test cubes
     kwargs = {'nCubes':nCubes, 'nBorder':nBorder, 'noise_rms':0.1, 'output_dir':cubeDir, 'random_seed':None,
               'TwoTwoLine':False}
+    print("------------- generating cubes ----------------")
     ntc.generate_cubes(**kwargs)
 
 
@@ -139,8 +142,8 @@ def run_fit(cubeDir, nCubes):
 
     kwargs = {'paraname': None, 'snr_min':3, 'linename':"oneone"} #, 'multicore':1 'ncomp': n_comp,
 
-    para1, err1, para2, err2, likelyhood = f2p.run(cubenames, guesses_pp=None, kwargs_pp=kwargs, ncpu=None)
-    return para1, err1, para2, err2, likelyhood
+    para1, err1, para2, err2, likelyhood, rms = f2p.run(cubenames, guesses_pp=None, kwargs_pp=kwargs, ncpu=None)
+    return para1, err1, para2, err2, likelyhood, rms
 
 
 
@@ -162,9 +165,10 @@ def sort_fit_results(results):
 
     fitpara = defaultdict(list)
 
-    for i, lkhood in enumerate(results[-1]):
+    for i, lkhood in enumerate(results[4]):
 
         fitpara['LN_K_21'].append(lkhood)
+        fitpara['RMS_FIT'].append(results[5][i])
 
         if lkhood > 5:
             fitpara['NCOMP_FIT'].append(2)
