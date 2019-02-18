@@ -44,13 +44,13 @@ def run_gb(nCubes=10000, nBorder=1, make_cubes=False):
     return run_tests(nCubes, workDir)
 
 
-def run_on_mc(nCubes=100, nBorder=1, make_cubes=True):
+def run_on_mc(nCubes=100, nBorder=1, make_cubes=False):
     workDir = '/Users/mcychen/Desktop'
 
     if make_cubes:
         generate_cubes(nBorder, nCubes, workDir)
 
-    #return run_tests(nCubes, workDir)
+    return run_tests(nCubes, workDir)
 
 #-----------------------------------------------------------------------------------------------------------------------
 # core functions
@@ -150,8 +150,9 @@ def run_fit(cubeDir, nCubes):
 
     kwargs = {'paraname': None, 'snr_min':3, 'linename':"oneone"} #, 'multicore':1 'ncomp': n_comp,
 
-    para1, err1, para2, err2, likelyhood, rms = f2p.run(cubenames, guesses_pp=None, kwargs_pp=kwargs, ncpu=None)
-    return para1, err1, para2, err2, likelyhood, rms
+    return f2p.run(cubenames, guesses_pp=None, kwargs_pp=kwargs, ncpu=None)
+    # para1, err1, para2, err2, likelyhood, rms = f2p.run(cubenames, guesses_pp=None, kwargs_pp=kwargs, ncpu=None)
+    # return para1, err1, para2, err2, likelyhood, rms
 
 
 
@@ -218,7 +219,12 @@ def tt():
 
     workDir = '/Users/mcychen/Desktop'
     cubeDir = "{}/random_cubes".format(workDir)
-    cubename = cubeDir + '/random_cube_NH3_11_0.fits'
+    cubename = cubeDir + '/random_cube_NH3_11_68.fits'
+
+    if True:
+        print "yo!"
+        kwargs = {'paraname': None, 'snr_min': 3, 'linename': "oneone"}
+        return f2p.run(cubenames=[cubename], guesses_pp=None, kwargs_pp=kwargs, ncpu=None)
 
     from spectral_cube import SpectralCube
     cube = SpectralCube.read(cubename)
