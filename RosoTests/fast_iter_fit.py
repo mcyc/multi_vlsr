@@ -439,9 +439,14 @@ def get_rms(spectrum, expand=20, usemask=True, mask=None):
     # Now get where the emission is zero and estimate the rms
     # This produces a robust estimate of the RMS along every line of sight:
     diff = residual - np.roll(residual, 2, axis=0)
-    diff = diff[~mask]
+
+    if len(diff) - mask.sum() > 10:
+        # only use the mask if there are more than 10 model-free chanels
+        diff = diff[~mask]
+
     rms = 1.4826 * np.nanmedian(np.abs(diff), axis=0) / 2 ** 0.5
     #print "rms: {}; \t sample size: {}".format(rms, len(diff))
+
     return rms
 
 
