@@ -62,8 +62,14 @@ def generate_cubes(n_cubes=2, n_border=1, rms=0.1, out_dir='random_cubes', rando
     swap_mask =  Voff1 > Voff2
     Voff1[swap_mask], Voff2[swap_mask] = Voff2[swap_mask], Voff1[swap_mask]
 
+    '''
     logN1 = 13 + 2 * np.random.rand(nCubes)
     logN2 = 13 + 2 * np.random.rand(nCubes)
+    '''
+    # logN > 14.5 probably have higher SNR than the cases we're interested in
+    # (though this may become important when we do a full radiative transfer study
+    logN1 = 13 + 1.5 * np.random.rand(nCubes)
+    logN2 = 13 + 1.5 * np.random.rand(nCubes)
 
     Width1NT = 0.3 * np.exp(0.5 * np.random.randn(nCubes))
     Width2NT = 0.3 * np.exp(0.5 * np.random.randn(nCubes))
