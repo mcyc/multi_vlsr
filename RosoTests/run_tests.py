@@ -44,13 +44,13 @@ def run_gb(nCubes=10000, nBorder=1, make_cubes=False):
     return run_tests(nCubes, workDir)
 
 
-def run_on_mc(nCubes=10, nBorder=1, make_cubes=True):
+def run_on_mc(nCubes=100, nBorder=1, make_cubes=True):
     workDir = '/Users/mcychen/Desktop'
 
     if make_cubes:
         generate_cubes(nBorder, nCubes, workDir)
 
-    return run_tests(nCubes, workDir)
+    #return run_tests(nCubes, workDir)
 
 #-----------------------------------------------------------------------------------------------------------------------
 # core functions
@@ -92,8 +92,16 @@ def generate_cubes(nBorder, nCubes, workDir, cubeSubDir=None):
     else:
         cubeDir = "{}/{}".format(workDir, cubeSubDir)
     # generating nCubes number of test cubes
-    kwargs = {'nCubes':nCubes, 'nBorder':nBorder, 'noise_rms':0.1, 'output_dir':cubeDir, 'random_seed':None,
-              'TwoTwoLine':False}
+
+    if False:
+        # use keywords that are consistent with the Erik's code
+        kwargs = {'nCubes':nCubes, 'nBorder':nBorder, 'noise_rms':0.1, 'output_dir':cubeDir, 'random_seed':None,
+                  'TwoTwoLine':False}
+    else:
+        # use keywords that are consistent with the Mike's code
+        kwargs = {'n_cubes':nCubes, 'n_border':nBorder, 'rms':0.1, 'out_dir':cubeDir, 'random_seed':None,
+                  'withTwoTwo':False}
+
     print("------------- generating cubes ----------------")
     ntc.generate_cubes(**kwargs)
 
