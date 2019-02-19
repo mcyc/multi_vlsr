@@ -193,11 +193,11 @@ def run_L1688(n_comp=2):
     return reg
 '''
 
-def run(region='L1448', multicore=8, root='all_rebase3'):
+def run(region='L1448', multicore=8, root='all_rebase3', snr_min=5.0):
     # wrapper to run individual regions on a go
     regOb = Region(region, root=root)
-    regOb.fit_cube(n_comp=2, multicore=multicore, snr_min=5.0, mask_function = None, iterfit=True)
-    regOb.fit_cube(n_comp=1, multicore=multicore, snr_min=5.0, mask_function= None, iterfit=True)
+    regOb.fit_cube(n_comp=2, multicore=multicore, snr_min=snr_min, mask_function = None, iterfit=True)
+    regOb.fit_cube(n_comp=1, multicore=multicore, snr_min=snr_min, mask_function= None, iterfit=True)
     regOb.calc_aic()
     regOb.calc_chisq()
     return regOb
