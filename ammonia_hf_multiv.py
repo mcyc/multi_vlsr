@@ -5,10 +5,8 @@ __author__ = 'mcychen'
 ===================================================
 Ammonia inversion transition: Hyperfine-only fitter
 ===================================================
-.. moduleauthor:: Adam Ginsburg <adam.g.ginsburg@gmail.com>
-Module API
-^^^^^^^^^^
 """
+
 #=======================================================================================================================
 
 
@@ -30,7 +28,7 @@ from astropy import units as u
 ckms = constants.c.to(u.km/u.s).value
 
 
-relative_strength_total_degeneracy = collections.defaultdict(lambda: 1)
+#relative_strength_total_degeneracy = collections.defaultdict(lambda: 1)
 
 # only using ammonia (1-1) for the current implementation
 line_names = ['oneone']
@@ -39,9 +37,16 @@ line_names = ['oneone']
 for linename in line_names:
     assert len(voff_lines_dict[linename]) == len(tau_wts_dict[linename])
 
+# normalize tau weights
+for linename in line_names:
+    twd = np.array(tau_wts_dict[linename])
+    tau_wts_dict[linename] = (twd/twd.sum()).tolist()
+
 # For each individual inversion line, create a Hyperfine model
 # note: the following is built to be generalizable to multiple transitions when line_names contains more than just the
 # (1,1) transition name
+
+
 nh3_vtau = {linename:
             hyperfine.hyperfinemodel({lineid:lineid for lineid,name in
                                       enumerate(voff_lines_dict[linename])},
@@ -52,10 +57,12 @@ nh3_vtau = {linename:
                                       enumerate(voff_lines_dict[linename])},
                                      {lineid:tauwt for lineid,tauwt in
                                       enumerate(tau_wts_dict[linename])},
-                                     {lineid:1 for lineid,voff in
+                                     {lineid:sum(tau_wts_dict[linename]) for lineid,voff in
                                       enumerate(voff_lines_dict[linename])},
                                     )
             for linename in line_names}
+
+
 
 
 def nh3_multi_v_model_generator(n_comp):
@@ -116,6 +123,8 @@ def nh3_vtau_singlemodel(xarr, Tex, tau, xoff_v, width, linename = 'oneone'):
 # note: the following is built to be generalizable to multiple transitions when line_names contains more than just the
 # (1,1) transition name
 # note 2: the sum of all the tau_values is 2.000003
+
+'''
 nh3_vtau_deblended = {linename:
             hyperfine.hyperfinemodel({lineid:lineid for lineid,name in
                                       enumerate(voff_lines_dict[linename])},
@@ -130,6 +139,51 @@ nh3_vtau_deblended = {linename:
                                       enumerate(voff_lines_dict[linename])},
                                     )
             for linename in line_names}
+'''
+
+tau0 = 1.0
+
+nh3_vtau_deblended = {linename:
+            hyperfine.hyperfinemodel({0:0},
+                                     {0:0.0},
+                                     {0:freq_dict[linename]},
+                                     {0:tau0},
+                                     {0:1},
+                                    )
+            for linename in line_names}
+
+'''
+# use only the tau weights from the main hyperfine component
+# note: further verification is needed, but all the main hyperfine components of ammonia inversion lines should fall
+# within a km/s of the velocity centroid
+vmin, vmax = -1.0, 1.0
+
+for linename in line_names:
+    voffs = np.array(voff_lines_dict[linename])
+    tau_wts = np.array(tau_wts_dict[linename])
+
+    # remove the hyperfine components that are not part of the main
+    mask = np.logical_and(voffs > vmin, voffs < vmax)
+
+    voff_lines_dict[linename] = voffs[mask].tolist()
+    tau_wts_dict[linename] = tau_wts[mask].tolist()
+
+nh3_vtau_deblended = {linename:
+            hyperfine.hyperfinemodel({lineid:lineid for lineid,name in
+                                      enumerate(voff_lines_dict[linename])},
+                                     {lineid:0.0 for lineid,voff in
+                                      enumerate(voff_lines_dict[linename])},
+                                     {lineid:freq_dict[linename]*(1.0)
+                                      for lineid,voff in
+                                      enumerate(voff_lines_dict[linename])},
+                                     {lineid:tauwt for lineid,tauwt in
+                                      enumerate(tau_wts_dict[linename])},
+                                     {lineid:1 for lineid,voff in
+                                      enumerate(voff_lines_dict[linename])},
+                                    )
+            for linename in line_names}
+
+'''
 
 
 def nh3_vtau_singlemodel_deblended(xarr, Tex, tau, xoff_v, width, linename = 'oneone'):

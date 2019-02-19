@@ -203,6 +203,7 @@ def get_chisq(cube, model, expand=20, reduced = True, usemask = True, mask = Non
 
     import scipy.ndimage as nd
     #model = np.zeros(cube.shape)
+
     cube = cube.with_spectral_unit(u.Hz, rest_value = freq_dict['oneone']*u.Hz)
 
     if usemask:

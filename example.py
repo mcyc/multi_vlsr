@@ -43,7 +43,6 @@ def run(linename='oneone'):
     paraname = "{0}/{1}/mock_2vcomp_parameter_maps.fits".format(baseDir, paraDir)
     modname = "{0}/{1}/mock_2vcomp_modelcube.fits".format(baseDir, cubeDir)
     #pcube = example_cube_fit(cubename=cubename, paraname=paraname, modname=modname, linename=linename)
-
     pcube = mvf.cubefit_gen(cube11name=cubename, ncomp=2, paraname=paraname, modname=modname, multicore = 4,
                             snr_min=3.0, linename=linename)
 

@@ -61,8 +61,8 @@ def nh3_multi_v_model_generator(n_comp, linenames = None):
                                      '\\sigma_{{{0}}}'.format(ln),
                                      'T_{{ex,{0}}}'.format(ln),
                                      '\\tau_{{{0}}}'.format(ln))],
-            fitunits='Hz')
-
+            fitunit='Hz')
+            # the keyword fitunits is now fitunit?
     return mod
 
 
@@ -87,7 +87,7 @@ def ammonia_multi_v(xarr, *args, **kwargs):#, line_names = None):
     background_ta = T_antenna(TCMB, xarr.value)
     tau_dict = {}
 
-    # iteratively move through each slabs towards the observer
+    # iteratively move through each slabs towards the observer (i.e., radiative transfer)
     for vel, width, tex, tau in zip(args[::4], args[1::4], args[2::4], args[3::4]):
 
         for linename in line_names:

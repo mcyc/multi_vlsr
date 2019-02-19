@@ -161,3 +161,4 @@ def AICc(chisq, p, N):
     bottom = N - p - 1
     return AIC(chisq, p) + top/bottom
 
+
