@@ -16,6 +16,12 @@ def run(cubenames, guesses_pp, kwargs_pp, ncpu=None):
     guesses = guesses_pp
     kwargs = kwargs_pp
 
+    # use a mask to mimic convolution to twice the beamsize
+    global mean_mask
+    mean_mask = np.array([[False, False, False],
+                     [True,  True, True],
+                     [False, True, False]])
+
     results = []
 
     if ncpu is None:
@@ -48,11 +54,12 @@ def run(cubenames, guesses_pp, kwargs_pp, ncpu=None):
     return para1, err1, para2, err2, likelyhood, rms
 
 
+
 def fit_2comp(cubename):
     # get the cube we wish to fit
     cube = SpectralCube.read(cubename)
 
-    mean_spec = fifit.get_mean_spec(cube, linename=kwargs['linename'])
+    mean_spec = fifit.get_mean_spec(cube, linename=kwargs['linename'], mask=mean_mask)
 
     spectrum = fifit.get_cubespec(cube)
 
