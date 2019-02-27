@@ -55,12 +55,14 @@ def generate_cubes(n_cubes=2, n_border=1, rms=0.1, out_dir='random_cubes', rando
     Temp1 = 8 + np.random.rand(nCubes) * 17
     Temp2 = 8 + np.random.rand(nCubes) * 17
 
-    Voff1 = np.random.rand(nCubes) * 5 - 2.5
-    Voff2 = np.random.rand(nCubes) * 5 - 2.5
+    #Voff1 = np.random.rand(nCubes) * 5 - 2.5
+    #Voff2 = np.random.rand(nCubes) * 5 - 2.5
+    Voff1 = np.random.rand(nCubes) * 2 - 1
+    Voff2 = Voff1 + np.random.rand(nCubes) * 2 - 1
 
     # to ensure the second component always have larger vlsr
-    swap_mask =  Voff1 > Voff2
-    Voff1[swap_mask], Voff2[swap_mask] = Voff2[swap_mask], Voff1[swap_mask]
+    #swap_mask =  Voff1 > Voff2
+    #Voff1[swap_mask], Voff2[swap_mask] = Voff2[swap_mask], Voff1[swap_mask]
 
     '''
     logN1 = 13 + 2 * np.random.rand(nCubes)
@@ -71,11 +73,17 @@ def generate_cubes(n_cubes=2, n_border=1, rms=0.1, out_dir='random_cubes', rando
     logN1 = 13 + 1.5 * np.random.rand(nCubes)
     logN2 = 13 + 1.5 * np.random.rand(nCubes)
 
+    '''
     Width1NT = 0.3 * np.exp(0.5 * np.random.randn(nCubes))
     Width2NT = 0.3 * np.exp(0.5 * np.random.randn(nCubes))
 
     Width1 = np.sqrt(Width1NT + 0.08**2)
     Width2 = np.sqrt(Width2NT + 0.08**2)
+    '''
+
+    Width1 = 0.07 + 0.93 * np.random.rand(nCubes)
+    Width2 = 0.07 + 0.93 * np.random.rand(nCubes)
+
 
     scale = np.array([[0.2, 0.1, 0.5, 0.01]])
     gradX1 = np.random.randn(nCubes, 4) * scale
