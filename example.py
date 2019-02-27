@@ -7,7 +7,7 @@ Examples of how to do multiple components fit
 
 ^^^^^^^^^^
 """
-
+from __future__ import print_function
 
 import numpy as np
 import pyspeckit
@@ -20,6 +20,7 @@ from pyspeckit.spectrum.models import ammonia
 from astropy import wcs
 from spectral_cube import SpectralCube
 
+from imp import reload
 import ammonia_multiv as ammv
 reload(ammv)
 import multi_v_fit as mvf
@@ -53,7 +54,7 @@ def example_cube_fit(cubename = None, paraname = None, modname = None, linename 
     # an example to generate a spectral cube with two velocity components at each pixels
 
     # generate a fakecube if no cube is provided for the fit
-    if cubename == None:
+    if cubename is None:
         cube =  fake_cube()
     else:
         cube = SpectralCube.read(cubename)
@@ -76,7 +77,7 @@ def example_cube_fit(cubename = None, paraname = None, modname = None, linename 
         fitter = ammv.nh3_multi_v_model_generator(n_comp=2, linenames=[linename])
         # Register the fitter - i.e., tell pyspeckit where it is and how to use it
         pcube.specfit.Registry.add_fitter('nh3_multi_v', fitter, fitter.npars)
-        print "number of parameters is {0}".format(fitter.npars)
+        print("number of parameters is {0}".format(fitter.npars))
 
 
     # guess the parameter based on the moments [vel, width, tex, tau]
@@ -93,8 +94,8 @@ def example_cube_fit(cubename = None, paraname = None, modname = None, linename 
     # extract the spectrum within the window defined around the main hyperfine components and take moments
     slab = cube.spectral_slab((v_atpeak - v_peak_hwidth)*u.km/u.s, (v_atpeak + v_peak_hwidth)*u.km/u.s)
     m1 = slab.moment1(axis=0).to(u.km/u.s).value
-    m2 = (slab.moment2(axis=0)**0.5).to(u.km/u.s).value # (the second moment is in m^2/s^2, but we want km/s
-    #m2 = m2**0.5                                        # due to the hyperfines, the NH3 moment overestimates linewidth
+    m2 = slab.linewidth_sigma().to(u.km/u.s).value # https://spectral-cube.readthedocs.io/en/latest/moments.html#linewidth-maps
+    #m2 = m2**0.5                                  # due to the hyperfines, the NH3 moment overestimates linewidth
 
 
     # First, assemble the guesses:
@@ -154,6 +155,7 @@ def example_cube_fit(cubename = None, paraname = None, modname = None, linename 
         fitcubefile.writeto(paraname ,overwrite=True)
 
     if modname != None:
+        # could use pcube.write_fit(modname) here?
         model = SpectralCube(pcube.get_modelcube(), pcube.wcs, header=cube.header)
         model.write(modname, overwrite=True)
 
