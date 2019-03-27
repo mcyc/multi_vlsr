@@ -5,12 +5,10 @@ from astropy.table import Table
 from multiprocessing import Pool, cpu_count
 import warnings
 
-
-
-import nh3_testcubes as ntc
+#import nh3_testcubes as ntc
 import fast_iter_fit as fifit
 import fit_2comp as f2p
-reload(ntc)
+#reload(ntc)
 reload(fifit)
 reload(f2p)
 
@@ -22,6 +20,8 @@ import iterative_fit as itf
 #-----------------------------------------------------------------------------------------------------------------------
 # wrappers to run on different machines
 
+'''
+# currently out of date
 def run_uvic(nCubes=10000, nBorder=1, make_cubes=True, nBlocks=10):
 
     workDir = "/nfs/lican13/home/mcychen/Documents/GAS_Project/data/fake_cube_tests"
@@ -34,23 +34,43 @@ def run_uvic(nCubes=10000, nBorder=1, make_cubes=True, nBlocks=10):
         run_tests(nCubes/nBlocks, workDir, cubeSubDir=cubeSubDir, tablename=tablename)
 
     return None
-
+'''
 
 def run_gb(nCubes=10000, nBorder=1, make_cubes=False):
     workDir = "/lustre/pipeline/scratch/GAS/images/MChen_FakeCubes"
+    outDir = '{}/random_cubes'.format(workDir)
     if make_cubes:
-        generate_cubes(nBorder, nCubes, workDir)
+        genDir = "/users/mchen/GitHub_Repos/LineFitting"
+        sys.path.insert(0, genDir)
+        import multiproc_wrapper as mw
+
+        kwargs = {'nCubes': nCubes, 'nBorder':nBorder, 'noise_rms':0.1, 'output_dir':outDir, 'random_seed':None,
+                  'linenames':['oneone'], 'n_cpu':None}
+
+        mw.generate_cubes(**kwargs)
+
+        #generate_cubes(nBorder, nCubes, workDir)
 
     return run_tests(nCubes, workDir)
 
 
 def run_on_mc(nCubes=100, nBorder=1, make_cubes=False):
+
     workDir = '/Users/mcychen/Desktop'
+    outDir = '{}/random_cubes'.format(workDir)
 
     if make_cubes:
-        generate_cubes(nBorder, nCubes, workDir)
+        #generate_cubes(nBorder, nCubes, workDir)
+        genDir = "/Users/mcychen/Documents/GitRepos/LineFitting"
+        sys.path.insert(0, genDir)
+        import multiproc_wrapper as mw
 
-    return run_tests(nCubes, workDir)
+        kwargs = {'nCubes': nCubes, 'nBorder':nBorder, 'noise_rms':0.1, 'output_dir':outDir, 'random_seed':None,
+                  'linenames':['oneone'], 'n_cpu':None}
+
+        mw.generate_cubes(**kwargs)
+
+    #return run_tests(nCubes, workDir)
 
 #-----------------------------------------------------------------------------------------------------------------------
 # core functions
@@ -85,7 +105,7 @@ def run_tests(nCubes, workDir, cubeSubDir=None, tablename=None):
 
     return write_table(dict_final, outname=tableName)
 
-
+'''
 def generate_cubes(nBorder, nCubes, workDir, cubeSubDir=None):
     if cubeSubDir is None:
         cubeDir = "{}/random_cubes".format(workDir)
@@ -104,11 +124,11 @@ def generate_cubes(nBorder, nCubes, workDir, cubeSubDir=None):
 
     print("------------- generating cubes ----------------")
     ntc.generate_cubes(**kwargs)
-
+'''
 
 def read_cubes(cubeDir, nCubes):
     #
-    truekwds = ['NCOMP', 'LOGN1', 'LOGN2', 'VLSR1', 'VLSR2', 'SIG1', 'SIG2', 'TKIN1', 'TKIN2', 'TMAX', 'RMS']
+    truekwds = ['NCOMP', 'LOGN1', 'LOGN2', 'VLSR1', 'VLSR2', 'SIG1', 'SIG2', 'TKIN1', 'TKIN2', 'TMAX', 'RMS', 'TMAX-1', 'TMAX-2']
     truepara = defaultdict(list)
 
     nDigits = int(np.ceil(np.log10(nCubes)))
