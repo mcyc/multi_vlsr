@@ -70,7 +70,7 @@ def run_on_mc(nCubes=100, nBorder=1, make_cubes=False):
 
         mw.generate_cubes(**kwargs)
 
-    #return run_tests(nCubes, workDir)
+    return run_tests(nCubes, workDir)
 
 #-----------------------------------------------------------------------------------------------------------------------
 # core functions

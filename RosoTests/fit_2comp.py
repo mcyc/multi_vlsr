@@ -30,7 +30,7 @@ def run(cubenames, guesses_pp, kwargs_pp, ncpu=None):
 
     elif ncpu == 1:
         # single processing
-        print "number of cpu specified is {}, no multi-processing is used".format(ncpu)\
+        print "number of cpu specified is {}, no multi-processing is used".format(ncpu)
         #for cubename in cubenames:
 
         for cubename in tqdm.tqdm(cubenames, total=len(cubenames), mininterval=0.01):

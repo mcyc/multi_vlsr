@@ -81,7 +81,7 @@ def get_mean_spec(cube, linename="oneone", mask=None):
     else:
         spc = cube.mean(axis=(1, 2))
 
-    return prep_spec(spc, linename)
+    return prep_spec(spc, cube.header, linename)
 
 
 def get_cubespec(cube, refpix=None, linename="oneone"):
@@ -95,17 +95,21 @@ def get_cubespec(cube, refpix=None, linename="oneone"):
         refpix = (shape[1]/2, shape[2]/2)
 
     spc = cube[:, refpix[0], refpix[1]]
+    #print cube.header
+    return prep_spec(spc, cube.header, linename)
 
-    return prep_spec(spc, linename)
 
-
-def prep_spec(OneDSpectrum, linename="oneone"):
+def prep_spec(OneDSpectrum, header, linename="oneone"):
     # take a spectral_cube OneDSpectrum and make it a pyspeckit Spectrum ready to be fitted
     spc = OneDSpectrum
-    spectrum = pyspeckit.Spectrum(data=spc.value, xarr=spc.spectral_axis, unit=spc.unit,
-                                      xarrkwargs={'unit': spc.spectral_axis.unit}, header=spc.header)
+    spectrum = pyspeckit.Spectrum(data=spc.value, xarr=spc.spectral_axis,
+                                      xarrkwargs={'unit': spc.spectral_axis.unit}, header=header)
     if spectrum.xarr.refX is None:
-        spectrum.xarr.refX = freq_dict[linename]*u.Hz
+        if ('CUNIT3' in header) and ('RESTFRQ' in header):
+            spectrum.xarr.refX = header['RESTFRQ'] * u.Unit(header['CUNIT3'])
+        else:
+            spectrum.xarr.refX = freq_dict[linename]*u.Hz
+
     spectrum.xarr.velocity_convention = 'radio'
     spectrum.xarr = spectrum.xarr.as_unit(u.km/u.s)
 
