@@ -78,7 +78,8 @@ def ammonia_multi_v(xarr, *args, **kwargs):#, line_names = None):
     line_names = ["oneone"]
 
     if kwargs is not None:
-        if kwargs["line_names"] is not None:
+        #if kwargs["line_names"] is not None:
+        if "line_names" in kwargs:
             line_names = kwargs["line_names"]
             if len(line_names) > 1:
                 print "[ERROR]: modeling more than a line yet to be implemented. Please only use one line for the time being"
