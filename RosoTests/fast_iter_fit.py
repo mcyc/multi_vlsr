@@ -129,19 +129,6 @@ def fit_spec(spectrum, guesses, **kwargs):
 
     v_peak_hwidth = 3.0 # km/s (should be sufficient for GAS Orion, but may not be enough for KEYSTONE)
 
-    '''
-    if guesses is not None:
-        v_guess = guesses[::4]
-        v_guess[v_guess == 0] = np.nan
-        v_median = np.nanmedian(v_guess)
-        m0, m1, m2 = main_hf_moments(spectrum, window_hwidth=v_peak_hwidth, v_atpeak=v_median)
-    else:
-        m0, m1, m2 = main_hf_moments(spectrum, window_hwidth=v_peak_hwidth)
-        v_median = np.median(m1[np.isfinite(m1)])
-    '''
-
-
-
     # estimate the rms level, and pass to the spectrum
     #rms = get_rms(spectrum, window_hwidth=v_peak_hwidth, v_atpeak=v_median)
     #spectrum.error = rms*np.ones_like(spectrum.data)
@@ -156,21 +143,7 @@ def fit_spec(spectrum, guesses, **kwargs):
     taumin = 0.2   # note: at 1e3 cm^-3, 1e13 cm^-2, 1 km/s linewidth, 40 K -> 0.15
     eps = 0.001 # a small perturbation that can be used in guesses
 
-    # get the guesses based on moment maps
-    # tex and tau guesses are chosen to reflect low density, diffusive gas that are likley to have low SNR
-    #gg = momgue.moment_guesses(np.array([m1]), np.array([m2]), ncomp, sigmin=sigmin, moment0=np.array([m0]))
-
-    '''
-    if guesses is not None:
-        v_guess = guesses[::4]
-        v_guess[v_guess == 0] = np.nan
-        v_median = np.nanmedian(v_guess)
-        m0, m1, m2 = main_hf_moments(spectrum, window_hwidth=v_peak_hwidth, v_atpeak=v_median)
-    else:
-        m0, m1, m2 = main_hf_moments(spectrum, window_hwidth=v_peak_hwidth)
-        v_median = np.median(m1[np.isfinite(m1)])
-    '''
-
+    # get guesses based on moment maps
     v_atpeak=None
     v_median=None
 

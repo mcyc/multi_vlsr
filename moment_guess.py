@@ -17,17 +17,6 @@ tau_min = 0.3
 
 def master_guess(spectrum, ncomp, sigmin = 0.07, v_peak_hwidth=3.0, v_atpeak=None):
 
-    '''
-    if guesses is not None:
-        v_guess = guesses[::4]
-        v_guess[v_guess == 0] = np.nan
-        v_median = np.nanmedian(v_guess)
-        m0, m1, m2 = main_hf_moments(spectrum, window_hwidth=v_peak_hwidth, v_atpeak=v_median)
-    else:
-        m0, m1, m2 = main_hf_moments(spectrum, window_hwidth=v_peak_hwidth)
-        v_median = np.median(m1[np.isfinite(m1)])
-    '''
-
     m0, m1, m2 = window_moments(spectrum, window_hwidth=v_peak_hwidth, v_atpeak=v_atpeak)
 
     # estimate the rms level, and pass to the spectrum
