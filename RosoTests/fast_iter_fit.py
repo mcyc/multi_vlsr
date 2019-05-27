@@ -129,6 +129,7 @@ def fit_spec(spectrum, guesses, **kwargs):
 
     v_peak_hwidth = 3.0 # km/s (should be sufficient for GAS Orion, but may not be enough for KEYSTONE)
 
+    '''
     if guesses is not None:
         v_guess = guesses[::4]
         v_guess[v_guess == 0] = np.nan
@@ -137,10 +138,9 @@ def fit_spec(spectrum, guesses, **kwargs):
     else:
         m0, m1, m2 = main_hf_moments(spectrum, window_hwidth=v_peak_hwidth)
         v_median = np.median(m1[np.isfinite(m1)])
+    '''
 
-    # define acceptable v range based on the provided or determined median velocity
-    vmax = v_median + v_peak_hwidth
-    vmin = v_median - v_peak_hwidth
+
 
     # estimate the rms level, and pass to the spectrum
     #rms = get_rms(spectrum, window_hwidth=v_peak_hwidth, v_atpeak=v_median)
@@ -158,7 +158,37 @@ def fit_spec(spectrum, guesses, **kwargs):
 
     # get the guesses based on moment maps
     # tex and tau guesses are chosen to reflect low density, diffusive gas that are likley to have low SNR
-    gg = momgue.moment_guesses(np.array([m1]), np.array([m2]), ncomp, sigmin=sigmin, moment0=np.array([m0]))
+    #gg = momgue.moment_guesses(np.array([m1]), np.array([m2]), ncomp, sigmin=sigmin, moment0=np.array([m0]))
+
+    '''
+    if guesses is not None:
+        v_guess = guesses[::4]
+        v_guess[v_guess == 0] = np.nan
+        v_median = np.nanmedian(v_guess)
+        m0, m1, m2 = main_hf_moments(spectrum, window_hwidth=v_peak_hwidth, v_atpeak=v_median)
+    else:
+        m0, m1, m2 = main_hf_moments(spectrum, window_hwidth=v_peak_hwidth)
+        v_median = np.median(m1[np.isfinite(m1)])
+    '''
+
+    v_atpeak=None
+    v_median=None
+
+    if guesses is not None:
+        v_guess = guesses[::4]
+        v_guess[v_guess == 0] = np.nan
+        v_median = np.nanmedian(v_guess)
+        v_atpeak = v_median
+
+    gg = momgue.master_guess(spectrum, ncomp, sigmin=sigmin, v_peak_hwidth=v_peak_hwidth, v_atpeak=v_atpeak)
+
+    # define acceptable v range based on the provided or determined median velocity
+    if v_median is None:
+        # use the median value of the moment vlsr guesses
+        v_median = np.nanmedian(np.array(gg[::4]))
+
+    vmax = v_median + v_peak_hwidth
+    vmin = v_median - v_peak_hwidth
 
     if guesses is None:
         guesses = gg
@@ -217,7 +247,7 @@ def cubefit(cubename, downsampfactor=2, refpix=None, guesses=None, **kwargs):
 
 #-----------------------------------------------------------------------------------------------------------------------
 
-def main_hf_moments(spectrum, window_hwidth, v_atpeak=None):
+def main_hf_moments_old(spectrum, window_hwidth, v_atpeak=None):
     return momgue.window_moments(spectrum, window_hwidth, v_atpeak=v_atpeak)
 
 

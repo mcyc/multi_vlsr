@@ -15,6 +15,66 @@ tex_min = 3.1
 tau_min = 0.3
 
 
+def master_guess(spectrum, ncomp, sigmin = 0.07, v_peak_hwidth=3.0, v_atpeak=None):
+
+    '''
+    if guesses is not None:
+        v_guess = guesses[::4]
+        v_guess[v_guess == 0] = np.nan
+        v_median = np.nanmedian(v_guess)
+        m0, m1, m2 = main_hf_moments(spectrum, window_hwidth=v_peak_hwidth, v_atpeak=v_median)
+    else:
+        m0, m1, m2 = main_hf_moments(spectrum, window_hwidth=v_peak_hwidth)
+        v_median = np.median(m1[np.isfinite(m1)])
+    '''
+
+    m0, m1, m2 = window_moments(spectrum, window_hwidth=v_peak_hwidth, v_atpeak=v_atpeak)
+
+    # estimate the rms level, and pass to the spectrum
+    #rms = get_rms(spectrum, window_hwidth=v_peak_hwidth, v_atpeak=v_median)
+    #spectrum.error = rms*np.ones_like(spectrum.data)
+
+    # get the guesses based on moment maps
+    gg = moment_guesses(np.array([m1]), np.array([m2]), ncomp, sigmin=sigmin, moment0=np.array([m0]))
+    return gg
+
+
+def guess_2comp():
+    return gg
+
+
+def window_moments(spectrum, window_hwidth, v_atpeak=None):
+    '''
+    find moments within a given window (e.g., around the main hyperfine lines)
+
+    :param spectrum:
+        <pyspeckit.spectrum.classes.Spectrum>
+        the spectrum to take the momentw of
+
+    :param window_hwidth: float
+        half-width of the window (in km/s) to be used to isolate the main hyperfine lines from the rest of the spectrum
+
+    -------
+    :return: m0
+    :return: m1
+    :return: m2
+    '''
+
+    if v_atpeak is None:
+        # use the whole moment map to estimate the speak of the spectrum
+        moments = spectrum.moments(unit=u.km/u.s)
+        v_atpeak = moments[2]
+
+    vmax = v_atpeak + window_hwidth
+    vmin = v_atpeak - window_hwidth
+
+    # Extract the spectrum within the window defined around the main hyperfine components and take moments
+    slice = spectrum.slice(vmin, vmax, unit=u.km/u.s)
+    moments = slice.moments(unit=u.km/u.s)
+
+    return moments[1], moments[2], moments[3]
+
+
 def moment_guesses(moment1, moment2, ncomp, sigmin=0.07, tex_guess=3.2, tau_guess=0.5, moment0=None):
     '''
     Make reasonable guesses for the multiple component fits
