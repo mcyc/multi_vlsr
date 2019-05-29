@@ -23,16 +23,36 @@ def master_guess(spectrum, ncomp, sigmin = 0.07, v_peak_hwidth=3.0, v_atpeak=Non
     #rms = get_rms(spectrum, window_hwidth=v_peak_hwidth, v_atpeak=v_median)
     #spectrum.error = rms*np.ones_like(spectrum.data)
 
-    # get the guesses based on moment maps
-    gg = moment_guesses(np.array([m1]), np.array([m2]), ncomp, sigmin=sigmin, moment0=np.array([m0]))
+    if ncomp == 2:
+        rms = get_rms_prefit(spectrum, window_hwidth=v_peak_hwidth, v_atpeak=m1)
+
+        m0_b, m1_b, m2_b = noisemask_moment(spectrum, m1, m2, mask_sigma=4, noise_rms=rms, window_hwidth=v_peak_hwidth)
+
+        if m0_b > 3*rms:
+            # if the residual spectrum has m0 that is 3 sigma above the rms noise, treat both moment as individual
+            # one component parts
+            gg_a = moment_guesses(np.array([m1]), np.array([m2]), ncomp=1, sigmin=sigmin, moment0=np.array([m0]))
+            gg_b = moment_guesses(np.array([m1_b]), np.array([m2_b]), ncomp=1, sigmin=sigmin, moment0=np.array([m0_b]))
+            gg = np.zeros((ncomp * 4,) + np.array([m1]).shape)
+            gg[:4,:] = gg_a[:]
+            gg[4:,:] = gg_b[:]
+
+        else:
+            gg = moment_guesses(np.array([m1]), np.array([m2]), ncomp, sigmin=sigmin, moment0=np.array([m0]))
+
+    else:
+        # get the guesses based on moment maps based on "traditional" recipe
+        gg = moment_guesses(np.array([m1]), np.array([m2]), ncomp, sigmin=sigmin, moment0=np.array([m0]))
+
     return gg
 
 
-def guess_2comp():
+def guess_2comp(spectrum, moment1, moment2):
+
     return gg
 
 
-def window_moments(spectrum, window_hwidth, v_atpeak=None):
+def window_moments(spectrum, window_hwidth=3.0, v_atpeak=None):
     '''
     find moments within a given window (e.g., around the main hyperfine lines)
 
@@ -62,6 +82,26 @@ def window_moments(spectrum, window_hwidth, v_atpeak=None):
     moments = slice.moments(unit=u.km/u.s)
 
     return moments[1], moments[2], moments[3]
+
+
+
+
+def noisemask_moment(sp, m1, m2, mask_sigma=4, noise_rms = None, **kwargs):
+    # mask out the 'main' component based on moment map and replace them with fake noise
+    # and rerun window_mements to find additional components
+
+    sp_m = sp.copy()
+
+    if 'v_atpeak' not in kwargs:
+        kwargs['v_atpeak'] = m1
+
+    if noise_rms is None:
+        noise_rms = get_rms_prefit(sp, **kwargs)
+
+    mask = np.logical_and(sp_m.xarr.value < m1 + mask_sigma * m2, sp_m.xarr.value > m1 - mask_sigma * m2)
+    sp_m.data[mask] = np.random.randn(np.sum(mask)) * noise_rms
+
+    return window_moments(sp_m, **kwargs)
 
 
 def moment_guesses(moment1, moment2, ncomp, sigmin=0.07, tex_guess=3.2, tau_guess=0.5, moment0=None):
@@ -135,3 +175,24 @@ def moment_guesses(moment1, moment2, ncomp, sigmin=0.07, tex_guess=3.2, tau_gues
     tau_guess[tau_guess > tau_max] = tau_max
 
     return gg
+
+
+#=======================================================================================================================
+# utility functions
+
+def get_rms_prefit(spectrum, window_hwidth, v_atpeak):
+
+    s = spectrum
+
+    vsys = v_atpeak*u.km/u.s
+    throw = window_hwidth*u.km/u.s
+    voff11 = voff_lines_dict['oneone']
+
+    mask = np.ones(s.shape[0], dtype=np.bool)
+
+    for deltav in voff11:
+        mask *= (np.abs(s.xarr - (deltav * u.km / u.s + vsys)) > throw)
+
+    d_rms = s.data.copy()
+
+    return mad_std(d_rms[mask])
