@@ -15,7 +15,7 @@ tex_min = 3.1
 tau_min = 0.3
 
 
-def master_guess(spectrum, ncomp, sigmin = 0.07, v_peak_hwidth=3.0, v_atpeak=None):
+def master_guess(spectrum, ncomp, sigmin = 0.07, v_peak_hwidth=3.0, v_atpeak=None, widewVSep=False):
 
     m0, m1, m2 = window_moments(spectrum, window_hwidth=v_peak_hwidth, v_atpeak=v_atpeak)
 
@@ -23,12 +23,13 @@ def master_guess(spectrum, ncomp, sigmin = 0.07, v_peak_hwidth=3.0, v_atpeak=Non
     #rms = get_rms(spectrum, window_hwidth=v_peak_hwidth, v_atpeak=v_median)
     #spectrum.error = rms*np.ones_like(spectrum.data)
 
-    if ncomp == 2:
+    if ncomp == 2 and widewVSep:
+        # use recipe that recovers two-slab spectra (warning, may not be ideal if more than 3 slabs are present)
         rms = get_rms_prefit(spectrum, window_hwidth=v_peak_hwidth, v_atpeak=m1)
 
         m0_b, m1_b, m2_b = noisemask_moment(spectrum, m1, m2, mask_sigma=4, noise_rms=rms, window_hwidth=v_peak_hwidth)
 
-        if m0_b > 3*rms:
+        if m0_b > 3.0*rms:
             # if the residual spectrum has m0 that is 3 sigma above the rms noise, treat both moment as individual
             # one component parts
             gg_a = moment_guesses(np.array([m1]), np.array([m2]), ncomp=1, sigmin=sigmin, moment0=np.array([m0]))

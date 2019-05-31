@@ -20,14 +20,21 @@ reload(mvf)
 
 #-----------------------------------------------------------------------------------------------------------------------
 
+'''
+# the following is probably now superceede3d by fit_2comp
 def fit_2comp(cubename, guesses, **kwargs):
     # get the cube we wish to fit
     cube = SpectralCube.read(cubename)
 
     # bing 4 pixels into a spectrum to emulate a cube that is convolved to twice the resolution
+
     mask = np.array([[False, False, False],
                      [True,  True, True],
                      [False, True, False]])
+
+
+    # try full mask
+    #mask = np.ones((3,3))
 
     mean_spec = get_mean_spec(cube, linename=kwargs['linename'], mask=mask)
 
@@ -67,7 +74,7 @@ def fit_2comp(cubename, guesses, **kwargs):
 
     #spectrum.specfit.modelpars
     #spc.specfit.modelerrs
-
+'''
 
 def get_mean_spec(cube, linename="oneone", mask=None):
     # get the mean spectrum of the entire cube
@@ -117,7 +124,7 @@ def prep_spec(OneDSpectrum, header, linename="oneone"):
     return spectrum
 
 
-def fit_spec(spectrum, guesses, **kwargs):
+def fit_spec(spectrum, guesses, widewVSep=False, **kwargs):
 
     ncomp = kwargs['ncomp']
 
@@ -153,7 +160,8 @@ def fit_spec(spectrum, guesses, **kwargs):
         v_median = np.nanmedian(v_guess)
         v_atpeak = v_median
 
-    gg = momgue.master_guess(spectrum, ncomp, sigmin=sigmin, v_peak_hwidth=v_peak_hwidth, v_atpeak=v_atpeak)
+    kwargs_gg = {'sigmin':sigmin, 'v_peak_hwidth':v_peak_hwidth, 'v_atpeak':v_atpeak, 'widewVSep':widewVSep}
+    gg = momgue.master_guess(spectrum, ncomp, **kwargs_gg)
 
     # define acceptable v range based on the provided or determined median velocity
     if v_median is None:
@@ -220,9 +228,10 @@ def cubefit(cubename, downsampfactor=2, refpix=None, guesses=None, **kwargs):
 
 #-----------------------------------------------------------------------------------------------------------------------
 
+'''
 def main_hf_moments_old(spectrum, window_hwidth, v_atpeak=None):
     return momgue.window_moments(spectrum, window_hwidth, v_atpeak=v_atpeak)
-
+'''
 
 def get_rms_prefit(spectrum, window_hwidth, v_atpeak):
 
@@ -243,6 +252,73 @@ def get_rms_prefit(spectrum, window_hwidth, v_atpeak):
 
 
     return mad_std(d_rms[mask])
+
+
+
+
+
+
+
+
+def get_chisq(spectrum, expand=20, reduced=True, usemask=True, mask=None):
+    '''
+    cube : SpectralCube
+
+    model: numpy array
+
+    expand : int
+        Expands the region where the residual is evaluated by this many channels in the spectral dimension
+
+    reduced : boolean
+        Whether or not to return the reduced chi-squared value or not
+
+    usemask: boolean
+        Whether or not to mask out some parts of the data.
+        If no mask is provided, it masks out samples with model values of zero.
+
+    mask: boolean array
+        A mask stating which array elements the chi-squared values are calculated from
+    '''
+
+    import scipy.ndimage as nd
+
+    model = spectrum.specfit.model
+
+    if usemask:
+        if mask is None:
+            mask = model > 0
+    else:
+        mask = ~np.isnan(model)
+
+    residual = spectrum.specfit.residuals
+
+    # This calculates chisq over the region where the fit is non-zero
+    # plus a buffer of size set by the expand keyword.
+
+    selem = np.ones(expand, dtype=np.bool)
+    #selem.shape += (1, 1,)
+    mask = nd.binary_dilation(mask, selem)
+    mask = mask.astype(np.float)
+    chisq = np.sum((residual * mask) ** 2, axis=0)
+
+    if reduced:
+        chisq /= np.sum(mask, axis=0)
+
+    # This produces a robust estimate of the RMS along every line of sight:
+    # (alternatively, we can use mad_std from astropy?)
+    diff = residual - np.roll(residual, 2, axis=0)
+    rms = 1.4826 * np.nanmedian(np.abs(diff), axis=0) / 2 ** 0.5
+
+    chisq /= rms ** 2
+
+    if reduced:
+        # return the reduce chi-squares values
+        return chisq
+
+    else:
+        # return the ch-squared values and the number of data points used
+        return chisq, np.sum(mask, axis=0)
+
 
 
 
@@ -341,6 +417,12 @@ def get_rms(spectrum, expand=20, usemask=True, mask=None):
     #print "rms: {}; \t sample size: {}".format(rms, len(diff))
 
     return rms
+
+
+
+
+
+
 
 
 

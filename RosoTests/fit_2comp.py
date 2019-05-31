@@ -18,9 +18,12 @@ def run(cubenames, guesses_pp, kwargs_pp, ncpu=None):
 
     # use a mask to mimic convolution to twice the beamsize
     global mean_mask
+
     mean_mask = np.array([[False, False, False],
                      [True,  True, True],
                      [False, True, False]])
+
+    #mean_mask = np.ones((3,3),dtype=bool)
 
     results = []
 
@@ -55,7 +58,11 @@ def run(cubenames, guesses_pp, kwargs_pp, ncpu=None):
 
 
 
-def fit_2comp(cubename):
+def fit_2comp(cubename, rec_wide_vsep = True):
+
+    # likihood threshold for model selection
+    lnk_thresh = 5
+
     # get the cube we wish to fit
     cube = SpectralCube.read(cubename)
 
@@ -63,11 +70,19 @@ def fit_2comp(cubename):
 
     spectrum = fifit.get_cubespec(cube)
 
-    def iter_fit(spc_cnv, spc, ncomp):
+    def iter_fit(spc_cnv, spc, ncomp, sguesses=None, widewVSep=False):
         # a function to fit the convovled spctrum (spc_cnv) first, and use the fitted result to fit the native spectrum
         kwargs['ncomp'] = ncomp
+        kwargs['widewVSep'] = widewVSep
         # fit the mean spectrum first
-        sp_cnv = fifit.fit_spec(spectrum=spc_cnv.copy(), guesses=guesses, **kwargs)
+
+
+        if sguesses is None:
+            # sguesses superceeds the global guesses if provided
+            sguesses = guesses
+
+
+        sp_cnv = fifit.fit_spec(spectrum=spc_cnv.copy(), guesses=sguesses, **kwargs)
         gg = sp_cnv.specfit.modelpars
         gg = np.array([gg]).swapaxes(0, 1)
         # use the mean spectrum
@@ -94,8 +109,39 @@ def fit_2comp(cubename):
     # calculate the likelihood
     likelyhood = get_comp_AICc(spec_1comp, spec_2comp, p1=4, p2=8, mask=mask)
 
+    if rec_wide_vsep and (likelyhood < lnk_thresh):
+
+        def get_residual_spec(spectrum):
+            sp_r = spectrum.copy()
+            sp_r.data = spectrum.specfit.fullresiduals
+            return sp_r
+
+        import moment_guess as mmg
+
+        # use 1-slab model parameters as the 1st component guess
+        gg1 = spec_1comp.specfit.modelpars
+        gg1 = np.array(gg1)[:, np.newaxis]
+
+        # use the 1-slab fit residuals as the 2nd component guess
+        sp_r = get_residual_spec(spec_1comp)
+        gg2 = mmg.master_guess(sp_r, ncomp=1)
+
+        # combine the guesses
+        sguesses = np.concatenate((gg1, gg2))
+
+        spec_2wcomp = iter_fit(mean_spec, spectrum, ncomp=2, sguesses=sguesses, widewVSep=True)
+
+        # try to recover second component that may have been missed in the first 2-slab fit attempt
+        # this is carried over where one-slab is determined to be a better fit in the first try
+        #spec_2wcomp = iter_fit(mean_spec, spectrum, ncomp=2, widewVSep=True)
+        likelyhood_w = get_comp_AICc(spec_1comp, spec_2wcomp, p1=4, p2=8, mask=mask)
+
+        if likelyhood_w > lnk_thresh:
+            likelyhood = likelyhood_w
+            spec_2comp = spec_2wcomp
+
     # calculate the rms at where the better fitted model is non-zero
-    if likelyhood > 5:
+    if likelyhood > lnk_thresh:
         rms = fifit.get_rms(spec_2comp, expand=10, usemask=True, mask=mask2)
     else:
         rms = fifit.get_rms(spec_1comp, expand=10, usemask=True, mask=mask1)
