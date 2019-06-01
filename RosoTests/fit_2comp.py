@@ -120,7 +120,7 @@ def fit_2comp(cubename, rec_wide_vsep = True):
 
         # use the 1-slab fit residuals as the 2nd component guess
         sp_r = get_residual_spec(spec_1comp)
-        gg2 = mmg.master_guess(sp_r, ncomp=1, snr_cut=3)
+        gg2 = mmg.master_guess(sp_r, ncomp=1, snr_cut=2)
 
         if np.all(np.isfinite(gg2)):
             # if all the guesses are finite, perform the fit
