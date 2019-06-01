@@ -76,6 +76,7 @@ def fit_2comp(cubename, guesses, **kwargs):
     #spc.specfit.modelerrs
 '''
 
+
 def get_mean_spec(cube, linename="oneone", mask=None):
     # get the mean spectrum of the entire cube
     # note: masking may be desired in case of nan values
@@ -160,7 +161,10 @@ def fit_spec(spectrum, guesses, widewVSep=False, **kwargs):
         v_median = np.nanmedian(v_guess)
         v_atpeak = v_median
 
-    kwargs_gg = {'sigmin':sigmin, 'v_peak_hwidth':v_peak_hwidth, 'v_atpeak':v_atpeak, 'widewVSep':widewVSep}
+    # the snr_cut is set to negative infinity to ensure a moment guess exists in all cases
+    # (a better design is needed in the future)
+    kwargs_gg = {'sigmin':sigmin, 'v_peak_hwidth':v_peak_hwidth, 'v_atpeak':v_atpeak, 'widewVSep':widewVSep,
+                 'snr_cut':-np.inf}
     gg = momgue.master_guess(spectrum, ncomp, **kwargs_gg)
 
     # define acceptable v range based on the provided or determined median velocity
@@ -252,9 +256,6 @@ def get_rms_prefit(spectrum, window_hwidth, v_atpeak):
 
 
     return mad_std(d_rms[mask])
-
-
-
 
 
 
