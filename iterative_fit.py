@@ -84,50 +84,58 @@ def cubefit_wTauTexCnvRef(cubename, singCompRef, downsampfactor=2, **kwargs):
     cubefit(cubename, downsampfactor=downsampfactor, cnv_guesses=gg, **kwargs)
 
 
+def cnv_n_fit(cubename, downsampfactor, returnMask=True, cnv_guesses=None, **kwargs):
+
+    root = "conv{0}Xbeam".format(int(np.rint(downsampfactor)))
+    cnv_cubename = "{0}_{1}.fits".format(os.path.splitext(cubename)[0], root)
+
+    print "convolve the cube by a factor of: {0}".format(downsampfactor)
+    cnv_cube = convolve_sky_byfactor(cubename, downsampfactor, savename=cnv_cubename, edgetrim_width=None)
+
+    # use the mask of the convolved cube as the mask in which fits will be performed
+    mask = cnv_cube.get_mask_array()
+
+    # adopt the final kwarg to the convolved fitting
+    kwargs_cnv = kwargs.copy()
+    kwargs_cnv['paraname'] = "{0}_cnv.fits".format(os.path.splitext(kwargs['paraname'])[0], "parameter_maps")
+    # turn the moment edge trim off for now. Something seems to be wrong
+    kwargs_cnv['momedgetrim'] = False
+    kwargs_cnv['modname'] = None
+
+    if cnv_guesses is not None:
+        # kwargs_cnv['saveguess'] = True
+        kwargs_cnv['guesses'] = cnv_guesses
+
+    # fit the convolved cube to serve as parameter guesses for the full resolution fitting
+    cnv_pcube = mvf.cubefit_gen(cnv_cubename, **kwargs_cnv)
+
+    print "_____________________________________"
+    print "fitting convolved cube"
+
+    data_cnv = np.concatenate([cnv_pcube.parcube, cnv_pcube.errcube])
+    hdr_cnv = cnv_pcube.header
+
+    # skip reading the cube
+    #data_cnv, hdr_cnv = fits.getdata(kwargs_cnv['paraname'], header=True)
+
+    if returnMask:
+        return data_cnv, hdr_cnv, mask
+    else:
+        return data_cnv, hdr_cnv
+
 
 def cubefit(cubename, downsampfactor=2, cnv_guesses=None, **kwargs):
 
-    root = "conv{0}Xbeam".format(int(np.rint(downsampfactor)))
-
     if not 'conv_paraname' in kwargs:
-        cnv_cubename = "{0}_{1}.fits".format(os.path.splitext(cubename)[0], root)
-
-        print "convolve the cube by a factor of: {0}".format(downsampfactor)
-        cnv_cube = convolve_sky_byfactor(cubename, downsampfactor, savename=cnv_cubename, edgetrim_width=None)
-
-        # use the mask of the convolved cube as the mask in which fits will be performed
-        mask=cnv_cube.get_mask_array()
-        def blank_mask(snr, snr_min=5.0):
-            planemask = mask
-            return(planemask)
-
-        #kwargs['mask_function']=blank_mask
-
-        # adopt the final kwarg to the convolved fitting
-        kwargs_cnv = kwargs.copy()
-        kwargs_cnv['paraname'] = "{0}_cnv.fits".format(os.path.splitext(kwargs['paraname'])[0], "parameter_maps")
-        # turn the moment edge trim off for now. Something seems to be wrong
-        kwargs_cnv['momedgetrim'] = False
-        kwargs_cnv['modname'] = None
-
-        if cnv_guesses is not None:
-            #kwargs_cnv['saveguess'] = True
-            kwargs_cnv['guesses'] = cnv_guesses
-
-        # fit the convolved cube to serve as parameter guesses for the full resolution fitting
-        cnv_pcube = mvf.cubefit_gen(cnv_cubename, **kwargs_cnv)
-
-        print "_____________________________________"
-        print "fitting convolved cube"
-        data_cnv, hdr_cnv = fits.getdata(kwargs_cnv['paraname'], header=True)
-
+        # convolve and fit the cube if that has not been performed already
+        data_cnv, hdr_cnv, mask = cnv_n_fit(cubename, downsampfactor, returnMask=True, cnv_guesses=cnv_guesses, **kwargs)
+        # note, the mask is currently not used anywhere
+        #if not 'mask_function' in kwargs:
+        #    kwargs['mask_function'] = mask
     else:
-        print "_____________________________________"
-        print "fitting convolved cube"
         data_cnv, hdr_cnv = fits.getdata(kwargs['conv_paraname'], header=True)
-        # to make kwargs compitable with mvf.cubefit_gen()
+        # make kwargs compitable with mvf.cubefit_gen()
         del kwargs['conv_paraname']
-
 
     npara = 4
     ncomp = int(data_cnv.shape[0]/npara)/2
@@ -135,17 +143,6 @@ def cubefit(cubename, downsampfactor=2, cnv_guesses=None, **kwargs):
     # the target header for the regridding
     cube_hdr = fits.getheader(cubename)
     hdr_final = get_celestial_hdr(cube_hdr)
-
-    '''
-    if cnv_guesses is not None:
-        # use the provided convolved guesses, particularly Tau & Tex
-        # note: may want to make this a separate option from the guess for the convolved fit
-        # note: this approach may cause some interpolation issues
-        cnv_guesses[cnv_guesses==0] = np.nan
-        gmask = np.isfinite(cnv_guesses)
-        data_cnv[0:npara*ncomp][gmask] = cnv_guesses[gmask]
-    '''
-
 
     kwargs['guesses'] = guess_from_cnvpara(data_cnv, hdr_cnv, hdr_final, downsampfactor=downsampfactor)
 
