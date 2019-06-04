@@ -112,23 +112,21 @@ def cnv_n_fit(cubename, downsampfactor, returnMask=True, cnv_guesses=None, **kwa
     print "_____________________________________"
     print "fitting convolved cube"
 
-    data_cnv = np.concatenate([cnv_pcube.parcube, cnv_pcube.errcube])
-    hdr_cnv = cnv_pcube.header
-
-    # skip reading the cube
-    #data_cnv, hdr_cnv = fits.getdata(kwargs_cnv['paraname'], header=True)
-
     if returnMask:
-        return data_cnv, hdr_cnv, mask
+        return cnv_pcube, mask
     else:
-        return data_cnv, hdr_cnv
+        return cnv_pcube
 
 
 def cubefit(cubename, downsampfactor=2, cnv_guesses=None, **kwargs):
 
     if not 'conv_paraname' in kwargs:
         # convolve and fit the cube if that has not been performed already
-        data_cnv, hdr_cnv, mask = cnv_n_fit(cubename, downsampfactor, returnMask=True, cnv_guesses=cnv_guesses, **kwargs)
+
+        cnv_pcube, mask = cnv_n_fit(cubename, downsampfactor, returnMask=True, cnv_guesses=cnv_guesses, **kwargs)
+        data_cnv = np.concatenate([cnv_pcube.parcube, cnv_pcube.errcube])
+        hdr_cnv = cnv_pcube.header
+
         # note, the mask is currently not used anywhere
         #if not 'mask_function' in kwargs:
         #    kwargs['mask_function'] = mask
