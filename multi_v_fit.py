@@ -246,8 +246,6 @@ def get_chisq(cube, model, expand=20, reduced = True, usemask = True, mask = Non
 
 
 
-
-
 def main_hf_moments(maskcube, window_hwidth, v_atpeak=None):
     '''
     # find moments for the main hyperfine lines
@@ -307,6 +305,12 @@ def moment_guesses(moment1, moment2, ncomp, sigmin=0.07, tex_guess=3.2, tau_gues
     :param tau_guess:
     :return:
     '''
+    return momgue.moment_guesses(moment1, moment2, ncomp, sigmin, tex_guess, tau_guess, moment0)
+
+
+'''
+def moment_guesses_old(moment1, moment2, ncomp, sigmin=0.07, tex_guess=3.2, tau_guess=0.5, moment0=None):
+
 
     # define max and min values of tex and tau to use for the test
     # a spectrum with tex and tau values both below the specified minima has an intensity below the expected GAS rms
@@ -376,7 +380,7 @@ def moment_guesses(moment1, moment2, ncomp, sigmin=0.07, tex_guess=3.2, tau_gues
     tau_guess[tau_guess > tau_max] = tau_max
 
     return gg
-
+'''
 
 def make_guesses(sigv_para_name, n_comp = 2, tex_guess =10.0, tau_guess = 0.5):
     '''
