@@ -19,6 +19,8 @@ from os import path
 
 import ammonia_multiv as ammv
 
+import moment_guess as momgue
+
 #=======================================================================================================================
 # the current implementation only fits the 1-1 lines
 line_names = ["oneone"]
@@ -243,7 +245,10 @@ def get_chisq(cube, model, expand=20, reduced = True, usemask = True, mask = Non
         return chisq, np.sum(mask, axis=0)
 
 
-def main_hf_moments(maskcube, window_hwidth, v_atpeak=None, snr_thresh=None):
+
+
+
+def main_hf_moments(maskcube, window_hwidth, v_atpeak=None):
     '''
     # find moments for the main hyperfine lines
     # (moments, especially moment 2, computed with the satellite lines are less useful in terms of the kinematics)
@@ -263,6 +268,11 @@ def main_hf_moments(maskcube, window_hwidth, v_atpeak=None, snr_thresh=None):
     :return: m1
     :return: m2
     '''
+    return momgue.window_moments(maskcube, window_hwidth, v_atpeak=None)
+
+'''
+def main_hf_moments_old(maskcube, window_hwidth, v_atpeak=None, snr_thresh=None):
+
 
     if v_atpeak is None:
         # find the peak of the integrated spectrum if v_atpeak isn't provided
@@ -282,6 +292,7 @@ def main_hf_moments(maskcube, window_hwidth, v_atpeak=None, snr_thresh=None):
     m2 = (np.abs(slab.moment2(axis=0))**0.5).to(u.km/u.s).value
 
     return m0, m1, m2
+'''
 
 
 def moment_guesses(moment1, moment2, ncomp, sigmin=0.07, tex_guess=3.2, tau_guess=0.5, moment0=None):
