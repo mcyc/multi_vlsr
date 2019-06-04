@@ -268,30 +268,6 @@ def main_hf_moments(maskcube, window_hwidth, v_atpeak=None):
     '''
     return momgue.window_moments(maskcube, window_hwidth, v_atpeak=None)
 
-'''
-def main_hf_moments_old(maskcube, window_hwidth, v_atpeak=None, snr_thresh=None):
-
-
-    if v_atpeak is None:
-        # find the peak of the integrated spectrum if v_atpeak isn't provided
-        tot_spec = np.nansum(maskcube._data[:,]*maskcube.get_mask_array(), axis=(1,2))
-        idx_peak = np.nanargmax(tot_spec)
-        print "peak T_B: {0}".format(np.nanmax(tot_spec))
-        v_atpeak = maskcube.spectral_axis[idx_peak].to(u.km/u.s).value
-        print "v_atpeak: {0}".format(v_atpeak)
-
-    vmax = v_atpeak + window_hwidth
-    vmin = v_atpeak - window_hwidth
-
-    # Extract the spectrum within the window defined around the main hyperfine components and take moments
-    slab = maskcube.spectral_slab(vmin*u.km/u.s, vmax*u.km/u.s)
-    m0 = slab.moment0(axis=0).value
-    m1 = slab.moment1(axis=0).to(u.km/u.s).value
-    m2 = (np.abs(slab.moment2(axis=0))**0.5).to(u.km/u.s).value
-
-    return m0, m1, m2
-'''
-
 
 def moment_guesses(moment1, moment2, ncomp, sigmin=0.07, tex_guess=3.2, tau_guess=0.5, moment0=None):
     '''
@@ -308,79 +284,6 @@ def moment_guesses(moment1, moment2, ncomp, sigmin=0.07, tex_guess=3.2, tau_gues
     return momgue.moment_guesses(moment1, moment2, ncomp, sigmin, tex_guess, tau_guess, moment0)
 
 
-'''
-def moment_guesses_old(moment1, moment2, ncomp, sigmin=0.07, tex_guess=3.2, tau_guess=0.5, moment0=None):
-
-
-    # define max and min values of tex and tau to use for the test
-    # a spectrum with tex and tau values both below the specified minima has an intensity below the expected GAS rms
-    tex_max = 8.0
-    tau_max = 1.0
-    tex_min = 3.1
-    tau_min = 0.3
-
-    if moment0 is not None:
-        print "[WARNING]: moment0 map is provided, thus the user-provided tex and tau will not be used"
-        # normalize the moment 0 map with respect to the norm_ref percentile value
-        # e.g., 95 percentile value being normalized to have a value of 0.95
-        norm_ref = 99.73
-        mom0high = np.percentile(moment0[np.isfinite(moment0)], norm_ref)
-        print "moment 0 value at {0} percentile: {1}".format(norm_ref, mom0high)
-        # may want to modify this normalization to be something a little simpler or physical (i.e., 99.73/100 ~ 1)
-        m0Norm = moment0.copy()*norm_ref/100.0/mom0high
-        tex_guess = m0Norm*tex_max
-        tau_guess = m0Norm*tau_max
-
-    m1 = moment1
-    m2 = moment2
-
-    # Guess linewidth (the current recipe works okay, but potential improvements can be made.
-    gs_sig = m2/ncomp
-    gs_sig[gs_sig < sigmin] = sigmin
-    # note 0.08 k is narrow enough to be purely thermal @ ~10 K
-
-    # there are 4 parameters for each v-component
-    gg = np.zeros((ncomp*4,)+m1.shape)
-
-    if ncomp == 1:
-        gg[0,:,:] = m1                 # v0 centriod
-        gg[1,:,:] = gs_sig             # v0 width
-        gg[2,:,:] = tex_guess          # v0 T_ex
-        gg[3,:,:] = tau_guess          # v0 tau
-
-    # using a working recipe (assuming a bright and a faint componet)
-    if ncomp == 2:
-        #sigmaoff = 0.25
-        sigmaoff = 0.4
-        tau2_frac = 0.25                    # the tau weight of the second component relative to the total fraction
-        gg[0,:,:] = m1 - sigmaoff*m2         # v0 centriod
-        gg[1,:,:] = gs_sig                   # v0 width
-        gg[2,:,:] = tex_guess                # v0 T_ex
-        gg[3,:,:] = tau_guess*(1-tau2_frac)  # v0 tau
-        gg[4,:,:] = m1 + sigmaoff*m2         # v1 centriod
-        gg[5,:,:] = gs_sig                   # v1 width
-        gg[6,:,:] = tex_guess*0.8            # v1 T_ex
-        gg[7,:,:] = tau_guess*tau2_frac      # v1 tau
-
-    # using a generalized receipe that have not been tested (lots of room for improvement!)
-    if ncomp > 2:
-        for i in range (0, ncomp):
-            gg[i,  :,:] = m1+(-1.0+i*1.0/ncomp)*0.5*m2 # v0 centriod (step through a range fo velocities within sigma_v)
-            gg[i+1,:,:] = gs_sig                   # v0 width
-            gg[i+2,:,:] = tex_guess*0.8            # v0 T_ex
-            gg[i+3,:,:] = tau_guess/ncomp*0.25     # v0 tau
-
-    #print "guesses:"
-    #print gg
-
-    # ensure the tex and tau guesses falls within the guessing limits
-    tex_guess[tex_guess < tex_min] = tex_min
-    tex_guess[tex_guess > tex_max] = tex_max
-    tau_guess[tau_guess < tau_min] = tau_min
-    tau_guess[tau_guess > tau_max] = tau_max
-
-    return gg
-'''
 
 def make_guesses(sigv_para_name, n_comp = 2, tex_guess =10.0, tau_guess = 0.5):
     '''
@@ -722,7 +625,6 @@ def cubefit_gen(cube11name, ncomp=2, paraname = None, modname = None, chisqname 
         hdr_new['CRVAL3']= 0
         hdr_new['CRPIX3']= 1
 
-
         savedir = "{0}/{1}".format(path.dirname(paraname), "guesses")
 
         try:
@@ -747,7 +649,6 @@ def cubefit_gen(cube11name, ncomp=2, paraname = None, modname = None, chisqname 
     pcube.fiteach(fittype='nh3_multi_v', guesses=guesses,
                   start_from_point=(xmax,ymax),
                   use_neighbor_as_guess=False,
-                  #[v,s,t,t,v,s,t,t]
                   limitedmax=[True,True,True,True]*ncomp,
                   maxpars=[vmax, sigmax, Texmax, taumax]*ncomp,
                   limitedmin=[True,True,True,True]*ncomp,
@@ -776,7 +677,6 @@ def save_pcube(pcube, savename, ncomp=2):
     # a method to save the fitted parameter cube with relavent header information
 
     npara = 4
-    #ncomp = int(pcube.data.shape[0]/npara)
 
     hdr_new = copy.deepcopy(pcube.header)
     for i in range (0, ncomp):
