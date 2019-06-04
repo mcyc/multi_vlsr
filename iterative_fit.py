@@ -147,7 +147,7 @@ def cubefit(cubename, downsampfactor=2, cnv_guesses=None, **kwargs):
     '''
 
 
-    kwargs['guesses'] = guess_from_cnvpara(data_cnv, hdr_cnv, hdr_final, downsampfactor=2)
+    kwargs['guesses'] = guess_from_cnvpara(data_cnv, hdr_cnv, hdr_final, downsampfactor=downsampfactor)
 
     pcube = mvf.cubefit_gen(cubename, **kwargs)
 
