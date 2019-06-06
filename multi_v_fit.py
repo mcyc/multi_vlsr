@@ -422,7 +422,7 @@ def get_singv_tau11(singv_para):
 
 
 
-def cubefit_gen(cube11name, ncomp=2, paraname = None, modname = None, chisqname = None, guesses = None, errmap11name = None,
+def cubefit_gen(cube, ncomp=2, paraname = None, modname = None, chisqname = None, guesses = None, errmap11name = None,
             multicore = 1, mask_function = None, snr_min=3.0, linename="oneone", momedgetrim=True, saveguess=False):
     '''
     Perform n velocity component fit on the GAS ammonia 1-1 data.
@@ -431,8 +431,8 @@ def cubefit_gen(cube11name, ncomp=2, paraname = None, modname = None, chisqname 
 
     Parameters
     ----------
-    cube11name : str
-        The file name of the ammonia 1-1 cube
+    cube : str
+        The file name of the ammonia 1-1 cube or a SpectralCube object
     ncomp : int
         The number of components one wish to fit. Default is 2
     paraname: str
@@ -443,9 +443,14 @@ def cubefit_gen(cube11name, ncomp=2, paraname = None, modname = None, chisqname 
         Pyspeckit cube object containing both the fit and the original data cube
     '''
 
-    cube = SpectralCube.read(cube11name)
+    if hasattr(cube, 'spectral_axis'):
+        pcube = pyspeckit.Cube(cube=cube)
 
-    pcube = pyspeckit.Cube(cube11name)
+    else:
+        cubename = cube
+        cube = SpectralCube.read(cubename)
+        pcube = pyspeckit.Cube(filename=cubename)
+
     pcube.unit="K"
 
 
