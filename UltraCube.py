@@ -231,6 +231,54 @@ def get_AICc_likelihood(ucube, ncomp1, ncomp2):
 
 
 
+def get_rms(cube, model, expand=20, usemask=True, mask=None):
+    '''
+    return rms over where no model is fitted
+    '''
+
+    import scipy.ndimage as nd
+    #model = spectrum.specfit.model
+
+    if usemask:
+        if mask is None:
+            mask = model > 0
+    else:
+        mask = ~np.isnan(model)
+
+    #residual = spectrum.specfit.residuals
+    residual = cube.filled_data[:].value - model
+
+    # Mask over the region where the fit is non-zero plus a buffer of size set by the expand keyword.
+    selem = np.ones(expand, dtype=np.bool)
+    selem.shape += (1, 1,)
+    mask = nd.binary_dilation(mask, selem)
+    #mask = mask.astype(np.float)
+
+    # Now get where the emission is zero and estimate the rms
+    # This produces a robust estimate of the RMS along every line of sight:
+    diff = residual - np.roll(residual, 2, axis=0)
+
+    '''
+    if len(diff) - mask.sum() > 10:
+        # only use the mask if there are more than 10 model-free chanels
+        diff = diff[~mask]
+    '''
+
+    rms = 1.4826 * np.nanmedian(np.abs(diff), axis=0) / 2 ** 0.5
+    #print "rms: {}; \t sample size: {}".format(rms, len(diff))
+
+    return rms
+
+
+def get_residual(cube, model):
+    '''
+    return rms over where no model is fitted
+    '''
+
+    residual = cube.filled_data[:].value - model
+    return residual
+
+
 
 #======================================================================================================================#
 
