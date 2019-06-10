@@ -126,14 +126,14 @@ class UltraCube(object):
         if mask is None:
             mask = self.master_model_mask
         # note: a mechanism is needed to make sure NSamp is consistient across
-        self.chisq_maps[str(ncomp)], self.NSamp_map[str(ncomp)] =\
-            get_chisq(self, ncomp, reduced=False, usemask=True, mask=mask)
+        self.chisq_maps[str(ncomp)], self.NSamp_map[str(ncomp)] = \
+            calc_chisq(self, ncomp, reduced=False, usemask=True, mask=mask)
 
 
     def get_reduced_chisq(self, ncomp):
         # no mask is used, and thus is not meant for model comparision
-        self.chisq_maps[str(ncomp)], NSamp =\
-            get_chisq(self, ncomp, reduced=True, usemask=False, mask=None)
+        self.chisq_maps[str(ncomp)], NSamp = \
+            calc_chisq(self, ncomp, reduced=True, usemask=False, mask=None)
 
 
     def get_AICc(self, ncomp, **kwargs):
@@ -146,7 +146,7 @@ class UltraCube(object):
         self.AICc_maps[compID] = get_aic(chisq=self.chisq_maps[compID], p=p, N=self.NSamp_map[compID])
 
     def get_AICc_likelihood(self, ncomp1, ncomp2):
-        return get_AICc_likelihood(self, ncomp1, ncomp2)
+        return calc_AICc_likelihood(self, ncomp1, ncomp2)
 
 #======================================================================================================================#
 
@@ -178,15 +178,11 @@ def load_model_fit(cube, filename, ncomp):
 def convolve_sky_byfactor(cube, factor, savename=None, **kwargs):
     return cnvtool.convolve_sky_byfactor(cube, factor, savename, **kwargs)
 
+
 #======================================================================================================================#
-# statistics tools
+# UltraCube based methods
 
-def get_cnv_guesses(ncomp, cnv_para_name=None, redo=False):
-    #if cnv_para_name is None:
-    return None
-
-
-def get_chisq(ucube, compID, reduced=False, usemask=False, mask=None):
+def calc_chisq(ucube, compID, reduced=False, usemask=False, mask=None):
 
     if isinstance(compID, int):
         compID = str(compID)
@@ -198,18 +194,11 @@ def get_chisq(ucube, compID, reduced=False, usemask=False, mask=None):
     else:
         modcube = ucube.pcubes[compID].get_modelcube()
 
-    chi, NSamp = mvf.get_chisq(cube, modcube, expand=20, reduced=reduced, usemask=usemask, mask=mask)
+    chi, NSamp = get_chisq(cube, modcube, expand=20, reduced=reduced, usemask=usemask, mask=mask)
     return chi, NSamp
 
 
-def get_aic(chisq, p, N=None):
-    if N is None:
-        return aic.AIC(chisq, p)
-    else:
-        return aic.AICc(chisq, p, N)
-
-
-def get_AICc_likelihood(ucube, ncomp1, ncomp2):
+def calc_AICc_likelihood(ucube, ncomp1, ncomp2):
 
     def likelihood(aicc1, aicc2):
         return (aicc1 - aicc2) / 2.0
@@ -229,15 +218,41 @@ def get_AICc_likelihood(ucube, ncomp1, ncomp2):
     return likelihood(ucube.AICc_maps[str(ncomp1)], ucube.AICc_maps[str(ncomp2)])
 
 
+#======================================================================================================================#
+# statistics tools
+
+def get_aic(chisq, p, N=None):
+    # calculate AIC or AICc values
+    if N is None:
+        return aic.AIC(chisq, p)
+    else:
+        return aic.AICc(chisq, p, N)
 
 
-def get_rms(cube, model, expand=20, usemask=True, mask=None):
+def get_chisq(cube, model, expand=20, reduced = True, usemask = True, mask = None):
     '''
-    return rms over where no model is fitted
+    cube : SpectralCube
+
+    model: numpy array
+
+    expand : int
+        Expands the region where the residual is evaluated by this many channels in the spectral dimension
+
+    reduced : boolean
+        Whether or not to return the reduced chi-squared value or not
+
+    usemask: boolean
+        Whether or not to mask out some parts of the data.
+        If no mask is provided, it masks out samples with model values of zero.
+
+    mask: boolean array
+        A mask stating which array elements the chi-squared values are calculated from
     '''
 
     import scipy.ndimage as nd
-    #model = spectrum.specfit.model
+    #model = np.zeros(cube.shape)
+
+    cube = cube.with_spectral_unit(u.Hz, rest_value = freq_dict['oneone']*u.Hz)
 
     if usemask:
         if mask is None:
@@ -245,39 +260,52 @@ def get_rms(cube, model, expand=20, usemask=True, mask=None):
     else:
         mask = ~np.isnan(model)
 
-    #residual = spectrum.specfit.residuals
-    residual = cube.filled_data[:].value - model
+    residual = get_residual(cube, model)
 
-    # Mask over the region where the fit is non-zero plus a buffer of size set by the expand keyword.
-    selem = np.ones(expand, dtype=np.bool)
-    selem.shape += (1, 1,)
+    # creating mask over region where the model is non-zero,
+    # plus a buffer of size set by the expand keyword.
+    mask = expand_mask(mask, expand)
+    mask = mask.astype(np.float)
+
+    chisq = np.sum((residual * mask)**2, axis=0)
+
+    if reduced:
+        chisq /= np.sum(mask, axis=0)
+
+    rms = get_rms(residual)
+    chisq /= rms**2
+
+    if reduced:
+        # return the reduce chi-squares values
+        return chisq
+    else:
+        # return the ch-squared values and the number of data points used
+        return chisq, np.sum(mask, axis=0)
+
+
+def expand_mask(mask, expand):
+    # adds a buffer of size set by the expand keyword to a 2D mask,
+    selem = np.ones(expand,dtype=np.bool)
+    selem.shape += (1,1,)
     mask = nd.binary_dilation(mask, selem)
-    #mask = mask.astype(np.float)
+    return mask
 
-    # Now get where the emission is zero and estimate the rms
-    # This produces a robust estimate of the RMS along every line of sight:
+
+def get_rms(residual):
+    # get robust estimate of the rms from the fit residual
     diff = residual - np.roll(residual, 2, axis=0)
-
-    '''
-    if len(diff) - mask.sum() > 10:
-        # only use the mask if there are more than 10 model-free chanels
-        diff = diff[~mask]
-    '''
-
-    rms = 1.4826 * np.nanmedian(np.abs(diff), axis=0) / 2 ** 0.5
-    #print "rms: {}; \t sample size: {}".format(rms, len(diff))
-
+    rms = 1.4826 * np.nanmedian(np.abs(diff), axis=0) / 2**0.5
     return rms
 
 
 def get_residual(cube, model):
-    '''
-    return rms over where no model is fitted
-    '''
-
+    # calculate the residual of the fit to the cube
     residual = cube.filled_data[:].value - model
     return residual
 
+
+def get_Tpeak(model):
+    return np.nanmax(model, axis=0)
 
 
 #======================================================================================================================#
