@@ -35,8 +35,12 @@ class UltraCube(object):
 
         # to hold pyspeckit cubes for fitting
         self.pcubes = {}
+        self.residual_cubes = {}
+        self.rms_maps = {}
+        self.Tpeak_maps = {}
         self.chisq_maps = {}
-        self.NSamp_map = {}
+        self.rchisq_maps = {}
+        self.NSamp_maps = {}
         self.AICc_maps = {}
         self.master_model_mask = None
 
@@ -122,18 +126,43 @@ class UltraCube(object):
         self.include_model_mask(mod_mask)
 
 
+    def get_residual(self, ncomp):
+        compID = str(ncomp)
+        model = self.pcubes[compID].get_modelcube()
+        self.residual_cubes[compID] = get_residual(self.cube, model)
+        return self.residual_cubes[compID]
+
+
+    def get_rms(self, ncomp):
+        compID = str(ncomp)
+        if not compID in self.residual_cubes:
+            self.get_AICc(ncomp)
+
+        self.rms_maps[compID] = get_rms(self.residual_cubes[compID])
+        return self.rms_maps[compID]
+
+
+    def get_Tpeak(self, ncomp):
+        compID = str(ncomp)
+        model = self.pcubes[compID].get_modelcube()
+        self.Tpeak_maps[compID] = get_Tpeak(model)
+        return self.Tpeak_maps[compID]
+
+
     def get_chisq(self, ncomp, mask=None):
         if mask is None:
             mask = self.master_model_mask
         # note: a mechanism is needed to make sure NSamp is consistient across
-        self.chisq_maps[str(ncomp)], self.NSamp_map[str(ncomp)] = \
+        self.chisq_maps[str(ncomp)], self.NSamp_maps[str(ncomp)] = \
             calc_chisq(self, ncomp, reduced=False, usemask=True, mask=mask)
 
 
     def get_reduced_chisq(self, ncomp):
         # no mask is used, and thus is not meant for model comparision
-        self.chisq_maps[str(ncomp)], NSamp = \
+        compID = str(ncomp)
+        self.rchisq_maps[compID], NSamp = \
             calc_chisq(self, ncomp, reduced=True, usemask=False, mask=None)
+        return self.rchisq_maps[compID]
 
 
     def get_AICc(self, ncomp, **kwargs):
@@ -143,7 +172,8 @@ class UltraCube(object):
             self.get_chisq(ncomp, **kwargs)
 
         p = ncomp*4
-        self.AICc_maps[compID] = get_aic(chisq=self.chisq_maps[compID], p=p, N=self.NSamp_map[compID])
+        self.AICc_maps[compID] = get_aic(chisq=self.chisq_maps[compID], p=p, N=self.NSamp_maps[compID])
+
 
     def get_AICc_likelihood(self, ncomp1, ncomp2):
         return calc_AICc_likelihood(self, ncomp1, ncomp2)
@@ -203,13 +233,13 @@ def calc_AICc_likelihood(ucube, ncomp1, ncomp2):
     def likelihood(aicc1, aicc2):
         return (aicc1 - aicc2) / 2.0
 
-    if not str(ncomp1) in ucube.NSamp_map:
+    if not str(ncomp1) in ucube.NSamp_maps:
         ucube.get_AICc(ncomp1)
 
-    if not str(ncomp2) in ucube.NSamp_map:
+    if not str(ncomp2) in ucube.NSamp_maps:
         ucube.get_AICc(ncomp2)
 
-    NSampEqual = ucube.NSamp_map[str(ncomp1)] == ucube.NSamp_map[str(ncomp2)]
+    NSampEqual = ucube.NSamp_maps[str(ncomp1)] == ucube.NSamp_maps[str(ncomp2)]
     if np.nansum(~NSampEqual) != 0:
         print("[WARNING]: Number of samples do not match. Recalculating AICc values")
         ucube.get_AICc(ncomp1)
@@ -249,10 +279,9 @@ def get_chisq(cube, model, expand=20, reduced = True, usemask = True, mask = Non
         A mask stating which array elements the chi-squared values are calculated from
     '''
 
-    import scipy.ndimage as nd
     #model = np.zeros(cube.shape)
 
-    cube = cube.with_spectral_unit(u.Hz, rest_value = freq_dict['oneone']*u.Hz)
+    #cube = cube.with_spectral_unit(u.Hz, rest_value = freq_dict['oneone']*u.Hz)
 
     if usemask:
         if mask is None:
@@ -284,6 +313,7 @@ def get_chisq(cube, model, expand=20, reduced = True, usemask = True, mask = Non
 
 
 def expand_mask(mask, expand):
+    import scipy.ndimage as nd
     # adds a buffer of size set by the expand keyword to a 2D mask,
     selem = np.ones(expand,dtype=np.bool)
     selem.shape += (1,1,)
