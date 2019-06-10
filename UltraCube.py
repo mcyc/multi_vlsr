@@ -136,7 +136,7 @@ class UltraCube(object):
     def get_rms(self, ncomp):
         compID = str(ncomp)
         if not compID in self.residual_cubes:
-            self.get_AICc(ncomp)
+            self.get_residual(ncomp)
 
         self.rms_maps[compID] = get_rms(self.residual_cubes[compID])
         return self.rms_maps[compID]
