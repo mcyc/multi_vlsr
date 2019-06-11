@@ -166,14 +166,19 @@ class UltraCube(object):
         return self.rchisq_maps[compID]
 
 
-    def get_AICc(self, ncomp, **kwargs):
+    def get_AICc(self, ncomp, update=True, **kwargs):
 
         compID = str(ncomp)
         if not compID in self.chisq_maps:
             self.get_chisq(ncomp, **kwargs)
 
         p = ncomp*4
-        self.AICc_maps[compID] = get_aic(chisq=self.chisq_maps[compID], p=p, N=self.NSamp_maps[compID])
+
+        AICc_map = get_aic(chisq=self.chisq_maps[compID], p=p, N=self.NSamp_maps[compID])
+
+        if update:
+            self.AICc_maps[compID] = AICc_map
+        return AICc_map
 
 
     def get_AICc_likelihood(self, ncomp1, ncomp2):
@@ -229,8 +234,16 @@ def calc_chisq(ucube, compID, reduced=False, usemask=False, mask=None):
     return chi, NSamp
 
 
-def calc_AICc_likelihood(ucube, ncomp_A, ncomp_B, ucube_B = None):
+def calc_AICc_likelihood(ucube, ncomp_A, ncomp_B, ucube_B=None):
     # return the log likelihood of the A model relative to the B model
+
+    if not ucube_B is None:
+        # if a second UCube is provide for model comparison, use their common mask and calculate AICc values
+        # without storing/updating them in the UCubes
+        mask = np.logical_or(ucube.master_model_mask, ucube_B.master_model_mask)
+        AICc_A = ucube.get_AICc(ncomp_A, update=False, mask=mask)
+        AICc_B = ucube_B.get_AICc(ncomp_B, update=False, mask=mask)
+        return aic.likelihood(AICc_A, AICc_B)
 
     if not str(ncomp_A) in ucube.NSamp_maps:
         ucube.get_AICc(ncomp_A)
