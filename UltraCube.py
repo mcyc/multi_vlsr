@@ -229,12 +229,8 @@ def calc_chisq(ucube, compID, reduced=False, usemask=False, mask=None):
     return chi, NSamp
 
 
-def calc_AICc_likelihood(ucube, ncomp_A, ncomp_B):
+def calc_AICc_likelihood(ucube, ncomp_A, ncomp_B, ucube_B = None):
     # return the log likelihood of the A model relative to the B model
-
-    def likelihood(aiccA, aiccB):
-        # log likelihood of A relative to B
-        return -1.*(aiccA - aiccB) / 2.0
 
     if not str(ncomp_A) in ucube.NSamp_maps:
         ucube.get_AICc(ncomp_A)
@@ -249,7 +245,7 @@ def calc_AICc_likelihood(ucube, ncomp_A, ncomp_B):
         ucube.get_AICc(ncomp_A)
         ucube.get_AICc(ncomp_B)
 
-    return likelihood(ucube.AICc_maps[str(ncomp_A)], ucube.AICc_maps[str(ncomp_B)])
+    return aic.likelihood(ucube.AICc_maps[str(ncomp_A)], ucube.AICc_maps[str(ncomp_B)])
 
 
 #======================================================================================================================#
