@@ -423,7 +423,8 @@ def get_singv_tau11(singv_para):
 
 
 def cubefit_gen(cube, ncomp=2, paraname = None, modname = None, chisqname = None, guesses = None, errmap11name = None,
-            multicore = 1, mask_function = None, snr_min=3.0, linename="oneone", momedgetrim=True, saveguess=False):
+            multicore = None, mask_function = None, snr_min=3.0, linename="oneone", momedgetrim=True, saveguess=False,
+            **kwargs):
     '''
     Perform n velocity component fit on the GAS ammonia 1-1 data.
     (This should be the function to call for all future codes if it has been proven to be reliable)
@@ -521,13 +522,20 @@ def cubefit_gen(cube, ncomp=2, paraname = None, modname = None, chisqname = None
             planemask = opening(planemask,disk(1))
         return(planemask)
 
-    if mask_function is None:
+
+    if 'maskmap' in kwargs:
+        planemask = kwargs['maskmap']
+    elif mask_function is None:
         planemask = default_masking(peaksnr,snr_min = snr_min)
     else:
         planemask = mask_function(peaksnr,snr_min = snr_min)
 
     print "planemask size: {0}, shape: {1}".format(planemask[planemask].size, planemask.shape)
-    mask = (snr>3)*planemask*footprint_mask
+
+    # the snr>3 criteria may be too restrictive (our moment guess should be reasonably robust without it)
+    #mask = (snr>3)*planemask*footprint_mask
+    mask = np.isfinite(cube._data) * planemask * footprint_mask
+
     print "mask size: {0}, shape: {1}".format(mask[mask].size, mask.shape)
 
     maskcube = cube.with_mask(mask.astype(bool))
@@ -646,7 +654,14 @@ def cubefit_gen(cube, ncomp=2, paraname = None, modname = None, chisqname = None
         #return guesses
 
     # set some of the fiteach() inputs to that used in GAS DR1 reduction
-    kwargs = {'integral':False, 'verbose_level':3, 'signal_cut':2}
+    if not 'integral' in kwargs:
+        kwargs['integral'] = False
+
+    if not 'verbose_level' in kwargs:
+        kwargs['verbose_level'] = 3
+
+    if not 'signal_cut' in kwargs:
+        kwargs['signal_cut'] = 2
 
     # Now fit the cube. (Note: the function inputs are consistent with GAS DR1 whenever possible)
     print('start fit')
