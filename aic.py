@@ -164,6 +164,6 @@ def AICc(chisq, p, N):
 
 def likelihood(aiccA, aiccB):
     # return the log likelihood of A relative to B
-    return -1.*(aiccA - aiccB) / 2.0
+    return -1.0*(aiccA - aiccB) / 2.0
 
 
