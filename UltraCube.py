@@ -43,6 +43,7 @@ class UltraCube(object):
         self.NSamp_maps = {}
         self.AICc_maps = {}
         self.master_model_mask = None
+        self.snr_min = None
 
         if cubefile is not None:
             self.cubefile = cubefile
@@ -228,24 +229,27 @@ def calc_chisq(ucube, compID, reduced=False, usemask=False, mask=None):
     return chi, NSamp
 
 
-def calc_AICc_likelihood(ucube, ncomp1, ncomp2):
+def calc_AICc_likelihood(ucube, ncomp_A, ncomp_B):
+    # return the log likelihood of the A model relative to the B model
 
-    def likelihood(aicc1, aicc2):
-        return (aicc1 - aicc2) / 2.0
+    def likelihood(aiccA, aiccB):
+        # log likelihood of A relative to B
+        return -1.*(aiccA - aiccB) / 2.0
 
-    if not str(ncomp1) in ucube.NSamp_maps:
-        ucube.get_AICc(ncomp1)
+    if not str(ncomp_A) in ucube.NSamp_maps:
+        ucube.get_AICc(ncomp_A)
 
-    if not str(ncomp2) in ucube.NSamp_maps:
-        ucube.get_AICc(ncomp2)
+    if not str(ncomp_B) in ucube.NSamp_maps:
+        ucube.get_AICc(ncomp_B)
 
-    NSampEqual = ucube.NSamp_maps[str(ncomp1)] == ucube.NSamp_maps[str(ncomp2)]
+    NSampEqual = ucube.NSamp_maps[str(ncomp_A)] == ucube.NSamp_maps[str(ncomp_B)]
+
     if np.nansum(~NSampEqual) != 0:
         print("[WARNING]: Number of samples do not match. Recalculating AICc values")
-        ucube.get_AICc(ncomp1)
-        ucube.get_AICc(ncomp2)
+        ucube.get_AICc(ncomp_A)
+        ucube.get_AICc(ncomp_B)
 
-    return likelihood(ucube.AICc_maps[str(ncomp1)], ucube.AICc_maps[str(ncomp2)])
+    return likelihood(ucube.AICc_maps[str(ncomp_A)], ucube.AICc_maps[str(ncomp_B)])
 
 
 #======================================================================================================================#
