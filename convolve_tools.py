@@ -16,10 +16,13 @@ from astropy.wcs import WCS
 #import copy
 from astropy.stats import mad_std
 
+from FITS_tools.hcongrid import get_pixel_mapping
+from scipy.interpolate import griddata
+
 #=======================================================================================================================
 # utility tools for convolve cubes
 
-def convolve_sky_byfactor(cube, factor, savename, edgetrim_width=5, **kwargs):
+def convolve_sky_byfactor(cube, factor, savename=None, edgetrim_width=5, **kwargs):
 
     factor = factor * 1.0
 
@@ -134,3 +137,65 @@ def edge_trim(cube, trim_width=3):
         mask = np.isfinite(cube._data) * mask
 
         return cube.with_mask(mask.astype(bool))
+
+
+def regrid_mask(mask, header, header2_targ, tightBin=True):
+    # note,
+    import scipy.ndimage as nd
+
+    # calculate scaling ratio between the two images
+    yratio = np.abs(header2_targ['CDELT2']/header['CDELT2'])
+    xratio = np.abs(header2_targ['CDELT2']/header['CDELT2'])
+    maxratio = np.max([yratio, xratio])
+
+    if (maxratio <= 0.5) & tightBin:
+        # erode the mask a bit to avoid binning artifacts
+        s = int(1/maxratio)
+        kern = np.ones((s, s), dtype=bool)
+        mask = nd.binary_erosion(mask, structure=kern)
+
+    # regrid a boolean mask
+    grid = get_pixel_mapping(header, header2_targ)
+    grid = grid.astype(int)
+
+    # using the fits convention of x and y
+    shape = (header['NAXIS2'], header['NAXIS1'])
+
+    newmask = np.zeros(shape, dtype=bool)
+    newmask[grid[0, mask], grid[1, mask]] = True
+
+    if maxratio > 1:
+        # dilate the mask to preserve the footprint
+        s = int(maxratio - np.finfo(np.float32).eps) + 1
+        kern = np.ones((s+1,s+1), dtype=bool)
+        kern[-1,:] = False
+        kern[:,0] = False
+        newmask = nd.binary_dilation(newmask, structure=kern)
+
+    return newmask
+
+
+def regrid(image, header1, header2, dmask=None, method='cubic'):
+    # similar to hcongrid from FITS_tools, but uses scipy.interpolate.griddata to interpolate over nan values
+    grid1 = get_pixel_mapping(header1, header2)
+
+    xline = np.arange(image.shape[1])
+    yline = np.arange(image.shape[0])
+    X,Y = np.meshgrid(xline, yline)
+
+    mask = np.isfinite(image)
+
+    if dmask is None:
+        dmask = np.ones(grid1[0].shape, dtype=bool)
+
+    return griddata((X[mask],Y[mask]), image[mask], (grid1[1]*dmask, grid1[0]*dmask), method=method, fill_value=np.nan)
+
+
+def get_celestial_hdr(header):
+    # make a new header that only contains celestial (i.e., on-sky) information
+    new_hdr = WCS(header).celestial.to_header()
+    new_hdr['NAXIS1'] = header['NAXIS1']
+    new_hdr['NAXIS2'] = header['NAXIS2']
+    return new_hdr
+
+
