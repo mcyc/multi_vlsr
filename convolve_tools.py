@@ -149,13 +149,18 @@ def regrid_mask(mask, header, header2_targ, tightBin=True):
     maxratio = np.max([yratio, xratio])
 
     if (maxratio <= 0.5) & tightBin:
-        # erode the mask a bit to avoid binning artifacts
-        s = int(1/maxratio)
+        # erode the mask a bit to avoid binning artifacts when downsampling
+        #s = int(1/maxratio)
+        s = 2
         kern = np.ones((s, s), dtype=bool)
         mask = nd.binary_erosion(mask, structure=kern)
 
     # regrid a boolean mask
     grid = get_pixel_mapping(header, header2_targ)
+    if (maxratio <= 0.5):
+        # the mapping seems a little off for the y-axis when downsampling
+        # works for factor of 2 grid, but may want to check and see if this is an issue with any relative pixel size grid
+        grid[0] = grid[0] + 1.0
     grid = grid.astype(int)
 
     # using the fits convention of x and y
