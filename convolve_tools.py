@@ -139,13 +139,13 @@ def edge_trim(cube, trim_width=3):
         return cube.with_mask(mask.astype(bool))
 
 
-def regrid_mask(mask, header, header2_targ, tightBin=True):
+def regrid_mask(mask, header, header_targ, tightBin=True):
     # note,
     import scipy.ndimage as nd
 
     # calculate scaling ratio between the two images
-    yratio = np.abs(header2_targ['CDELT2']/header['CDELT2'])
-    xratio = np.abs(header2_targ['CDELT2']/header['CDELT2'])
+    yratio = np.abs(header['CDELT2']/header_targ['CDELT2'])
+    xratio = np.abs(header['CDELT2']/header_targ['CDELT2'])
     maxratio = np.max([yratio, xratio])
 
     if (maxratio <= 0.5) & tightBin:
@@ -156,15 +156,17 @@ def regrid_mask(mask, header, header2_targ, tightBin=True):
         mask = nd.binary_erosion(mask, structure=kern)
 
     # regrid a boolean mask
-    grid = get_pixel_mapping(header, header2_targ)
+    grid = get_pixel_mapping(header_targ, header)
+
     if (maxratio <= 0.5):
         # the mapping seems a little off for the y-axis when downsampling
         # works for factor of 2 grid, but may want to check and see if this is an issue with any relative pixel size grid
         grid[0] = grid[0] + 1.0
+
     grid = grid.astype(int)
 
     # using the fits convention of x and y
-    shape = (header['NAXIS2'], header['NAXIS1'])
+    shape = (header_targ['NAXIS2'], header_targ['NAXIS1'])
 
     newmask = np.zeros(shape, dtype=bool)
     newmask[grid[0, mask], grid[1, mask]] = True
