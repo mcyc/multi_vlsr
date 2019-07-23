@@ -155,6 +155,9 @@ def regrid_mask(mask, header, header_targ, tightBin=True):
         kern = np.ones((s, s), dtype=bool)
         mask = nd.binary_erosion(mask, structure=kern)
 
+    # using the fits convention of x and y
+    shape = (header_targ['NAXIS2'], header_targ['NAXIS1'])
+
     # regrid a boolean mask
     grid = get_pixel_mapping(header_targ, header)
 
@@ -162,11 +165,11 @@ def regrid_mask(mask, header, header_targ, tightBin=True):
         # the mapping seems a little off for the y-axis when downsampling
         # works for factor of 2 grid, but may want to check and see if this is an issue with any relative pixel size grid
         grid[0] = grid[0] + 1.0
+        outbd = grid[0]> shape[0]
+        # make sure the coordinates are not out of bound
+        grid[0][outbd] = grid[0][outbd] - 1.0
 
     grid = grid.astype(int)
-
-    # using the fits convention of x and y
-    shape = (header_targ['NAXIS2'], header_targ['NAXIS1'])
 
     newmask = np.zeros(shape, dtype=bool)
     newmask[grid[0, mask], grid[1, mask]] = True
