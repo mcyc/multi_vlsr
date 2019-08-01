@@ -13,7 +13,56 @@ from FITS_tools.hcongrid import get_pixel_mapping
 #=======================================================================================================================
 
 
-def guess_from_cnvpara(data_cnv, header_cnv, header_target, downsampfactor=2):
+def quick_2comp_sort(data_cnv, filtsize=2):
+    # use median filtered vlsr & sigma maps as a velocity reference to sort the two components
+
+    # arange the maps so the component with the least vlsr errors is the first component
+    swapmask = data_cnv[8] > data_cnv[12]
+    data_cnv = mask_swap_2comp(data_cnv, swapmask)
+
+    # the use the vlsr error in the first component as the reference and sort the component based on their similarities
+    # to this reference (similary bright structures should have similar errors)
+    ref = median_filter(data_cnv[8], size=(filtsize, filtsize))
+    swapmask = np.abs(data_cnv[8] - ref) > np.abs(data_cnv[12] - ref)
+    data_cnv = mask_swap_2comp(data_cnv, swapmask)
+
+    def dist_metric(p1, p2):
+        # use the first map (the one that should have the smallest error, hense more reliable) to compute
+        #  distance metric based on their similarities to the median filtered quantity
+        p_refa = median_filter(p1, size=(filtsize, filtsize))
+        p_refb = median_filter(p2, size=(filtsize, filtsize))
+
+        # distance of the current arangment to the median
+        del_pa = np.abs(p1 - p_refa) #+ np.abs(p2 - p_refb)
+        #del_pa = np.hypot(np.abs(p1 - p_refa), np.abs(p2 - p_refb))
+
+        # distance of the swapped arangment to the median
+        del_pb = np.abs(p2 - p_refa) #+ np.abs(p1 - p_refb)
+        #del_pb = np.hypot(np.abs(p2 - p_refa),np.abs(p1 - p_refb))
+        return del_pa, del_pb
+
+    dist_va, dist_vb = dist_metric(data_cnv[0], data_cnv[4])
+    dist_siga, dist_sigb = dist_metric(data_cnv[1], data_cnv[5])
+
+    #swapmask = dist_va > dist_vb
+    # use both the vlsr and the sigma as a distance metric
+    swapmask = np.hypot(dist_va, dist_siga) > np.hypot(dist_vb, dist_sigb)
+
+    data_cnv= mask_swap_2comp(data_cnv, swapmask)
+
+    return data_cnv
+
+
+def mask_swap_2comp(data_cnv, swapmask):
+    # swap data over the mask
+    data_cnv= data_cnv.copy()
+    data_cnv[0:4,swapmask], data_cnv[4:8,swapmask] = data_cnv[4:8,swapmask], data_cnv[0:4,swapmask]
+    data_cnv[8:12,swapmask], data_cnv[12:16,swapmask] = data_cnv[12:16,swapmask], data_cnv[8:12,swapmask]
+    return data_cnv
+
+
+
+def guess_from_cnvpara(data_cnv, header_cnv, header_target, mask=None):
     # a wrapper to make guesses based on the parameters fitted to the convolved data
     npara = 4
     ncomp = int(data_cnv.shape[0]/npara)/2
@@ -24,8 +73,6 @@ def guess_from_cnvpara(data_cnv, header_cnv, header_target, downsampfactor=2):
     hdr_conv = get_celestial_hdr(header_cnv)
     data_cnv[data_cnv == 0] = np.nan
     data_cnv = data_cnv[0:npara*ncomp]
-
-    mmask = master_mask(data_cnv)
 
     def tautex_renorm(taumap, texmap, tau_thresh = 0.3, tex_thresh = 10.0):
 
@@ -70,7 +117,7 @@ def guess_from_cnvpara(data_cnv, header_cnv, header_target, downsampfactor=2):
 
     for i in range (0, ncomp):
         #data_cnv[i*npara:i*npara+npara] = refine_each_comp(data_cnv[i*npara:i*npara+npara], mmask)
-        data_cnv[i*npara:i*npara+npara] = refine_each_comp(data_cnv[i*npara:i*npara+npara])
+        data_cnv[i*npara:i*npara+npara] = refine_each_comp(data_cnv[i*npara:i*npara+npara], mask)
 
     # regrid the guess back to that of the original data
     hdr_final = get_celestial_hdr(header_target)
@@ -95,6 +142,8 @@ def guess_from_cnvpara(data_cnv, header_cnv, header_target, downsampfactor=2):
 
 def simple_para_clean(pmaps, ncomp, npara=4):
     # clean parameter maps based on their error values
+
+    pmaps=pmaps.copy()
 
     # remove component with vlsrErr that is number of sigma off from the median as specified below
     std_thres = 2
