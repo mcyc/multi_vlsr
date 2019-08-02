@@ -10,6 +10,7 @@ from skimage.morphology import dilation
 import UltraCube as UCube
 import moment_guess as mmg
 import convolve_tools as cnvtool
+import guess_refine as gss_rf
 
 #=======================================================================================================================
 
@@ -37,6 +38,10 @@ class Region(object):
 
     def get_fits(self, ncomp, **kwargs):
         get_fits(self, ncomp, **kwargs)
+
+
+    #def load_model_fit(self, ncomp, update=False):
+    #    self.ucube.get_model_fit()
 
 
 
@@ -79,7 +84,6 @@ def get_fits(reg, ncomp, **kwargs):
 def iter_2comp_fit(reg, snr_min=3):
     # force this to be a two-component fit
     ncomp = [1,2]
-    import guess_refine as gss_rf
 
     # convolve the cube and fit it
     get_convolved_cube(reg, update=False)
@@ -95,21 +99,83 @@ def iter_2comp_fit(reg, snr_min=3):
         reg.ucube.get_model_fit([nc], update=True, guesses=guesses)
 
 
-def refit_2comp_wide(reg, window_hwidth=4.0, snr_min=3, res_snr_cut=5):
-    return None
+
+
+def refit_2comp_wide(reg, snr_min=3):
+    wide_comp_guess = get_2comp_wide_guesses(reg)
+
+    # use the one component fit and the refined 1-componet guess for the residual to perform the two components fit
+    final_guess = np.append(reg.ucube.pcubes['1'].parcube, wide_comp_guess, axis=0)
+
+    # fit over where one-component was a better fit in the last iteration (since we are only interested in recovering
+    # a second componet that is found in wide seperation)
+    lnk21 = reg.ucube.get_AICc_likelihood(2, 1)
+    mask = lnk21 < 5
+    mask = dilation(mask)
+
+    # combine the mask with where 1 component model is better fitted than the noise to save some computational time
+    lnk10 = reg.ucube.get_AICc_likelihood(1, 0)
+    mask = np.logical_and(mask, lnk10 > 5)
+
+    reg_new = UCube.UltraCube(reg.ucube.cubefile)
+    reg_new.fit_cube(ncomp=[2], maskmap=mask, snr_min=snr_min, guesses=final_guess)
+
+    # do a model comparison between the new two component fit verses the original one
+
+    lnk_NvsO = UCube.calc_AICc_likelihood(orion_new, 2, 2, ucube_B=reg.ucube)
+
+    # mask over where one comp fit is more robust
+    good_mask = np.logical_and(lnk_NvsO > 0, lnk21 < 5)
+
+    reg.ucube_final = UCube.UltraCube(reg.ucube.cubefile)
+    pcube_final_2 = reg.ucube.pcubes['2'].copy('deep')
+    replace_para(pcube_final_2, orion_new.pcubes['2'], good_mask)
+
+    # a saving function is still needed
 
 
 
-def get_2comp_wide_guesses(reg, **kwargs):
-    return None
+
+#=======================================================================================================================
+# functions that ficilates
+
+
+def get_2comp_wide_guesses(reg):
+
+    if not hasattr(reg, 'ucube_res_cnv'):
+        fit_best_2comp_residual_cnv(reg)
+
+    #rez_mod_cnv_1 = reg.ucube_res_cnv.pcubes['1'].get_modelcube()
+    aic1v0_mask = reg.ucube_res_cnv.get_AICc_likelihood(1, 0) > 5
+
+    hdr2D = cnvtool.get_celestial_hdr(reg.ucube.cube.header)
+    hdr2D_cnv = cnvtool.get_celestial_hdr(reg.ucube_cnv.cube.header)
+
+    ff_mask = cnvtool.regrid_mask(aic1v0_mask, hdr2D_cnv, hdr2D, tightBin=False)
+
+    funk = ff_mask.copy()
+    funk = funk.astype(float)
+    funk[funk == 0] = np.nan
+
+    data_cnv = np.append(reg.ucube_res_cnv.pcubes['1'].parcube, reg.ucube_res_cnv.pcubes['1'].errcube, axis=0)
+    preguess = data_cnv.copy()
+
+    # set pixels that are better modelled as noise to nan
+    preguess[:, ~aic1v0_mask] = np.nan
+
+    # use the dialated mask as a footprint to interpolate the guesses
+    guesses_final = gss_rf.guess_from_cnvpara(preguess, reg.ucube_cnv.cube.header, reg.ucube.cube.header,
+                                              mask=dilation(aic1v0_mask))
+
+    return guesses_final
 
 
 
-def fit_best_2comp_residual_cnv(reg, window_hwidth=4.0, **kwargs):
+def fit_best_2comp_residual_cnv(reg, window_hwidth=3.0, res_snr_cut=5):
 
     # need a mechanism to make sure reg.ucube.pcubes['1'], reg.ucube.pcubes['2'] exists
 
-    cube_res_cnv = get_best_2comp_residual_cnv(reg, masked=True, window_hwidth=window_hwidth, **kwargs)
+    cube_res_cnv = get_best_2comp_residual_cnv(reg, masked=True, window_hwidth=window_hwidth, res_snr_cut=res_snr_cut)
 
     ncomp = 1
     moms_res_cnv = mmg.window_moments(cube_res_cnv, window_hwidth=window_hwidth,
@@ -117,13 +183,14 @@ def fit_best_2comp_residual_cnv(reg, window_hwidth=4.0, **kwargs):
 
     gg = mmg.moment_guesses(moms_res_cnv[1], moms_res_cnv[2], ncomp, moment0=moms_res_cnv[0])
 
-    reg_cnv_rez = UCube.UltraCube(cube=cube_res_cnv)
-    reg_cnv_rez.fit_cube(ncomp=[1], snr_min=3, guesses=gg)
+    # should try to use UCubePlus??? may want to avoid saving too many intermediate cube products
+    reg.ucube_res_cnv = UCube.UltraCube(cube=cube_res_cnv)
+    reg.ucube_res_cnv.fit_cube(ncomp=[1], snr_min=3, guesses=gg)
 
-    return reg_cnv_rez
+    #return reg_cnv_rez
 
 
-def get_best_2comp_residual_cnv(reg, masked=True, window_hwidth=4.0, res_snr_cut=5):
+def get_best_2comp_residual_cnv(reg, masked=True, window_hwidth=3.0, res_snr_cut=5):
     # return convolved residual cube with 'excessive' residual above a peak SNR value of res_snr_cut masked
 
     # need a mechanism to make sure reg.ucube.pcubes['1'], reg.ucube.pcubes['2'] exists
