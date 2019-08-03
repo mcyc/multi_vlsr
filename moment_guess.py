@@ -60,6 +60,24 @@ def guess_2comp(spectrum, moment1, moment2):
     return gg
 
 
+def get_window_slab(maskcube, window_hwidth=3.0, v_atpeak=None):
+    if v_atpeak is None:
+        # find the peak of the integrated spectrum if v_atpeak isn't provided
+        tot_spec = np.nansum(maskcube._data[:,]*maskcube.get_mask_array(), axis=(1,2))
+        idx_peak = np.nanargmax(tot_spec)
+        print "peak T_B: {0}".format(np.nanmax(tot_spec))
+        v_atpeak = maskcube.spectral_axis[idx_peak].to(u.km/u.s).value
+        print "v_atpeak: {0}".format(v_atpeak)
+
+    vmax = v_atpeak + window_hwidth
+    vmin = v_atpeak - window_hwidth
+
+    # Extract the spectrum within the window defined around the main hyperfine components and take moments
+    slab = maskcube.spectral_slab(vmin*u.km/u.s, vmax*u.km/u.s)
+    return slab
+
+
+
 
 def window_moments(spec, window_hwidth=3.0, v_atpeak=None):
     # wrapper
@@ -67,7 +85,7 @@ def window_moments(spec, window_hwidth=3.0, v_atpeak=None):
         return window_moments_spc(spec, window_hwidth, v_atpeak)
 
     elif isinstance(spec, SpectralCube):
-        return window_window_moments_spcube(spec, window_hwidth)
+        return window_window_moments_spcube(spec, window_hwidth, v_atpeak)
 
     else:
         print "[ERROR] the input is invalid"
