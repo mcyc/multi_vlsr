@@ -24,7 +24,7 @@ reload(cnvtool)
 
 class UltraCube(object):
 
-    def __init__(self, cubefile=None, cube=None, **kwargs):
+    def __init__(self, cubefile=None, cube=None, snr_min=None, rmsfile=None, cnv_factor=2):
         '''
         # a data frame work to handel multiple component fits and their results
         Parameters
@@ -44,6 +44,7 @@ class UltraCube(object):
         self.AICc_maps = {}
         self.master_model_mask = None
         self.snr_min = None
+        self.cnv_factor = cnv_factor
 
         if cubefile is not None:
             self.cubefile = cubefile
@@ -54,19 +55,12 @@ class UltraCube(object):
                 # Load from a SpectralCube instance
                 self.cube = cube
 
-        if 'snr_min' in kwargs:
+        if not snr_min is None:
             self.snr_min = kwargs['snr_min']
 
-        if 'rmsfile' in kwargs:
+
+        if not rmsfile is None:
             self.rmsfile = kwargs['rmsfile']
-
-        if 'mask_function' in kwargs:
-            self.mask_function = kwargs['mask_function']
-
-        if 'cnv_factor' in kwargs:
-            self.cnv_factor = kwargs['cnv_factor']
-        else:
-            self.cnv_factor = 2
 
 
 
@@ -75,9 +69,11 @@ class UltraCube(object):
         self.cube = SpectralCube.read(fitsfile)
 
 
-    def convolve_cube(self, savename=None, edgetrim_width=5):
+    def convolve_cube(self, savename=None, factor=None, edgetrim_width=5):
         # convolved the SpectralCube to a resolution X times the factor specified
-        self.cube_cnv = convolve_sky_byfactor(self.cube, self.cnv_factor, savename, edgetrim_width=edgetrim_width)
+        if factor is None:
+            factor = self.cnv_factor
+        self.cube_cnv = convolve_sky_byfactor(self.cube, factor, savename, edgetrim_width=edgetrim_width)
 
 
     def get_cnv_cube(self, filename=None):
@@ -90,7 +86,7 @@ class UltraCube(object):
             print "[WARNING]: the specified file does not exist."
 
 
-    def fit_cube(self, ncomp, mask_function=None, **kwargs):
+    def fit_cube(self, ncomp, **kwargs):
         # currently limited to NH3 (1,1) 2-slab fit
 
         if not 'multicore' in kwargs:
@@ -105,7 +101,7 @@ class UltraCube(object):
             ncomp = [ncomp]
 
         for nc in ncomp:
-            self.pcubes[str(nc)] = mvf.cubefit_gen(self.cube, ncomp=nc, mask_function=mask_function, **kwargs)
+            self.pcubes[str(nc)] = mvf.cubefit_gen(self.cube, ncomp=nc, **kwargs)
             # update model mask
             mod_mask = self.pcubes[str(nc)].get_modelcube() > 0
             self.include_model_mask(mod_mask)
@@ -118,6 +114,10 @@ class UltraCube(object):
             self.master_model_mask = mask
         else:
             self.master_model_mask = np.logical_or(self.master_model_mask, mask)
+
+    def save_model_fit(self, savename, ncomp):
+        # note, this implementation currently relies on
+        save_model_fit(self.pcubes[str(ncomp)], savename, ncomp)
 
 
     def load_model_fit(self, filename, ncomp):
@@ -161,7 +161,7 @@ class UltraCube(object):
     def get_reduced_chisq(self, ncomp):
         # no mask is used, and thus is not meant for model comparision
         compID = str(ncomp)
-        self.rchisq_maps[compID], NSamp = \
+        self.rchisq_maps[compID]= \
             calc_chisq(self, ncomp, reduced=True, usemask=False, mask=None)
         return self.rchisq_maps[compID]
 
@@ -172,6 +172,7 @@ class UltraCube(object):
         if not compID in self.chisq_maps:
             self.get_chisq(ncomp, **kwargs)
 
+        # note that zero component is assumed to have no free-parameter (i.e., no fitting)
         p = ncomp*4
 
         AICc_map = get_aic(chisq=self.chisq_maps[compID], p=p, N=self.NSamp_maps[compID])
@@ -183,6 +184,58 @@ class UltraCube(object):
 
     def get_AICc_likelihood(self, ncomp1, ncomp2):
         return calc_AICc_likelihood(self, ncomp1, ncomp2)
+
+
+    def get_best_residual(self, cubetype=None):
+        return None
+
+
+
+class UCubePlus(UltraCube):
+    # create a subclass of UltraCube that holds the directory information
+    #__init__(self, cubefile=None, cube=None, snr_min=None, rmsfile=None, cnv_factor=2)
+
+    def __init__(self, cubefile, cube=None, paraNameRoot=None, paraDir=None, **kwargs): # snr_min=None, rmsfile=None, cnv_factor=2):
+        # super(UCube, self).__init__(cubefile=cubefile)
+        UltraCube.__init__(self, cubefile, cube, **kwargs) # snr_min, rmsfile, cnv_factor)
+
+        self.cubeDir = os.path.dirname(cubefile)
+
+        if paraNameRoot is None:
+            # use the cube file name as the basis
+            self.paraNameRoot = "{}_paramaps".format(os.path.splitext(os.path.basename(cubefile))[0])
+        else:
+            self.paraNameRoot = paraNameRoot
+
+        if paraDir is None:
+            self.paraDir = "{}/para_maps".format(self.cubeDir)
+        else:
+            self.paraDir = paraDir
+
+        if not os.path.exists(self.paraDir):
+            os.makedirs(self.paraDir)
+
+        self.paraPaths = {}
+
+
+
+    def get_model_fit(self, ncomp, update=True, **kwargs):
+        # load the model fits if it exist, else
+
+        for nc in ncomp:
+            if not str(nc) in self.paraPaths:
+                self.paraPaths[str(nc)] = '{}/{}_{}vcomp.fits'.format(self.paraDir, self.paraNameRoot, nc)
+
+            if update or (not os.path.isfile(self.paraPaths[str(nc)])):
+                self.fit_cube(ncomp=[nc], **kwargs)
+                self.save_model_fit(self.paraPaths[str(nc)], nc)
+
+        for nc in ncomp:
+            path = self.paraPaths[str(nc)]
+            self.load_model_fit(path, nc)
+
+
+
 
 #======================================================================================================================#
 
@@ -226,12 +279,12 @@ def calc_chisq(ucube, compID, reduced=False, usemask=False, mask=None):
     cube = ucube.cube
 
     if compID is '0':
+        # the zero component model is just a y = 0 baseline
         modcube = np.zeros(cube.shape)
     else:
         modcube = ucube.pcubes[compID].get_modelcube()
 
-    chi, NSamp = get_chisq(cube, modcube, expand=20, reduced=reduced, usemask=usemask, mask=mask)
-    return chi, NSamp
+    return get_chisq(cube, modcube, expand=20, reduced=reduced, usemask=usemask, mask=mask)
 
 
 def calc_AICc_likelihood(ucube, ncomp_A, ncomp_B, ucube_B=None):

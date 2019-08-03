@@ -6,6 +6,7 @@ import numpy as np
 from spectral_cube import SpectralCube
 from astropy import units as u
 from skimage.morphology import dilation
+import astropy.io.fits as fits
 
 import UltraCube as UCube
 import moment_guess as mmg
@@ -96,6 +97,7 @@ def get_fits(reg, ncomp, **kwargs):
 def master_2comp_fit(reg, snr_min=3):
     iter_2comp_fit(reg, snr_min=snr_min)
     refit_2comp_wide(reg, snr_min=snr_min)
+    save_best_2comp_fit(reg)
 
 
 def iter_2comp_fit(reg, snr_min=3, updateCnvFits=True):
@@ -181,7 +183,55 @@ def refit_2comp_wide(reg, snr_min=3):
     #save_model_fit(pcube, savename, ncomp)
 
 
+def save_best_2comp_fit(reg):
+    # currently use np.nan for pixels with no models
 
+    reg_final = Region(reg.cubePath, reg.paraNameRoot)
+    reg_final.load_fits(ncomp=[1, 2])
+
+    pcube_final = reg.ucube.pcubes['2'].copy('deep')
+
+    # make the 2-comp para maps with the best fit model
+    lnk21 = reg_final.ucube.get_AICc_likelihood(2, 1)
+    mask = lnk21 > 5
+    pcube_final.parcube[:4, ~mask] = reg.ucube.pcubes['1'].parcube[:4, ~mask]
+    pcube_final.errcube[:4, ~mask] = reg.ucube.pcubes['1'].errcube[:4, ~mask]
+    pcube_final.parcube[4:8, ~mask] = np.nan
+    pcube_final.errcube[4:8, ~mask] = np.nan
+
+    lnk10 = reg_final.ucube.get_AICc_likelihood(1, 0)
+    mask = lnk10 > 5
+    pcube_final.parcube[:, ~mask] = np.nan
+    pcube_final.errcube[:, ~mask] = np.nan
+
+    mask = pcube_final.parcube == 0
+    pcube_final.parcube[mask] = np.nan
+    mask = pcube_final.errcube == 0
+    pcube_final.errcube[mask] = np.nan
+
+    savename = "{}_final.fits".format(os.path.splitext(reg.ucube.paraPaths['2'])[0])
+    UCube.save_model_fit(pcube_final, savename=savename, ncomp=2)
+
+    #hdr2D = cnvtool.get_celestial_hdr(reg.ucube.cube.header)
+    hdr2D =reg.ucube.cube.wcs.celestial.to_header()
+
+    # save the lnk21 map
+    savename = "{}/{}.fits".format(reg.ucube.paraDir, reg.ucube.paraNameRoot.replace("para","lnk21"))
+    save_map(lnk21, hdr2D, savename)
+
+    # save the lnk10 map
+    savename = "{}/{}.fits".format(reg.ucube.paraDir, reg.ucube.paraNameRoot.replace("para","lnk10"))
+    save_map(lnk10, hdr2D, savename)
+
+    # save the SNR map
+    snr_map = get_best_2comp_snr_mod(reg_final)
+    savename = "{}/{}.fits".format(reg.ucube.paraDir, reg.ucube.paraNameRoot.replace("para","SNR"))
+    save_map(snr_map, hdr2D, savename)
+
+
+def save_map(map, header, savename, overwrite=True):
+    fits_map = fits.PrimaryHDU(data=map, header=header)
+    fits_map.writeto(savename,overwrite=overwrite)
 
 #=======================================================================================================================
 # functions that ficilates
@@ -288,7 +338,7 @@ def get_best_2comp_residual(reg):
     return res_cube
 
 
-def get_best_2comp_rms_mod(reg):
+def get_best_2comp_snr_mod(reg):
     modbest = get_best_2comp_model(reg)
     res_cube = get_best_2comp_residual(reg)
     best_rms = UCube.get_rms(res_cube._data)
