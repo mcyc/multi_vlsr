@@ -474,7 +474,8 @@ def cubefit_gen(cube, ncomp=2, paraname = None, modname = None, chisqname = None
     print "the line to fit is {0}".format(linename)
 
     # Specify a width for the expected velocity range in the data
-    v_peak_hwidth = 3.0 # km/s (should be sufficient for GAS Orion, but may not be enough for KEYSTONE)
+    #v_peak_hwidth = 3.0 # km/s (should be sufficient for GAS Orion, but may not be enough for KEYSTONE)
+    v_peak_hwidth = 4.0  # km/s (should be sufficient for GAS Orion, but may not be enough for KEYSTONE)
 
     if errmap11name is not None:
         errmap11 = fits.getdata(errmap11name)
@@ -665,6 +666,12 @@ def cubefit_gen(cube, ncomp=2, paraname = None, modname = None, chisqname = None
 
     # Now fit the cube. (Note: the function inputs are consistent with GAS DR1 whenever possible)
     print('start fit')
+
+
+    # use SNR masking if not provided
+    if not 'maskmap' in kwargs:
+        print "mask mask!"
+        kwargs['maskmap'] = planemask * footprint_mask
 
     pcube.fiteach(fittype='nh3_multi_v', guesses=guesses,
                   start_from_point=(xmax,ymax),
