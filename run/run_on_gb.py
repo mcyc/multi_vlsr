@@ -188,10 +188,9 @@ def funk(region='NGC1333', linename="oneone"):
     reg = Region(region, root='DR1_rebase3', linename=linename)
     reg.OneOneFile = '{2}/{0}/DR1/{0}_NH3_{3}_{1}_trim.fits'.format(reg.region, reg.root, reg.cubeDir, reg.line_root)
 
-
-    paraNameRoot = '{0}_NH3_{1}_{2}_para'.format(reg.region, self.line_root, reg.rootPara)
+    paraNameRoot = '{0}_NH3_{1}_{2}_para'.format(reg.region, reg.line_root, reg.rootPara)
     uReg = mf.Region(cubePath=reg.OneOneFile, paraNameRoot=paraNameRoot, paraDir=reg.paraDir)
-    uReg.master_2comp_fit(self, snr_min=3)
+    uReg.master_2comp_fit(snr_min=3)
 
     elapsed_time = time.time() - start_time
     # print elapsed_time
