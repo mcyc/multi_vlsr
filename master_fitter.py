@@ -28,7 +28,7 @@ class Region(object):
         self.cnv_factor = cnv_factor
 
 
-    def get_convolved_cube(self, update=True, cnv_cubePath=None, edgetrim_width=None, paraNameRoot=None, paraDir=None):
+    def get_convolved_cube(self, update=True, cnv_cubePath=None, edgetrim_width=5, paraNameRoot=None, paraDir=None):
         get_convolved_cube(self, update=update, cnv_cubePath=cnv_cubePath, edgetrim_width=edgetrim_width,
                            paraNameRoot=paraNameRoot, paraDir=paraDir)
 
@@ -44,16 +44,15 @@ class Region(object):
         # basically the same as get_fits(), but with update set to False to ensure the fits aren't refitted
         get_fits(self, ncomp, update=False)
 
-
-    #def load_model_fit(self, ncomp, update=False):
-    #    self.ucube.get_model_fit()
+    def master_2comp_fit(self, snr_min=3):
+        master_2comp_fit(self, snr_min=snr_min)
 
 
 
 #=======================================================================================================================
 
 
-def get_convolved_cube(reg, update=True, cnv_cubePath=None, edgetrim_width=None, paraNameRoot=None, paraDir=None):
+def get_convolved_cube(reg, update=True, cnv_cubePath=None, edgetrim_width=5, paraNameRoot=None, paraDir=None):
 
     if cnv_cubePath is None:
         root = "conv{0}Xbeam".format(int(np.rint(reg.cnv_factor)))
