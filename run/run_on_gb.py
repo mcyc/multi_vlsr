@@ -178,7 +178,7 @@ def make_dir(dirpath):
 
 #=======================================================================================================================
 
-def funk(region='NGC1333'):
+def funk(region='NGC1333', linename="oneone"):
     import master_fitter as mf
 
     # start timing
