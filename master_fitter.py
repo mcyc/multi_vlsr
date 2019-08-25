@@ -21,6 +21,7 @@ class Region(object):
 
         self.cubePath = cubePath
         self.paraNameRoot = paraNameRoot
+        self.paraDir = paraDir
 
         self.ucube = UCube.UCubePlus(cubePath, paraNameRoot=paraNameRoot, paraDir=paraDir, cnv_factor=cnv_factor)
 
@@ -29,6 +30,8 @@ class Region(object):
 
 
     def get_convolved_cube(self, update=True, cnv_cubePath=None, edgetrim_width=5, paraNameRoot=None, paraDir=None):
+        if paraDir is None:
+            paraDir = self.paraDir
         get_convolved_cube(self, update=update, cnv_cubePath=cnv_cubePath, edgetrim_width=edgetrim_width,
                            paraNameRoot=paraNameRoot, paraDir=paraDir)
 
@@ -40,9 +43,11 @@ class Region(object):
     def get_fits(self, ncomp, **kwargs):
         get_fits(self, ncomp, **kwargs)
 
+
     def load_fits(self, ncomp):
         # basically the same as get_fits(), but with update set to False to ensure the fits aren't refitted
         get_fits(self, ncomp, update=False)
+
 
     def master_2comp_fit(self, snr_min=3):
         master_2comp_fit(self, snr_min=snr_min)
@@ -93,10 +98,13 @@ def get_fits(reg, ncomp, **kwargs):
 
 
 
-def master_2comp_fit(reg, snr_min=3):
+def master_2comp_fit(reg, snr_min=3, recover_wide=True):
     iter_2comp_fit(reg, snr_min=snr_min)
-    refit_2comp_wide(reg, snr_min=snr_min)
+    if recover_wide:
+        refit_2comp_wide(reg, snr_min=snr_min)
+    #refit_swap_2comp(reg, snr_min=3)
     save_best_2comp_fit(reg)
+    return reg
 
 
 def iter_2comp_fit(reg, snr_min=3, updateCnvFits=True):
@@ -115,6 +123,7 @@ def iter_2comp_fit(reg, snr_min=3, updateCnvFits=True):
             para_cnv = gss_rf.quick_2comp_sort(para_cnv, filtsize=3)
 
             # changed the name of the 2-comp para path just for this fit
+            '''
             if str(nc) in reg.ucube.paraPaths:
                 oriParaPath_2 = reg.ucube.paraPaths[str(nc)]
             else:
@@ -123,12 +132,58 @@ def iter_2comp_fit(reg, snr_min=3, updateCnvFits=True):
             noWideParaPath = "{}_noWideDelV.fits".format(os.path.splitext(oriParaPath_2)[0])
             reg.ucube.paraPaths[str(nc)] = noWideParaPath
             reg.ucube.paraPaths['2_noWideDelV'] = noWideParaPath
+            '''
 
         guesses= gss_rf.guess_from_cnvpara(para_cnv, reg.ucube.cube.header, reg.ucube.cube.header)
+        # update is set to True to save the fits
         reg.ucube.get_model_fit([nc], update=True, guesses=guesses)
 
     # make sure the two component parapath name returns to normal
-    reg.ucube.paraPaths['2'] = oriParaPath_2
+    #reg.ucube.paraPaths['2'] = oriParaPath_2
+
+
+
+def refit_swap_2comp(reg, snr_min=3):
+
+    ncomp = [1, 2]
+
+    # load the fitted parameters
+    for nc in ncomp:
+        if not str(nc) in reg.ucube.pcubes:
+            # no need to worry about wide seperation as they likley don't overlap in velocity space
+            reg.ucube.load_model_fit(reg.ucube.paraPaths[str(nc)], nc)
+
+    # refit only over where two component models are already determined to be better
+    # note: this may miss a few fits where the swapped two-comp may return a better result?
+    lnk21 = reg.ucube.get_AICc_likelihood(2, 1)
+    mask = lnk21 > 5
+
+    # swap the parameter of the two slabs and use it as the initial guesses
+    guesses = reg.ucube.pcubes['2'].parcube.copy()
+
+    for i in range(4):
+        guesses[i], guesses[i+4] = guesses[i+4], guesses[i]
+
+    #guess[2], guess[6] = guess[6], guess[2]
+    #guess[3], guess[7] = guess[7], guess[3]
+
+    ucube_new = UCube.UltraCube(reg.ucube.cubefile)
+    ucube_new.fit_cube(ncomp=[2], maskmap=mask, snr_min=snr_min, guesses=guesses)
+
+    # do a model comparison between the new two component fit verses the original one
+    lnk_NvsO = UCube.calc_AICc_likelihood(ucube_new, 2, 2, ucube_B=reg.ucube)
+
+    # adopt the better fit parameters into the final map
+    good_mask = lnk_NvsO > 0 #np.logical_and(mask, lnk_NvsO > 0)
+    #reg.ucube_final = UCube.UltraCube(reg.ucube.cubefile)
+    # replace the values
+    replace_para(reg.ucube.pcubes['2'], ucube_new.pcubes['2'], good_mask)
+    #pcube_final_2 = reg.ucube.pcubes['2'].copy('deep')
+    #replace_para(pcube_final_2, ucube_new.pcubes['2'], good_mask)
+
+    # save the final fit model
+    #UCube.save_model_fit(pcube_final_2, reg.ucube.paraPaths['2'], ncomp=2)
+    #save_model_fit(pcube, savename, ncomp)
 
 
 
@@ -167,34 +222,71 @@ def refit_2comp_wide(reg, snr_min=3):
     ucube_new.fit_cube(ncomp=[2], maskmap=mask, snr_min=snr_min, guesses=final_guess)
 
     # do a model comparison between the new two component fit verses the original one
-
     lnk_NvsO = UCube.calc_AICc_likelihood(ucube_new, 2, 2, ucube_B=reg.ucube)
 
     # mask over where one comp fit is more robust
     good_mask = np.logical_and(lnk_NvsO > 0, lnk21 < 5)
 
-    reg.ucube_final = UCube.UltraCube(reg.ucube.cubefile)
-    pcube_final_2 = reg.ucube.pcubes['2'].copy('deep')
-    replace_para(pcube_final_2, ucube_new.pcubes['2'], good_mask)
+    #reg.ucube_final = UCube.UltraCube(reg.ucube.cubefile)
+
+    #pcube_final_2 = reg.ucube.pcubes['2'].copy('deep')
+    #replace_para(pcube_final_2, ucube_new.pcubes['2'], good_mask)
+
+    # replace the values
+    replace_para(reg.ucube.pcubes['2'], ucube_new.pcubes['2'], good_mask)
 
     # save the final fit model
-    UCube.save_model_fit(pcube_final_2, reg.ucube.paraPaths['2'], ncomp=2)
+    #UCube.save_model_fit(pcube_final_2, reg.ucube.paraPaths['2'], ncomp=2)
     #save_model_fit(pcube, savename, ncomp)
 
 
 def save_best_2comp_fit(reg):
+    # should be renamed to determine_best_2comp_fit or something along that line
     # currently use np.nan for pixels with no models
 
-    reg_final = Region(reg.cubePath, reg.paraNameRoot)
-    reg_final.load_fits(ncomp=[1, 2])
+    ncomp = [1, 2]
 
-    pcube_final = reg.ucube.pcubes['2'].copy('deep')
+    # ideally, a copy function should be in place of reloading
+
+    # a new Region object is created start fresh on some of the functions (e.g., aic comparison)
+    reg_final = Region(reg.cubePath, reg.paraNameRoot, reg.paraDir)
+    #reg_final.ucube.pcubes['1'] = reg.ucube.pcubes['1'].copy('deep')
+    #reg_final.ucube.pcubes['2']=  reg.ucube.pcubes['2'].copy('deep')
+
+    # start out clean, especially since the deepcopy function doesn't work well for pyspeckit cubes
+    # load the file based on the passed in reg, rather than the default
+    for nc in ncomp:
+        if not str(nc) in reg.ucube.pcubes:
+            reg_final.load_fits(ncomp=[nc])
+        else:
+            # load files using paths from reg if they exist
+            print("loading: {}".format(reg.ucube.paraPaths[str(nc)]))
+            reg_final.ucube.load_model_fit(filename=reg.ucube.paraPaths[str(nc)], ncomp=nc)
+            #reg.ucube.get_model_fit([nc], update=False)
+
+    '''
+    for nc in ncomp:
+        if not str(nc) in reg.ucube.pcubes:
+            reg_final.load_fits(ncomp=[nc])
+        else:
+            reg_final.ucube.pcubes[str(nc)] = reg.ucube.pcubes['1'].copy(str(nc))
+    '''
+
+    #reg_final.ucube.pcubes['1'] = reg.ucube.pcubes['1'].copy('deep')
+    #reg_final.ucube.pcubes['2']=  reg.ucube.pcubes['2'].copy('deep')
+    #reg_final.load_fits(ncomp=[1, 2])
+
+    #reg_final = reg
+
+    pcube_final = reg_final.ucube.pcubes['2'].copy('deep')
+    #pcube_1 = reg.ucube.pcubes['1'].copy('deep')
 
     # make the 2-comp para maps with the best fit model
     lnk21 = reg_final.ucube.get_AICc_likelihood(2, 1)
     mask = lnk21 > 5
-    pcube_final.parcube[:4, ~mask] = reg.ucube.pcubes['1'].parcube[:4, ~mask]
-    pcube_final.errcube[:4, ~mask] = reg.ucube.pcubes['1'].errcube[:4, ~mask]
+    print("2comp pix: {}".format(np.sum(mask)))
+    pcube_final.parcube[:4, ~mask] = reg_final.ucube.pcubes['1'].parcube[:4, ~mask].copy()
+    pcube_final.errcube[:4, ~mask] = reg_final.ucube.pcubes['1'].errcube[:4, ~mask].copy()
     pcube_final.parcube[4:8, ~mask] = np.nan
     pcube_final.errcube[4:8, ~mask] = np.nan
 
@@ -203,29 +295,42 @@ def save_best_2comp_fit(reg):
     pcube_final.parcube[:, ~mask] = np.nan
     pcube_final.errcube[:, ~mask] = np.nan
 
+    # the following function may have issues when the true veloicty is predominately zero
+    '''
     mask = pcube_final.parcube == 0
     pcube_final.parcube[mask] = np.nan
     mask = pcube_final.errcube == 0
     pcube_final.errcube[mask] = np.nan
+    '''
 
-    savename = "{}_final.fits".format(os.path.splitext(reg.ucube.paraPaths['2'])[0])
+    # use the default file formate to save the finals
+    nc = 2
+    if not str(nc) in reg_final.ucube.paraPaths:
+        reg_final.ucube.paraPaths[str(nc)] = '{}/{}_{}vcomp.fits'.format(reg_final.ucube.paraDir, reg_final.ucube.paraNameRoot, nc)
+
+    savename = "{}_final.fits".format(os.path.splitext(reg_final.ucube.paraPaths['2'])[0])
     UCube.save_model_fit(pcube_final, savename=savename, ncomp=2)
+
+    return None
 
     #hdr2D = cnvtool.get_celestial_hdr(reg.ucube.cube.header)
     hdr2D =reg.ucube.cube.wcs.celestial.to_header()
 
     # save the lnk21 map
-    savename = "{}/{}.fits".format(reg.ucube.paraDir, reg.ucube.paraNameRoot.replace("para","lnk21"))
+    savename = "{}/{}.fits".format(reg_final.ucube.paraDir, reg_final.ucube.paraNameRoot.replace("para","lnk21"))
     save_map(lnk21, hdr2D, savename)
 
     # save the lnk10 map
-    savename = "{}/{}.fits".format(reg.ucube.paraDir, reg.ucube.paraNameRoot.replace("para","lnk10"))
+    savename = "{}/{}.fits".format(reg_final.ucube.paraDir, reg_final.ucube.paraNameRoot.replace("para","lnk10"))
     save_map(lnk10, hdr2D, savename)
 
     # save the SNR map
     snr_map = get_best_2comp_snr_mod(reg_final)
-    savename = "{}/{}.fits".format(reg.ucube.paraDir, reg.ucube.paraNameRoot.replace("para","SNR"))
+    savename = "{}/{}.fits".format(reg_final.ucube.paraDir, reg_final.ucube.paraNameRoot.replace("para","SNR"))
     save_map(snr_map, hdr2D, savename)
+
+    # save reduced chi-squred maps
+
 
 
 def save_map(map, header, savename, overwrite=True):

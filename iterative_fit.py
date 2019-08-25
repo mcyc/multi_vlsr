@@ -154,6 +154,7 @@ def cubefit(cubename, downsampfactor=2, cnv_guesses=None, **kwargs):
     return pcube
 
 #=======================================================================================================================
+# convolution related tools
 
 def convolve_sky_byfactor(cube, factor, savename, edgetrim_width=5):
     return cnvtool.convolve_sky_byfactor(cube, factor, savename, edgetrim_width)
@@ -170,6 +171,8 @@ def snr_mask(cube, snr_min=3.0, errmappath=None):
 def edge_trim(cube, trim_width = 3):
     return cnvtool.edge_trim(cube, trim_width = 3)
 
+
+#=======================================================================================================================
 
 def mask_cleaning(mask):
     # designed to clean a noisy map, with a footprint that is likely slightly larger
