@@ -38,7 +38,9 @@ def run_uvic(nCubes=10000, nBorder=1, make_cubes=True, nBlocks=10):
 
 def run_gb(nCubes=10000, nBorder=1, make_cubes=False):
     workDir = "/lustre/pipeline/scratch/GAS/images/MChen_FakeCubes"
-    outDir = '{}/random_cubes'.format(workDir)
+    #cubeSubDir = "random_cubes"
+    cubeSubDir = "random_cubes_wRadTran"
+    outDir = '{}/{}'.format(workDir, cubeSubDir)
     if make_cubes:
         genDir = "/users/mchen/GitHub_Repos/LineFitting"
         sys.path.insert(0, genDir)
@@ -49,15 +51,16 @@ def run_gb(nCubes=10000, nBorder=1, make_cubes=False):
 
         mw.generate_cubes(**kwargs)
 
-        #generate_cubes(nBorder, nCubes, workDir)
+        tableName = "cube_test_results_wRadTran.txt"
 
-    return run_tests(nCubes, workDir)
+    return run_tests(nCubes, workDir, cubeSubDir=cubeSubDir, tablename=tableName)
 
 
 def run_on_mc(nCubes=100, nBorder=1, make_cubes=False):
 
     workDir = '/Users/mcychen/Desktop'
-    outDir = '{}/random_cubes'.format(workDir)
+    cubeSubDir = "random_cubes_wRadTran"
+    outDir = '{}/{}'.format(workDir, cubeSubDir)
 
     if make_cubes:
         #generate_cubes(nBorder, nCubes, workDir)
@@ -70,7 +73,9 @@ def run_on_mc(nCubes=100, nBorder=1, make_cubes=False):
 
         mw.generate_cubes(**kwargs)
 
-    return run_tests(nCubes, workDir)
+        tableName = "cube_test_results_wRadTran.txt"
+
+    return run_tests(nCubes, workDir, cubeSubDir=cubeSubDir, tablename=tableName)
 
 #-----------------------------------------------------------------------------------------------------------------------
 # core functions
@@ -128,7 +133,8 @@ def generate_cubes(nBorder, nCubes, workDir, cubeSubDir=None):
 
 def read_cubes(cubeDir, nCubes):
     #
-    truekwds = ['NCOMP', 'LOGN1', 'LOGN2', 'VLSR1', 'VLSR2', 'SIG1', 'SIG2', 'TKIN1', 'TKIN2', 'TMAX', 'RMS', 'TMAX-1', 'TMAX-2']
+    truekwds = ['NCOMP', 'LOGN1', 'LOGN2', 'VLSR1', 'VLSR2', 'SIG1', 'SIG2', 'TKIN1', 'TKIN2', 'TMAX', 'RMS',
+                'TMAX-1', 'TMAX-2', 'TAU1', 'TAU2']
     truepara = defaultdict(list)
 
     nDigits = int(np.ceil(np.log10(nCubes)))
