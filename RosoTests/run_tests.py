@@ -46,12 +46,12 @@ def run_gb(nCubes=10000, nBorder=1, make_cubes=False):
         sys.path.insert(0, genDir)
         import multiproc_wrapper as mw
 
-        kwargs = {'nCubes': nCubes, 'nBorder':nBorder, 'noise_rms':0.1, 'output_dir':outDir, 'random_seed':None,
+        kwargs = {'nCubes': nCubes, 'nBorder':nBorder, 'noise_rms':0.1, 'output_dir':outDir, 'random_seed':42,
                   'linenames':['oneone'], 'n_cpu':None}
 
         mw.generate_cubes(**kwargs)
 
-        tableName = "cube_test_results_wRadTran.txt"
+    tableName = "cube_test_results_wRadTran.txt"
 
     return run_tests(nCubes, workDir, cubeSubDir=cubeSubDir, tablename=tableName)
 
@@ -68,12 +68,12 @@ def run_on_mc(nCubes=100, nBorder=1, make_cubes=False):
         sys.path.insert(0, genDir)
         import multiproc_wrapper as mw
 
-        kwargs = {'nCubes': nCubes, 'nBorder':nBorder, 'noise_rms':0.1, 'output_dir':outDir, 'random_seed':None,
+        kwargs = {'nCubes': nCubes, 'nBorder':nBorder, 'noise_rms':0.1, 'output_dir':outDir, 'random_seed':42,
                   'linenames':['oneone'], 'n_cpu':None}
 
         mw.generate_cubes(**kwargs)
 
-        tableName = "cube_test_results_wRadTran.txt"
+    tableName = "cube_test_results_wRadTran.txt"
 
     return run_tests(nCubes, workDir, cubeSubDir=cubeSubDir, tablename=tableName)
 
