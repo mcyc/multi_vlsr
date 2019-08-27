@@ -10,6 +10,7 @@ reload(fifit)
 from multiprocessing import Pool, cpu_count
 import tqdm
 import gc
+import moment_guess as mmg
 
 def run(cubenames, guesses_pp, kwargs_pp, ncpu=None):
     global guesses, kwargs
@@ -101,8 +102,8 @@ def fit_2comp(cubename, rec_wide_vsep = True):
         chi2, N2 = fifit.get_chisq(spectrum2, expand=20, reduced=False, usemask=True, mask=mask)
         aicc1 = aic.AICc(chi1, p1, N1)
         aicc2 = aic.AICc(chi2, p2, N1)
-        likelyhood = (aicc1 - aicc2) / 2.0
-        return likelyhood
+        lnK = (aicc1 - aicc2) / 2.0
+        return lnK
 
     # calculate the likelihood
     likelyhood = get_comp_AICc(spec_1comp, spec_2comp, p1=4, p2=8, mask=mask)
@@ -116,9 +117,8 @@ def fit_2comp(cubename, rec_wide_vsep = True):
             sp_r.data = spectrum.specfit.fullresiduals
             return sp_r
 
-        import moment_guess as mmg
-
-        # use the 1-slab fit residuals as the 2nd component guess
+        # use the 1-slab fit residuals as the 2nd component guess (note, this does not take advantage of the nearby
+        # pixels)
         sp_r = get_residual_spec(spec_1comp)
         gg2 = mmg.master_guess(sp_r, ncomp=1, snr_cut=2)
 
