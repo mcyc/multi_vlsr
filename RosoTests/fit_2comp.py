@@ -134,6 +134,12 @@ def fit_2comp(cubename, rec_wide_vsep = True):
 
             spec_2wcomp = iter_fit(mean_spec, spectrum, ncomp=2, sguesses=sguesses, widewVSep=True)
             #spec_2wcomp = iter_fit(mean_spec, spectrum, ncomp=2, widewVSep=True)
+
+            # mask over were both models are non-zero
+            mask1 = spec_1comp.specfit.model > 0
+            mask2 = spec_2wcomp.specfit.model > 0
+            mask = np.logical_or(mask1, mask2)
+
             likelyhood_w = get_comp_AICc(spec_1comp, spec_2wcomp, p1=4, p2=8, mask=mask)
 
             if likelyhood_w > lnk_thresh:
