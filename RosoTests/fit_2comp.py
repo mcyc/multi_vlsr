@@ -96,7 +96,7 @@ def fit_2comp(cubename, rec_wide_vsep = True):
     mask = np.logical_or(mask1, mask2)
 
     def get_comp_AICc(spectrum1, spectrum2, p1, p2, mask):
-        mask = np.logical_or(mask1, mask2)
+        #mask = np.logical_or(mask1, mask2)
         chi1, N1 = fifit.get_chisq(spectrum1, expand=20, reduced=False, usemask=True, mask=mask)
         chi2, N2 = fifit.get_chisq(spectrum2, expand=20, reduced=False, usemask=True, mask=mask)
         aicc1 = aic.AICc(chi1, p1, N1)
