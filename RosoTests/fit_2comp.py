@@ -71,7 +71,12 @@ def fit_2comp(cubename, rec_wide_vsep = True):
 
     spectrum = fifit.get_cubespec(cube)
 
-    def iter_fit(spc_cnv, spc, ncomp, sguesses=None, widewVSep=False):
+    def get_residual_spec(spectrum):
+        sp_r = spectrum.copy()
+        sp_r.data = spectrum.specfit.fullresiduals
+        return sp_r
+
+    def iter_fit(spc_cnv, spc, ncomp, sguesses=None, widewVSep=False, returnCnvRes=False):
         # a function to fit the convovled spctrum (spc_cnv) first, and use the fitted result to fit the native spectrum
         kwargs['ncomp'] = ncomp
         kwargs['widewVSep'] = widewVSep
@@ -85,10 +90,13 @@ def fit_2comp(cubename, rec_wide_vsep = True):
         gg = sp_cnv.specfit.modelpars
         gg = np.array([gg]).swapaxes(0, 1)
         # use the mean spectrum
-        return fifit.fit_spec(spectrum=spc.copy(), guesses=gg, **kwargs)
+        if returnCnvRes:
+            return fifit.fit_spec(spectrum=spc.copy(), guesses=gg, **kwargs), get_residual_spec(sp_cnv)
+        else:
+            return fifit.fit_spec(spectrum=spc.copy(), guesses=gg, **kwargs)
 
     # perform fits iteratively
-    spec_1comp = iter_fit(mean_spec, spectrum, ncomp=1)
+    spec_1comp, sp_r = iter_fit(mean_spec, spectrum, ncomp=1, returnCnvRes=True)
     spec_2comp = iter_fit(mean_spec, spectrum, ncomp=2)
 
     # mask over were both models are non-zero
@@ -112,14 +120,9 @@ def fit_2comp(cubename, rec_wide_vsep = True):
         # try to recover second component that may have been missed in the first 2-slab fit attempt
         # this is carried over where one-slab is determined to be a better fit in the first try
 
-        def get_residual_spec(spectrum):
-            sp_r = spectrum.copy()
-            sp_r.data = spectrum.specfit.fullresiduals
-            return sp_r
-
         # use the 1-slab fit residuals as the 2nd component guess (note, this does not take advantage of the nearby
         # pixels)
-        sp_r = get_residual_spec(spec_1comp)
+        #sp_r = get_residual_spec(spec_1comp)
         gg2 = mmg.master_guess(sp_r, ncomp=1, snr_cut=2)
 
         if np.all(np.isfinite(gg2)):
