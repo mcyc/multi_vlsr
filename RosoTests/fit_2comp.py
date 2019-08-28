@@ -17,15 +17,6 @@ def run(cubenames, guesses_pp, kwargs_pp, ncpu=None):
     guesses = guesses_pp
     kwargs = kwargs_pp
 
-    # use a mask to mimic convolution to twice the beamsize
-    global mean_mask
-
-    mean_mask = np.array([[False, False, False],
-                     [True,  True, True],
-                     [False, True, False]])
-
-    #mean_mask = np.ones((3,3),dtype=bool)
-
     results = []
 
     if ncpu is None:
@@ -67,13 +58,22 @@ def fit_2comp(cubename, rec_wide_vsep = True):
     # get the cube we wish to fit
     cube = SpectralCube.read(cubename)
 
+    # use a mask to mimic convolution to twice the beamsize
+    # mean_mask = np.ones((3,3),dtype=bool)
+    mean_mask = np.array([[False, False, False],
+                     [True,  True, True],
+                     [False, True, False]])
+
     mean_spec = fifit.get_mean_spec(cube, linename=kwargs['linename'], mask=mean_mask)
 
     spectrum = fifit.get_cubespec(cube)
 
     def get_residual_spec(spectrum):
-        sp_r = spectrum.copy()
-        sp_r.data = spectrum.specfit.fullresiduals
+        #sp_r = spectrum.copy()
+        #sp_r.data = spectrum.specfit.fullresiduals
+
+        sp_r = pyspeckit.Spectrum(data=spectrum.specfit.fullresiduals, xarr=spectrum.xarr, header=spectrum.header)
+
         return sp_r
 
     def iter_fit(spc_cnv, spc, ncomp, sguesses=None, widewVSep=False, returnCnvRes=False):
@@ -128,7 +128,7 @@ def fit_2comp(cubename, rec_wide_vsep = True):
         # use the 1-slab fit residuals as the 2nd component guess (note, this does not take advantage of the nearby
         # pixels)
         #sp_r = get_residual_spec(spec_1comp)
-        gg2 = mmg.master_guess(sp_r, v_atpeak=gg[0], ncomp=1, snr_cut=2)
+        gg2 = mmg.master_guess(sp_r, v_atpeak=gg1[0], ncomp=1, snr_cut=2)
 
         if np.all(np.isfinite(gg2)):
             # if all the guesses are finite, perform the fit
