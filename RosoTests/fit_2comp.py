@@ -89,11 +89,12 @@ def fit_2comp(cubename, rec_wide_vsep = True):
         sp_cnv = fifit.fit_spec(spectrum=spc_cnv.copy(), guesses=sguesses, **kwargs)
         gg = sp_cnv.specfit.modelpars
         gg = np.array([gg]).swapaxes(0, 1)
+        fit_result = fifit.fit_spec(spectrum=spc.copy(), guesses=gg, **kwargs)
         # use the mean spectrum
         if returnCnvRes:
-            return fifit.fit_spec(spectrum=spc.copy(), guesses=gg, **kwargs), get_residual_spec(sp_cnv)
+            return fit_result, get_residual_spec(sp_cnv)
         else:
-            return fifit.fit_spec(spectrum=spc.copy(), guesses=gg, **kwargs)
+            return fit_result
 
     # perform fits iteratively
     spec_1comp, sp_r = iter_fit(mean_spec, spectrum, ncomp=1, returnCnvRes=True)
@@ -120,17 +121,17 @@ def fit_2comp(cubename, rec_wide_vsep = True):
         # try to recover second component that may have been missed in the first 2-slab fit attempt
         # this is carried over where one-slab is determined to be a better fit in the first try
 
+        # use 1-slab model parameters as the 1st component guess
+        gg1 = spec_1comp.specfit.modelpars
+        gg1 = np.array(gg1)[:, np.newaxis]
+
         # use the 1-slab fit residuals as the 2nd component guess (note, this does not take advantage of the nearby
         # pixels)
         #sp_r = get_residual_spec(spec_1comp)
-        gg2 = mmg.master_guess(sp_r, ncomp=1, snr_cut=2)
+        gg2 = mmg.master_guess(sp_r, v_atpeak=gg[0], ncomp=1, snr_cut=2)
 
         if np.all(np.isfinite(gg2)):
             # if all the guesses are finite, perform the fit
-
-            # use 1-slab model parameters as the 1st component guess
-            gg1 = spec_1comp.specfit.modelpars
-            gg1 = np.array(gg1)[:, np.newaxis]
 
             # combine the guesses
             sguesses = np.concatenate((gg1, gg2))
