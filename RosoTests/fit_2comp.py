@@ -72,8 +72,7 @@ def fit_2comp(cubename, rec_wide_vsep = True):
         #sp_r = spectrum.copy()
         #sp_r.data = spectrum.specfit.fullresiduals
 
-        sp_r = pyspeckit.Spectrum(data=spectrum.specfit.fullresiduals, xarr=spectrum.xarr, header=spectrum.header)
-
+        sp_r = pyspeckit.Spectrum(data=spectrum.specfit.fullresiduals.copy(), xarr=spectrum.xarr, header=spectrum.header)
         return sp_r
 
     def iter_fit(spc_cnv, spc, ncomp, sguesses=None, widewVSep=False, returnCnvRes=False):
@@ -86,9 +85,15 @@ def fit_2comp(cubename, rec_wide_vsep = True):
             sguesses = guesses
 
         # fit the mean spectrum first
-        sp_cnv = fifit.fit_spec(spectrum=spc_cnv.copy(), guesses=sguesses, **kwargs)
-        gg = sp_cnv.specfit.modelpars
-        gg = np.array([gg]).swapaxes(0, 1)
+        if not spc_cnv is None:
+            sp_cnv = fifit.fit_spec(spectrum=spc_cnv.copy(), guesses=sguesses, **kwargs)
+            gg = sp_cnv.specfit.modelpars
+            gg = np.array([gg]).swapaxes(0, 1)
+        elif not sguesses is None:
+            gg = sguesses
+        else:
+            print("[ERROR] both spc_cnv and spc cannot be None at the same time")
+
         fit_result = fifit.fit_spec(spectrum=spc.copy(), guesses=gg, **kwargs)
         # use the mean spectrum
         if returnCnvRes:
@@ -128,7 +133,7 @@ def fit_2comp(cubename, rec_wide_vsep = True):
         # use the 1-slab fit residuals as the 2nd component guess (note, this does not take advantage of the nearby
         # pixels)
         #sp_r = get_residual_spec(spec_1comp)
-        gg2 = mmg.master_guess(sp_r, v_atpeak=gg1[0], ncomp=1, snr_cut=2)
+        gg2 = mmg.master_guess(sp_r, v_atpeak=gg1[0], ncomp=1, snr_cut=3)
 
         if np.all(np.isfinite(gg2)):
             # if all the guesses are finite, perform the fit
@@ -136,7 +141,8 @@ def fit_2comp(cubename, rec_wide_vsep = True):
             # combine the guesses
             sguesses = np.concatenate((gg1, gg2))
 
-            spec_2wcomp = iter_fit(mean_spec, spectrum, ncomp=2, sguesses=sguesses, widewVSep=True)
+            spec_2wcomp = iter_fit(mean_spec, spectrum, ncomp=2, sguesses=sguesses, widewVSep=False)
+            #spec_2wcomp = iter_fit(None, spectrum, ncomp=2, sguesses=sguesses, widewVSep=False)
             #spec_2wcomp = iter_fit(mean_spec, spectrum, ncomp=2, widewVSep=True)
 
             # mask over were both models are non-zero
