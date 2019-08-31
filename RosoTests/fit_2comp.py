@@ -135,6 +135,12 @@ def fit_2comp(cubename, rec_wide_vsep = True):
         #sp_r = get_residual_spec(spec_1comp)
         gg2 = mmg.master_guess(sp_r, v_atpeak=gg1[0], ncomp=1, snr_cut=3)
 
+        if not np.all(np.isfinite(gg2)):
+            # try again without uusing the moment gueuss for peak
+            gg2 = mmg.master_guess(sp_r, v_atpeak=None, ncomp=1, snr_cut=3)#, v_peak_hwidth=3.0)
+            #print("v_peak: {}".format(gg1[0]))
+            #print("gg2, retry: {}".format(gg2))
+
         if np.all(np.isfinite(gg2)):
             # if all the guesses are finite, perform the fit
 
