@@ -33,17 +33,11 @@ def run(cubenames, guesses=None, paraname=None, snr_min=3, linename="oneone", re
 
     results = []
 
-    # Disable print output
-    sys.stdout = open(os.devnull, 'w')
-
     for j in tqdm.tqdm(pool.imap(f_star, itertools.izip(cubenames, rp(rec_wide_vsep), rp(guesses), rp(paraname),
                                                         rp(snr_min), rp(linename))), total=nCubes, mininterval=0.01):
         results.append(j)
         gc.collect()
         # need something to close the .fits file?
-
-    # Restore print output
-    sys.stdout = sys.__stdout__
 
     para1, err1, para2, err2, likelyhood, rms = zip(*results)
     return para1, err1, para2, err2, likelyhood, rms
