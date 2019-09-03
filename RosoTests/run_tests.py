@@ -20,44 +20,32 @@ import iterative_fit as itf
 #-----------------------------------------------------------------------------------------------------------------------
 # wrappers to run on different machines
 
-'''
-# currently out of date
-def run_uvic(nCubes=10000, nBorder=1, make_cubes=True, nBlocks=10):
-
-    workDir = "/nfs/lican13/home/mcychen/Documents/GAS_Project/data/fake_cube_tests"
-
-    for i in range(nBlocks):
-        cubeSubDir = "random_cubes{}".format(i)
-        if make_cubes:
-            generate_cubes(nBorder, nCubes/nBlocks, workDir, cubeSubDir=cubeSubDir)
-        tablename = "cube_test_results_{}.txt".format(i)
-        run_tests(nCubes/nBlocks, workDir, cubeSubDir=cubeSubDir, tablename=tablename)
-
-    return None
-'''
 
 def run_gb(nCubes=10000, nBorder=1, make_cubes=False):
     workDir = "/lustre/pipeline/scratch/GAS/images/MChen_FakeCubes"
-    outDir = '{}/random_cubes'.format(workDir)
+    #cubeSubDir = "random_cubes"
+    cubeSubDir = "random_cubes_wRadTran"
+    outDir = '{}/{}'.format(workDir, cubeSubDir)
     if make_cubes:
         genDir = "/users/mchen/GitHub_Repos/LineFitting"
         sys.path.insert(0, genDir)
         import multiproc_wrapper as mw
 
-        kwargs = {'nCubes': nCubes, 'nBorder':nBorder, 'noise_rms':0.1, 'output_dir':outDir, 'random_seed':None,
+        kwargs = {'nCubes': nCubes, 'nBorder':nBorder, 'noise_rms':0.1, 'output_dir':outDir, 'random_seed':42,
                   'linenames':['oneone'], 'n_cpu':None}
 
         mw.generate_cubes(**kwargs)
 
-        #generate_cubes(nBorder, nCubes, workDir)
+    tableName = "cube_test_results_wRadTran.txt"
 
-    return run_tests(nCubes, workDir)
+    return run_tests(nCubes, workDir, cubeSubDir=cubeSubDir, tablename=tableName)
 
 
 def run_on_mc(nCubes=100, nBorder=1, make_cubes=False):
 
     workDir = '/Users/mcychen/Desktop'
-    outDir = '{}/random_cubes'.format(workDir)
+    cubeSubDir = "random_cubes_wRadTran"
+    outDir = '{}/{}'.format(workDir, cubeSubDir)
 
     if make_cubes:
         #generate_cubes(nBorder, nCubes, workDir)
@@ -65,12 +53,14 @@ def run_on_mc(nCubes=100, nBorder=1, make_cubes=False):
         sys.path.insert(0, genDir)
         import multiproc_wrapper as mw
 
-        kwargs = {'nCubes': nCubes, 'nBorder':nBorder, 'noise_rms':0.1, 'output_dir':outDir, 'random_seed':None,
+        kwargs = {'nCubes': nCubes, 'nBorder':nBorder, 'noise_rms':0.1, 'output_dir':outDir, 'random_seed':42,
                   'linenames':['oneone'], 'n_cpu':None}
 
         mw.generate_cubes(**kwargs)
 
-    return run_tests(nCubes, workDir)
+    tableName = "cube_test_results_wRadTran.txt"
+
+    return run_tests(nCubes, workDir, cubeSubDir=cubeSubDir, tablename=tableName)
 
 #-----------------------------------------------------------------------------------------------------------------------
 # core functions
@@ -105,31 +95,14 @@ def run_tests(nCubes, workDir, cubeSubDir=None, tablename=None):
 
     return write_table(dict_final, outname=tableName)
 
-'''
-def generate_cubes(nBorder, nCubes, workDir, cubeSubDir=None):
-    if cubeSubDir is None:
-        cubeDir = "{}/random_cubes".format(workDir)
-    else:
-        cubeDir = "{}/{}".format(workDir, cubeSubDir)
-    # generating nCubes number of test cubes
-
-    if False:
-        # use keywords that are consistent with the Erik's code
-        kwargs = {'nCubes':nCubes, 'nBorder':nBorder, 'noise_rms':0.1, 'output_dir':cubeDir, 'random_seed':None,
-                  'TwoTwoLine':False}
-    else:
-        # use keywords that are consistent with the Mike's code
-        kwargs = {'n_cubes':nCubes, 'n_border':nBorder, 'rms':0.1, 'out_dir':cubeDir, 'random_seed':None,
-                  'withTwoTwo':False}
-
-    print("------------- generating cubes ----------------")
-    ntc.generate_cubes(**kwargs)
-'''
 
 def read_cubes(cubeDir, nCubes):
     #
-    truekwds = ['NCOMP', 'LOGN1', 'LOGN2', 'VLSR1', 'VLSR2', 'SIG1', 'SIG2', 'TKIN1', 'TKIN2', 'TMAX', 'RMS', 'TMAX-1', 'TMAX-2']
+    truekwds = ['NCOMP', 'LOGN1', 'LOGN2', 'VLSR1', 'VLSR2', 'SIG1', 'SIG2', 'TKIN1', 'TKIN2', 'TMAX', 'RMS',
+                'TMAX-1', 'TMAX-2', 'TAU1', 'TAU2']
+
     truepara = defaultdict(list)
+    truepara['CUBE_ID'] = []
 
     nDigits = int(np.ceil(np.log10(nCubes)))
 
@@ -138,6 +111,7 @@ def read_cubes(cubeDir, nCubes):
         cube, hdr = fits.getdata(cubename, header=True)
         for key in truekwds:
             truepara[key].append(hdr[key])
+        truepara['CUBE_ID'].append("{}".format(i).zfill(nDigits))
 
     return truepara
 
@@ -173,7 +147,6 @@ def run_fit(cubeDir, nCubes):
     return f2p.run(cubenames, guesses_pp=None, kwargs_pp=kwargs, ncpu=None)
     # para1, err1, para2, err2, likelyhood, rms = f2p.run(cubenames, guesses_pp=None, kwargs_pp=kwargs, ncpu=None)
     # return para1, err1, para2, err2, likelyhood, rms
-
 
 
 def sort_fit_results(results):
@@ -224,39 +197,6 @@ def merge_two_dicts(x, y):
     return z
 
 
-#-----------------------------------------------------------------------------------------------------------------------
-# test functions that are likley no longer needed (i.e., clean up needed)
 
-def test(nBorder=2, nCubes=4):
-    workDir = '/Users/mcychen/Desktop'
-    outDir = "{}/random_cubes".format(workDir)
-
-    return run_fit(cubeDir=outDir, nCubes=nCubes, n_comp=1)
-
-
-def tt():
-    reload(fifit)
-
-    workDir = '/Users/mcychen/Desktop'
-    cubeDir = "{}/random_cubes".format(workDir)
-    cubename = cubeDir + '/random_cube_NH3_11_68.fits'
-
-    if True:
-        print "yo!"
-        kwargs = {'paraname': None, 'snr_min': 3, 'linename': "oneone"}
-        return f2p.run(cubenames=[cubename], guesses_pp=None, kwargs_pp=kwargs, ncpu=None)
-
-    from spectral_cube import SpectralCube
-    cube = SpectralCube.read(cubename)
-
-    #return fifit.get_cubespec(cube, refpix=None, linename="oneone")
-
-    mask = np.array([[False, False, False],
-                     [True,  True, True],
-                     [False, True, False]])
-
-    mean_spec = fifit.get_mean_spec(cube, linename='oneone', mask=mask)
-
-    return mean_spec
 
 

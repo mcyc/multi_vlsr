@@ -178,6 +178,28 @@ def make_dir(dirpath):
 
 #=======================================================================================================================
 
+def funk(region='NGC1333', linename="oneone"):
+    import master_fitter as mf
+
+    # start timing
+    start_time = time.time()
+
+    # for running on DR1 regions
+    reg = Region(region, root='DR1_rebase3', linename=linename)
+    reg.OneOneFile = '{2}/{0}/DR1/{0}_NH3_{3}_{1}_trim.fits'.format(reg.region, reg.root, reg.cubeDir, reg.line_root)
+
+    paraNameRoot = '{0}_NH3_{1}_{2}_para'.format(reg.region, reg.line_root, reg.rootPara)
+    uReg = mf.Region(cubePath=reg.OneOneFile, paraNameRoot=paraNameRoot, paraDir=reg.paraDir)
+    uReg.master_2comp_fit(snr_min=3)
+
+    elapsed_time = time.time() - start_time
+    # print elapsed_time
+    print "total time ellapsed"
+    print time.strftime("%H:%M:%S", time.gmtime(elapsed_time))
+
+    return reg, uReg
+
+
 '''
 def run_L1688(n_comp=2):
     # for testing purpose

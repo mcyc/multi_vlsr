@@ -6,6 +6,7 @@ from radio_beam import Beam
 import pyspeckit
 from pyspeckit.spectrum.models.ammonia_constants import freq_dict, voff_lines_dict
 from astropy.stats import mad_std
+import copy
 
 # define max and min values of tex and tau to use for the test
 # a spectrum with tex and tau values both below the specified minima has an intensity below the expected GAS rms
@@ -59,7 +60,39 @@ def guess_2comp(spectrum, moment1, moment2):
     return gg
 
 
-def window_moments(spectrum, window_hwidth=3.0, v_atpeak=None):
+def get_window_slab(maskcube, window_hwidth=3.0, v_atpeak=None):
+    if v_atpeak is None:
+        # find the peak of the integrated spectrum if v_atpeak isn't provided
+        tot_spec = np.nansum(maskcube._data[:,]*maskcube.get_mask_array(), axis=(1,2))
+        idx_peak = np.nanargmax(tot_spec)
+        print "peak T_B: {0}".format(np.nanmax(tot_spec))
+        v_atpeak = maskcube.spectral_axis[idx_peak].to(u.km/u.s).value
+        print "v_atpeak: {0}".format(v_atpeak)
+
+    vmax = v_atpeak + window_hwidth
+    vmin = v_atpeak - window_hwidth
+
+    # Extract the spectrum within the window defined around the main hyperfine components and take moments
+    slab = maskcube.spectral_slab(vmin*u.km/u.s, vmax*u.km/u.s)
+    return slab
+
+
+
+
+def window_moments(spec, window_hwidth=3.0, v_atpeak=None):
+    # wrapper
+    if isinstance(spec, pyspeckit.spectrum.classes.Spectrum):
+        return window_moments_spc(spec, window_hwidth, v_atpeak)
+
+    elif isinstance(spec, SpectralCube):
+        return window_window_moments_spcube(spec, window_hwidth, v_atpeak)
+
+    else:
+        print "[ERROR] the input is invalid"
+        return None
+
+
+def window_moments_spc(spectrum, window_hwidth=3.0, v_atpeak=None):
     '''
     find moments within a given window (e.g., around the main hyperfine lines)
 
@@ -70,14 +103,9 @@ def window_moments(spectrum, window_hwidth=3.0, v_atpeak=None):
     :param window_hwidth: float
         half-width of the window (in km/s) to be used to isolate the main hyperfine lines from the rest of the spectrum
 
-    -------
-    :return: m0
-    :return: m1
-    :return: m2
     '''
 
     if v_atpeak is None:
-        # use the whole moment map to estimate the speak of the spectrum
         moments = spectrum.moments(unit=u.km/u.s)
         v_atpeak = moments[2]
 
@@ -91,13 +119,35 @@ def window_moments(spectrum, window_hwidth=3.0, v_atpeak=None):
     return moments[1], moments[2], moments[3]
 
 
+def window_window_moments_spcube(maskcube, window_hwidth, v_atpeak=None):
+    if v_atpeak is None:
+        # find the peak of the integrated spectrum if v_atpeak isn't provided
+        tot_spec = np.nansum(maskcube._data[:,]*maskcube.get_mask_array(), axis=(1,2))
+        idx_peak = np.nanargmax(tot_spec)
+        print "peak T_B: {0}".format(np.nanmax(tot_spec))
+        v_atpeak = maskcube.spectral_axis[idx_peak].to(u.km/u.s).value
+        print "v_atpeak: {0}".format(v_atpeak)
+
+    vmax = v_atpeak + window_hwidth
+    vmin = v_atpeak - window_hwidth
+
+    # Extract the spectrum within the window defined around the main hyperfine components and take moments
+    slab = maskcube.spectral_slab(vmin*u.km/u.s, vmax*u.km/u.s)
+    m0 = slab.moment0(axis=0).value
+    m1 = slab.moment1(axis=0).to(u.km/u.s).value
+    m2 = (np.abs(slab.moment2(axis=0))**0.5).to(u.km/u.s).value
+
+    return m0, m1, m2
+
+
 
 
 def noisemask_moment(sp, m1, m2, mask_sigma=4, noise_rms = None, **kwargs):
     # mask out the 'main' component based on moment map and replace them with fake noise
     # and rerun window_mements to find additional components
 
-    sp_m = sp.copy()
+    #sp_m = sp.copy()
+    sp_m = copy.copy(sp)
 
     if 'v_atpeak' not in kwargs:
         kwargs['v_atpeak'] = m1
