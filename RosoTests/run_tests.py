@@ -13,6 +13,7 @@ reload(fifit)
 reload(f2p)
 
 import sys, os, time
+import tqdm
 # add the parent directory to the paths
 sys.path.insert(1, os.path.join(sys.path[0], '..'))
 import iterative_fit as itf
@@ -39,7 +40,8 @@ def run_gb(nCubes=10000, nBorder=1, make_cubes=False):
 
     tableName = "cube_test_results_wRadTran.txt"
 
-    return run_tests(nCubes, workDir, cubeSubDir=cubeSubDir, tablename=tableName)
+    results = run_tests(nCubes, workDir, cubeSubDir=cubeSubDir, tablename=tableName)
+    return results
 
 
 def run_on_mc(nCubes=100, nBorder=1, make_cubes=False):
@@ -61,7 +63,8 @@ def run_on_mc(nCubes=100, nBorder=1, make_cubes=False):
 
     tableName = "cube_test_results_wRadTran.txt"
 
-    return run_tests(nCubes, workDir, cubeSubDir=cubeSubDir, tablename=tableName)
+    results = run_tests(nCubes, workDir, cubeSubDir=cubeSubDir, tablename=tableName)
+    return results
 
 #-----------------------------------------------------------------------------------------------------------------------
 # core functions
@@ -107,9 +110,11 @@ def read_cubes(cubeDir, nCubes):
 
     nDigits = int(np.ceil(np.log10(nCubes)))
 
-    for i in range(nCubes):
+    #for i in range(nCubes):
+    print("--------- reading header info form the cubes ------------")
+    for i in tqdm.tqdm(range(nCubes), mininterval=0.01):
         cubename = cubeDir + '/random_cube_NH3_11_'+ '{0}'.format(i).zfill(nDigits) + '.fits'
-        cube, hdr = fits.getdata(cubename, header=True)
+        hdr = fits.getheader(cubename)
         for key in truekwds:
             truepara[key].append(hdr[key])
         truepara['CUBE_ID'].append("{}".format(i).zfill(nDigits))
@@ -145,15 +150,12 @@ def run_fit(cubeDir, nCubes):
 
     kwargs = {'paraname': None, 'snr_min':3, 'linename':"oneone"} #, 'multicore':1 'ncomp': n_comp,
 
-    return f2p.run(cubenames, guesses_pp=None, kwargs_pp=kwargs, ncpu=None)
-    # para1, err1, para2, err2, likelyhood, rms = f2p.run(cubenames, guesses_pp=None, kwargs_pp=kwargs, ncpu=None)
-    # return para1, err1, para2, err2, likelyhood, rms
+    #return f2p.run(cubenames, guesses_pp=None, kwargs_pp=kwargs, ncpu=None)
+    return f2p.run(cubenames, guesses=None, rec_wide_vsep=True, n_cpu=None, **kwargs)
 
 
 def sort_fit_results(results):
     '''
-    #para1, err1, para2, err2, likelyhood
-
     fitkwds = ['NCOMP_FIT', 'VLSR1_FIT', 'VLSR2_FIT', 'SIG1_FIT', 'SIG2_FIT', 'TEX1_FIT', 'TEX2_FIT', 'TAU1_FIT',
                'TAU2_FIT', 'LN_K_21']
     '''
