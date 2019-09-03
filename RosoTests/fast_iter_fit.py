@@ -205,7 +205,8 @@ def fit_spec(spectrum, guesses, widewVSep=False, **kwargs):
                      limitedmax=[True,True,True,True]*ncomp,
                      maxpars=[vmax, sigmax, Texmax, taumax]*ncomp,
                      limitedmin=[True,True,True,True]*ncomp,
-                     minpars=[vmin, sigmin, Texmin, taumin]*ncomp, **kwargs)
+                     minpars=[vmin, sigmin, Texmin, taumin]*ncomp,
+                     **kwargs)
 
     return spectrum
 

@@ -2,17 +2,66 @@ import numpy as np
 from spectral_cube import SpectralCube
 import pyspeckit
 import sys, os #, errno, time
+
+import itertools
+from itertools import repeat as rp
+
 # add the parent directory to the paths
+
 sys.path.insert(1, os.path.join(sys.path[0], '..'))
 import aic
 import fast_iter_fit as fifit
-reload(fifit)
 from multiprocessing import Pool, cpu_count
 import tqdm
 import gc
 import moment_guess as mmg
 
-def run(cubenames, guesses_pp, kwargs_pp, ncpu=None):
+
+########################################################################################################################
+# create a multi-processing  wrapper
+
+def run(cubenames, guesses=None, paraname=None, snr_min=3, linename="oneone", rec_wide_vsep=True, n_cpu=None):
+
+    if n_cpu is None:
+        n_cpu = cpu_count() - 1
+        print "number of cpu used: {}".format(n_cpu)
+
+    pool = Pool(n_cpu)
+
+    nCubes = len(cubenames)
+    print("number of cubes: {}".format(nCubes))
+
+    results = []
+
+    # Disable print output
+    sys.stdout = open(os.devnull, 'w')
+
+    for j in tqdm.tqdm(pool.imap(f_star, itertools.izip(cubenames, rp(rec_wide_vsep), rp(guesses), rp(paraname),
+                                                        rp(snr_min), rp(linename))), total=nCubes, mininterval=0.01):
+        results.append(j)
+        gc.collect()
+        # need something to close the .fits file?
+
+    # Restore print output
+    sys.stdout = sys.__stdout__
+
+    para1, err1, para2, err2, likelyhood, rms = zip(*results)
+    return para1, err1, para2, err2, likelyhood, rms
+
+
+def f(cubename, rec_wide_vsep, guesses, paraname, snr_min, linename):
+    return fit_2comp(cubename, rec_wide_vsep=rec_wide_vsep, guesses=guesses, paraname=paraname, snr_min=snr_min, linename=linename)
+
+
+def f_star(paras):
+    """Convert `f([a,b,...])` to `f(a,b,...)` call."""
+    return f(*paras)
+
+########################################################################################################################
+
+
+
+def run_old(cubenames, guesses_pp, kwargs_pp, ncpu=None):
     global guesses, kwargs
     guesses = guesses_pp
     kwargs = kwargs_pp
@@ -43,6 +92,8 @@ def run(cubenames, guesses_pp, kwargs_pp, ncpu=None):
         results.append(i)
         gc.collect()
 
+
+
     para1, err1, para2, err2, likelyhood, rms = zip(*results)
     #para1, err1, para2, err2, likelyhood = zip(*(tqdm.tqdm(pool.imap(fit_2comp, cubenames), total=len(cubenames))))
 
@@ -50,7 +101,7 @@ def run(cubenames, guesses_pp, kwargs_pp, ncpu=None):
 
 
 
-def fit_2comp(cubename, rec_wide_vsep = True):
+def fit_2comp(cubename, rec_wide_vsep = True, guesses=None, **kwargs):
 
     # likihood threshold for model selection
     lnk_thresh = 5

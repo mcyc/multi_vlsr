@@ -145,7 +145,10 @@ def run_fit(cubeDir, nCubes):
 
     kwargs = {'paraname': None, 'snr_min':3, 'linename':"oneone"} #, 'multicore':1 'ncomp': n_comp,
 
-    return f2p.run(cubenames, guesses_pp=None, kwargs_pp=kwargs, ncpu=None)
+    #return f2p.run(cubenames, guesses_pp=None, kwargs_pp=kwargs, ncpu=None)
+    return f2p.run(cubenames, guesses=None, rec_wide_vsep=True, n_cpu=None, **kwargs)
+
+
     # para1, err1, para2, err2, likelyhood, rms = f2p.run(cubenames, guesses_pp=None, kwargs_pp=kwargs, ncpu=None)
     # return para1, err1, para2, err2, likelyhood, rms
 
