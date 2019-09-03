@@ -13,6 +13,7 @@ reload(fifit)
 reload(f2p)
 
 import sys, os, time
+import tqdm
 # add the parent directory to the paths
 sys.path.insert(1, os.path.join(sys.path[0], '..'))
 import iterative_fit as itf
@@ -107,7 +108,8 @@ def read_cubes(cubeDir, nCubes):
 
     nDigits = int(np.ceil(np.log10(nCubes)))
 
-    for i in range(nCubes):
+    #for i in range(nCubes):
+    for i in tqdm.tqdm(range(nCubes), mininterval=0.01):
         cubename = cubeDir + '/random_cube_NH3_11_'+ '{0}'.format(i).zfill(nDigits) + '.fits'
         cube, hdr = fits.getdata(cubename, header=True)
         for key in truekwds:
