@@ -40,7 +40,8 @@ def run_gb(nCubes=10000, nBorder=1, make_cubes=False):
 
     tableName = "cube_test_results_wRadTran.txt"
 
-    return run_tests(nCubes, workDir, cubeSubDir=cubeSubDir, tablename=tableName)
+    results = run_tests(nCubes, workDir, cubeSubDir=cubeSubDir, tablename=tableName)
+    return results
 
 
 def run_on_mc(nCubes=100, nBorder=1, make_cubes=False):
@@ -62,7 +63,8 @@ def run_on_mc(nCubes=100, nBorder=1, make_cubes=False):
 
     tableName = "cube_test_results_wRadTran.txt"
 
-    return run_tests(nCubes, workDir, cubeSubDir=cubeSubDir, tablename=tableName)
+    results = run_tests(nCubes, workDir, cubeSubDir=cubeSubDir, tablename=tableName)
+    return results
 
 #-----------------------------------------------------------------------------------------------------------------------
 # core functions
@@ -152,14 +154,8 @@ def run_fit(cubeDir, nCubes):
     return f2p.run(cubenames, guesses=None, rec_wide_vsep=True, n_cpu=None, **kwargs)
 
 
-    # para1, err1, para2, err2, likelyhood, rms = f2p.run(cubenames, guesses_pp=None, kwargs_pp=kwargs, ncpu=None)
-    # return para1, err1, para2, err2, likelyhood, rms
-
-
 def sort_fit_results(results):
     '''
-    #para1, err1, para2, err2, likelyhood
-
     fitkwds = ['NCOMP_FIT', 'VLSR1_FIT', 'VLSR2_FIT', 'SIG1_FIT', 'SIG2_FIT', 'TEX1_FIT', 'TEX2_FIT', 'TAU1_FIT',
                'TAU2_FIT', 'LN_K_21']
     '''
