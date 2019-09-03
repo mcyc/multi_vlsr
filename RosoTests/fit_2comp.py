@@ -18,33 +18,65 @@ import moment_guess as mmg
 
 
 ########################################################################################################################
+# to hide message from pyspeckit
+
+# example
+'''
+with HiddenPrints():
+    print("This will not be printed")
+'''
+
+class HiddenPrints:
+    def __enter__(self):
+        self._original_stdout = sys.stdout
+        sys.stdout = open(os.devnull, 'w')
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        sys.stdout.close()
+        sys.stdout = self._original_stdout
+
+
+########################################################################################################################
 # create a multi-processing  wrapper
 
 def run(cubenames, guesses=None, paraname=None, snr_min=3, linename="oneone", rec_wide_vsep=True, n_cpu=None):
-
-    if n_cpu is None:
-        n_cpu = cpu_count() - 1
-        print "number of cpu used: {}".format(n_cpu)
-
-    pool = Pool(n_cpu)
 
     nCubes = len(cubenames)
     print("number of cubes: {}".format(nCubes))
 
     results = []
 
-    for j in tqdm.tqdm(pool.imap(f_star, itertools.izip(cubenames, rp(rec_wide_vsep), rp(guesses), rp(paraname),
-                                                        rp(snr_min), rp(linename))), total=nCubes, mininterval=0.01):
-        results.append(j)
-        gc.collect()
-        # need something to close the .fits file?
+    if n_cpu is None:
+        n_cpu = cpu_count() - 1
+
+    if n_cpu > 1:
+        print "number of cpu used: {}".format(n_cpu)
+        # multi-process if more than one cpu is allocated
+        pool = Pool(n_cpu)
+
+        for j in tqdm.tqdm(pool.imap(f_star, itertools.izip(cubenames, rp(rec_wide_vsep), rp(guesses), rp(paraname),
+                                                            rp(snr_min), rp(linename))), total=nCubes, mininterval=0.01):
+            if j is not None:
+                results.append(j)
+                gc.collect()
+                # need something to close the .fits file?
+
+    else:
+        print "number of cpu used: {}, no multi-processing is used".format(n_cpu)
+        for cubename in tqdm.tqdm(cubenames, mininterval=0.01):
+            result = f(cubename, rec_wide_vsep, guesses, paraname, snr_min, linename)
+            results.append(result)
+
 
     para1, err1, para2, err2, likelyhood, rms = zip(*results)
     return para1, err1, para2, err2, likelyhood, rms
 
 
 def f(cubename, rec_wide_vsep, guesses, paraname, snr_min, linename):
-    return fit_2comp(cubename, rec_wide_vsep=rec_wide_vsep, guesses=guesses, paraname=paraname, snr_min=snr_min, linename=linename)
+    with HiddenPrints():
+        results = fit_2comp(cubename, rec_wide_vsep=rec_wide_vsep, guesses=guesses, paraname=paraname, snr_min=snr_min,
+                            linename=linename)
+    return results
 
 
 def f_star(paras):
@@ -125,6 +157,12 @@ def fit_2comp(cubename, rec_wide_vsep = True, guesses=None, **kwargs):
     # calculate the likelihood
     likelyhood = get_comp_AICc(spec_1comp, spec_2comp, p1=4, p2=8, mask=mask)
 
+    def spec_moment_guess(sp_r, window_hwidth=3.0, v_atpeak=None):
+        # wrapper to make mmg.moment_guesses() competitable with specs
+        moms = mmg.window_moments(sp_r, window_hwidth=3.0, v_atpeak=gg1[0])
+        gg = mmg.moment_guesses(np.array([moms[1]]), np.array([moms[2]]), ncomp=1, moment0=np.array([moms[0]]))
+        return gg
+
     if rec_wide_vsep and (likelyhood < lnk_thresh):
         # try to recover second component that may have been missed in the first 2-slab fit attempt
         # this is carried over where one-slab is determined to be a better fit in the first try
@@ -136,15 +174,16 @@ def fit_2comp(cubename, rec_wide_vsep = True, guesses=None, **kwargs):
         # use the 1-slab fit residuals as the 2nd component guess (note, this does not take advantage of the nearby
         # pixels)
 
-        moms_res_cnv = mmg.window_moments(sp_r, window_hwidth=3.0, v_atpeak=gg1[0])
-        gg2 = mmg.moment_guesses(moms_res_cnv[1], moms_res_cnv[2], ncomp=1, moment0=moms_res_cnv[0])
         #gg2 = mmg.master_guess(sp_r, v_atpeak=gg1[0], ncomp=1, snr_cut=3)
+        gg2 = spec_moment_guess(sp_r, window_hwidth=3.0, v_atpeak=gg1[0])
+        #print("gg2 1st try: {}".format(gg2))
 
         if not np.all(np.isfinite(gg2)):
             # try again without uusing the moment gueuss for peak
-            moms_res_cnv = mmg.window_moments(sp_r, window_hwidth=3.0, v_atpeak=None)
-            gg2 = mmg.moment_guesses(moms_res_cnv[1], moms_res_cnv[2], ncomp=1, moment0=moms_res_cnv[0])
+            # note: this shouldn't be needed if mmg.master_guess() is not used
             #gg2 = mmg.master_guess(sp_r, v_atpeak=None, ncomp=1, snr_cut=3)#, v_peak_hwidth=3.0)
+            gg2 = spec_moment_guess(sp_r, window_hwidth=3.0, v_atpeak=None)
+            #print("gg2 2nd try: {}".format(gg2))
 
         if np.all(np.isfinite(gg2)):
             # if all the guesses are finite, perform the fit
