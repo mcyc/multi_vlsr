@@ -51,48 +51,8 @@ def f_star(paras):
     """Convert `f([a,b,...])` to `f(a,b,...)` call."""
     return f(*paras)
 
+
 ########################################################################################################################
-
-
-
-def run_old(cubenames, guesses_pp, kwargs_pp, ncpu=None):
-    global guesses, kwargs
-    guesses = guesses_pp
-    kwargs = kwargs_pp
-
-    results = []
-
-    if ncpu is None:
-        ncpu = cpu_count() - 1
-        print "number of cpu used: {}".format(ncpu)
-
-    elif ncpu == 1:
-        # single processing
-        print "number of cpu specified is {}, no multi-processing is used".format(ncpu)
-        #for cubename in cubenames:
-
-        for cubename in tqdm.tqdm(cubenames, total=len(cubenames), mininterval=0.01):
-            results.append(fit_2comp(cubename))
-            gc.collect()
-        para1, err1, para2, err2, likelyhood, rms = zip(*results)
-        return para1, err1, para2, err2, likelyhood, rms
-
-
-    pool = Pool(ncpu)  # Create a multiprocessing Pool
-
-    #results = []
-    print "cube length: {}".format(len(cubenames))
-    for i in tqdm.tqdm(pool.imap(fit_2comp, cubenames), total=len(cubenames), mininterval=0.01):
-        results.append(i)
-        gc.collect()
-
-
-
-    para1, err1, para2, err2, likelyhood, rms = zip(*results)
-    #para1, err1, para2, err2, likelyhood = zip(*(tqdm.tqdm(pool.imap(fit_2comp, cubenames), total=len(cubenames))))
-
-    return para1, err1, para2, err2, likelyhood, rms
-
 
 
 def fit_2comp(cubename, rec_wide_vsep = True, guesses=None, **kwargs):
@@ -113,12 +73,11 @@ def fit_2comp(cubename, rec_wide_vsep = True, guesses=None, **kwargs):
 
     spectrum = fifit.get_cubespec(cube)
 
-    def get_residual_spec(spectrum):
-        #sp_r = spectrum.copy()
-        #sp_r.data = spectrum.specfit.fullresiduals
 
+    def get_residual_spec(spectrum):
         sp_r = pyspeckit.Spectrum(data=spectrum.specfit.fullresiduals.copy(), xarr=spectrum.xarr, header=spectrum.header)
         return sp_r
+
 
     def iter_fit(spc_cnv, spc, ncomp, sguesses=None, widewVSep=False, returnCnvRes=False):
         # a function to fit the convovled spctrum (spc_cnv) first, and use the fitted result to fit the native spectrum
@@ -156,7 +115,6 @@ def fit_2comp(cubename, rec_wide_vsep = True, guesses=None, **kwargs):
     mask = np.logical_or(mask1, mask2)
 
     def get_comp_AICc(spectrum1, spectrum2, p1, p2, mask):
-        #mask = np.logical_or(mask1, mask2)
         chi1, N1 = fifit.get_chisq(spectrum1, expand=20, reduced=False, usemask=True, mask=mask)
         chi2, N2 = fifit.get_chisq(spectrum2, expand=20, reduced=False, usemask=True, mask=mask)
         aicc1 = aic.AICc(chi1, p1, N1)
@@ -177,14 +135,20 @@ def fit_2comp(cubename, rec_wide_vsep = True, guesses=None, **kwargs):
 
         # use the 1-slab fit residuals as the 2nd component guess (note, this does not take advantage of the nearby
         # pixels)
-        #sp_r = get_residual_spec(spec_1comp)
+
+        '''
+        ncomp = 1
+        moms_res_cnv = mmg.window_moments(cube_res_cnv, window_hwidth=window_hwidth,
+                                          v_atpeak=np.nanmedian(reg.ucube.pcubes['1'].parcube[0]))
+
+        gg = mmg.moment_guesses(moms_res_cnv[1], moms_res_cnv[2], ncomp, moment0=moms_res_cnv[0])
+        '''
+
         gg2 = mmg.master_guess(sp_r, v_atpeak=gg1[0], ncomp=1, snr_cut=3)
 
         if not np.all(np.isfinite(gg2)):
             # try again without uusing the moment gueuss for peak
             gg2 = mmg.master_guess(sp_r, v_atpeak=None, ncomp=1, snr_cut=3)#, v_peak_hwidth=3.0)
-            #print("v_peak: {}".format(gg1[0]))
-            #print("gg2, retry: {}".format(gg2))
 
         if np.all(np.isfinite(gg2)):
             # if all the guesses are finite, perform the fit
