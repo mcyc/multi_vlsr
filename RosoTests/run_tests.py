@@ -26,6 +26,7 @@ def run_gb(nCubes=10000, nBorder=1, make_cubes=False):
     #cubeSubDir = "random_cubes"
     cubeSubDir = "random_cubes_wRadTran"
     outDir = '{}/{}'.format(workDir, cubeSubDir)
+
     if make_cubes:
         genDir = "/users/mchen/GitHub_Repos/LineFitting"
         sys.path.insert(0, genDir)
