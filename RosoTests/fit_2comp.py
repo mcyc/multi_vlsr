@@ -136,19 +136,15 @@ def fit_2comp(cubename, rec_wide_vsep = True, guesses=None, **kwargs):
         # use the 1-slab fit residuals as the 2nd component guess (note, this does not take advantage of the nearby
         # pixels)
 
-        '''
-        ncomp = 1
-        moms_res_cnv = mmg.window_moments(cube_res_cnv, window_hwidth=window_hwidth,
-                                          v_atpeak=np.nanmedian(reg.ucube.pcubes['1'].parcube[0]))
-
-        gg = mmg.moment_guesses(moms_res_cnv[1], moms_res_cnv[2], ncomp, moment0=moms_res_cnv[0])
-        '''
-
-        gg2 = mmg.master_guess(sp_r, v_atpeak=gg1[0], ncomp=1, snr_cut=3)
+        moms_res_cnv = mmg.window_moments(sp_r, window_hwidth=3.0, v_atpeak=gg1[0])
+        gg2 = mmg.moment_guesses(moms_res_cnv[1], moms_res_cnv[2], ncomp=1, moment0=moms_res_cnv[0])
+        #gg2 = mmg.master_guess(sp_r, v_atpeak=gg1[0], ncomp=1, snr_cut=3)
 
         if not np.all(np.isfinite(gg2)):
             # try again without uusing the moment gueuss for peak
-            gg2 = mmg.master_guess(sp_r, v_atpeak=None, ncomp=1, snr_cut=3)#, v_peak_hwidth=3.0)
+            moms_res_cnv = mmg.window_moments(sp_r, window_hwidth=3.0, v_atpeak=None)
+            gg2 = mmg.moment_guesses(moms_res_cnv[1], moms_res_cnv[2], ncomp=1, moment0=moms_res_cnv[0])
+            #gg2 = mmg.master_guess(sp_r, v_atpeak=None, ncomp=1, snr_cut=3)#, v_peak_hwidth=3.0)
 
         if np.all(np.isfinite(gg2)):
             # if all the guesses are finite, perform the fit
