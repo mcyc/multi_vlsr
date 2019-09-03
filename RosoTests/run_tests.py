@@ -109,9 +109,10 @@ def read_cubes(cubeDir, nCubes):
     nDigits = int(np.ceil(np.log10(nCubes)))
 
     #for i in range(nCubes):
+    print("--------- reading header info form the cubes ------------")
     for i in tqdm.tqdm(range(nCubes), mininterval=0.01):
         cubename = cubeDir + '/random_cube_NH3_11_'+ '{0}'.format(i).zfill(nDigits) + '.fits'
-        cube, hdr = fits.getdata(cubename, header=True)
+        hdr = fits.getheader(cubename)
         for key in truekwds:
             truepara[key].append(hdr[key])
         truepara['CUBE_ID'].append("{}".format(i).zfill(nDigits))
