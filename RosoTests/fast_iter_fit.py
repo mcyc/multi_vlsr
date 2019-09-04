@@ -20,62 +20,6 @@ reload(mvf)
 
 #-----------------------------------------------------------------------------------------------------------------------
 
-'''
-# the following is probably now superceede3d by fit_2comp
-def fit_2comp(cubename, guesses, **kwargs):
-    # get the cube we wish to fit
-    cube = SpectralCube.read(cubename)
-
-    # bing 4 pixels into a spectrum to emulate a cube that is convolved to twice the resolution
-
-    mask = np.array([[False, False, False],
-                     [True,  True, True],
-                     [False, True, False]])
-
-
-    # try full mask
-    #mask = np.ones((3,3))
-
-    mean_spec = get_mean_spec(cube, linename=kwargs['linename'], mask=mask)
-
-    spectrum = get_cubespec(cube)
-
-    def iter_fit(spc_cnv, spc, ncomp):
-        # a function to fit the convovled spctrum (spc_cnv) first, and use the fitted result to fit the native spectrum
-        kwargs['ncomp'] = ncomp
-        # fit the mean spectrum first
-        sp_cnv = fit_spec(spectrum=spc_cnv.copy(), guesses=guesses, **kwargs)
-        gg = sp_cnv.specfit.modelpars
-        gg = np.array([gg]).swapaxes(0, 1)
-        # use the mean spectrum
-        return fit_spec(spectrum=spc.copy(), guesses=gg, **kwargs)
-
-    # perform fits iteratively
-    spec_1comp = iter_fit(mean_spec, spectrum, ncomp=1)
-    spec_2comp = iter_fit(mean_spec, spectrum, ncomp=2)
-
-    def get_comp_AICc(spectrum1, spectrum2, p1, p2):
-        model1 = spectrum1.specfit.model
-        model2 = spectrum2.specfit.model
-        mask1 = model1 > 0
-        mask2 = model2 > 0
-        mask = np.logical_or(mask1, mask2)
-        chi1, N1 = get_chisq(spectrum1, expand=20, reduced=False, usemask=True, mask=mask)
-        chi2, N2 = get_chisq(spectrum2, expand=20, reduced=False, usemask=True, mask=mask)
-        aicc1 = aic.AICc(chi1, p1, N1)
-        aicc2 = aic.AICc(chi2, p2, N1)
-        likelyhood = (aicc1 - aicc2) / 2.0
-        return likelyhood
-
-    likelyhood = get_comp_AICc(spec_1comp, spec_2comp, p1=4, p2=8)
-    print "likelyhood: {}".format(likelyhood)
-
-    return spec_1comp, spec_2comp, likelyhood
-
-    #spectrum.specfit.modelpars
-    #spc.specfit.modelerrs
-'''
-
 
 def get_mean_spec(cube, linename="oneone", mask=None):
     # get the mean spectrum of the entire cube
@@ -218,25 +162,12 @@ def cubefit(cubename, downsampfactor=2, refpix=None, guesses=None, **kwargs):
                 multicore=1, mask_function=None, snr_min=3.0, linename="oneone", momedgetrim=True, saveguess=False):
     '''
 
-    '''
-    root = "conv{0}Xbeam".format(int(np.rint(downsampfactor)))
-    cnv_cubename = "{0}_{1}.fits".format(os.path.splitext(cubename)[0], root)
-
-    print "convolve the cube by a factor of: {0}".format(downsampfactor)
-    cnv_cube = convolve_sky(cubename, factor=downsampfactor)
-    '''
-
     cnv_spectrum = get_cubespec(cubename)
 
     return fit_spec(spectrum=cnv_spectrum, guesses=guesses, **kwargs)
 
 
 #-----------------------------------------------------------------------------------------------------------------------
-
-'''
-def main_hf_moments_old(spectrum, window_hwidth, v_atpeak=None):
-    return momgue.window_moments(spectrum, window_hwidth, v_atpeak=v_atpeak)
-'''
 
 def get_rms_prefit(spectrum, window_hwidth, v_atpeak):
 
