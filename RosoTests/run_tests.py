@@ -22,7 +22,7 @@ import iterative_fit as itf
 # wrappers to run on different machines
 
 
-def run_gb(nCubes=10000, nBorder=1, make_cubes=False):
+def run_gb(nCubes=10000, nBorder=1, make_cubes=False, n_cpu=None):
     workDir = "/lustre/pipeline/scratch/GAS/images/MChen_FakeCubes"
     #cubeSubDir = "random_cubes"
     cubeSubDir = "random_cubes_wRadTran"
@@ -34,17 +34,17 @@ def run_gb(nCubes=10000, nBorder=1, make_cubes=False):
         import multiproc_wrapper as mw
 
         kwargs = {'nCubes': nCubes, 'nBorder':nBorder, 'noise_rms':0.1, 'output_dir':outDir, 'random_seed':42,
-                  'linenames':['oneone'], 'n_cpu':None}
+                  'linenames':['oneone'], 'n_cpu':n_cpu}
 
         mw.generate_cubes(**kwargs)
 
     tableName = "cube_test_results_wRadTran.txt"
 
-    results = run_tests(nCubes, workDir, cubeSubDir=cubeSubDir, tablename=tableName)
+    results = run_tests(nCubes, workDir, cubeSubDir=cubeSubDir, tablename=tableName, n_cpu=n_cpu)
     return results
 
 
-def run_on_mc(nCubes=100, nBorder=1, make_cubes=False):
+def run_on_mc(nCubes=100, nBorder=1, make_cubes=False, n_cpu=None):
 
     workDir = '/Users/mcychen/Desktop'
     cubeSubDir = "random_cubes_wRadTran"
@@ -57,19 +57,19 @@ def run_on_mc(nCubes=100, nBorder=1, make_cubes=False):
         import multiproc_wrapper as mw
 
         kwargs = {'nCubes': nCubes, 'nBorder':nBorder, 'noise_rms':0.1, 'output_dir':outDir, 'random_seed':42,
-                  'linenames':['oneone'], 'n_cpu':None}
+                  'linenames':['oneone'], 'n_cpu':n_cpu}
 
         mw.generate_cubes(**kwargs)
 
     tableName = "cube_test_results_wRadTran.txt"
 
-    results = run_tests(nCubes, workDir, cubeSubDir=cubeSubDir, tablename=tableName)
+    results = run_tests(nCubes, workDir, cubeSubDir=cubeSubDir, tablename=tableName, n_cpu=n_cpu)
     return results
 
 #-----------------------------------------------------------------------------------------------------------------------
 # core functions
 
-def run_tests(nCubes, workDir, cubeSubDir=None, tablename=None):
+def run_tests(nCubes, workDir, cubeSubDir=None, tablename=None, n_cpu=None):
     # ignore warnings
     warnings.filterwarnings('ignore')
 
@@ -89,7 +89,7 @@ def run_tests(nCubes, workDir, cubeSubDir=None, tablename=None):
     print("")
     print("############################################")
     print("------------- start fitting ----------------")
-    results = run_fit(cubeDir=cubeDir, nCubes=nCubes)
+    results = run_fit(cubeDir=cubeDir, nCubes=nCubes, n_cpu=n_cpu)
     elapsed_time = time.time() - start_time
     print("-------- total runtime for cube fit --------")
     print(time.strftime("%H:%M:%S", time.gmtime(elapsed_time)))
@@ -138,7 +138,7 @@ def write_table(dict, outname=None, **kwargs):
     return table
 
 
-def run_fit(cubeDir, nCubes):
+def run_fit(cubeDir, nCubes, n_cpu=None):
     # perform iternative fitting
 
     nDigits = int(np.ceil(np.log10(nCubes)))
@@ -151,7 +151,7 @@ def run_fit(cubeDir, nCubes):
     kwargs = {'paraname': None, 'snr_min':3, 'linename':"oneone"} #, 'multicore':1 'ncomp': n_comp,
 
     #return f2p.run(cubenames, guesses_pp=None, kwargs_pp=kwargs, ncpu=None)
-    return f2p.run(cubenames, guesses=None, rec_wide_vsep=True, n_cpu=None, **kwargs)
+    return f2p.run(cubenames, guesses=None, rec_wide_vsep=True, n_cpu=n_cpu, **kwargs)
 
 
 def sort_fit_results(results):
