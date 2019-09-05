@@ -372,7 +372,7 @@ def get_2comp_wide_guesses(reg):
 
 
 
-def fit_best_2comp_residual_cnv(reg, window_hwidth=3.0, res_snr_cut=5, savefit=True):
+def fit_best_2comp_residual_cnv(reg, window_hwidth=3.5, res_snr_cut=5, savefit=True):
 
     # need a mechanism to make sure reg.ucube.pcubes['1'], reg.ucube.pcubes['2'] exists
 
