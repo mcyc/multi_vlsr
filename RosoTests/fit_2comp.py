@@ -160,7 +160,6 @@ def fit_2comp(cubename, rec_wide_vsep = True, guesses=None, **kwargs):
 
     def spec_moment_guess(sp_r, window_hwidth=3.0, v_atpeak=None, iter_refine=False):
         # wrapper to make mmg.moment_guesses() competitable with specs
-        #moms = mmg.window_moments(sp_r, window_hwidth=window_hwidth, v_atpeak=v_atpeak, iter_refine=iter_refine)
         moms = mmg.window_moments_spc(sp_r, window_hwidth=window_hwidth, v_atpeak=v_atpeak, iter_refine=iter_refine)
         gg = mmg.moment_guesses(np.array([moms[1]]), np.array([moms[2]]), ncomp=1, moment0=np.array([moms[0]]))
         return gg
@@ -176,15 +175,7 @@ def fit_2comp(cubename, rec_wide_vsep = True, guesses=None, **kwargs):
         # use the 1-slab fit residuals as the 2nd component guess (note, this does not take advantage of the nearby
         # pixels)
 
-        #gg2 = spec_moment_guess(sp_r, window_hwidth=3.0, v_atpeak=gg1[0])
         gg2 = spec_moment_guess(sp_r, window_hwidth=3.5, v_atpeak=gg1[0], iter_refine=False)
-
-        '''
-        if not np.all(np.isfinite(gg2)):
-            # try again without uusing the moment gueuss for peak
-            # note: this shouldn't be needed if mmg.master_guess() is not used
-            gg2 = spec_moment_guess(sp_r, window_hwidth=3.0, v_atpeak=None)
-        '''
 
         if np.all(np.isfinite(gg2)):
             # if all the guesses are finite, perform the fit
