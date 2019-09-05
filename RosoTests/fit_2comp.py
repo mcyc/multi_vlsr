@@ -73,15 +73,16 @@ def run(cubenames, guesses=None, paraname=None, snr_min=3, linename="oneone", re
 
 
 def f(cubename, rec_wide_vsep, guesses, paraname, snr_min, linename):
-    with HiddenPrints():
-        results = fit_2comp(cubename, rec_wide_vsep=rec_wide_vsep, guesses=guesses, paraname=paraname, snr_min=snr_min,
-                            linename=linename)
+
+    results = fit_2comp(cubename, rec_wide_vsep=rec_wide_vsep, guesses=guesses, paraname=paraname, snr_min=snr_min,
+                        linename=linename)
     return results
 
 
 def f_star(paras):
-    """Convert `f([a,b,...])` to `f(a,b,...)` call."""
-    return f(*paras)
+    with HiddenPrints():
+        results = f(*paras)
+    return results
 
 
 ########################################################################################################################
@@ -157,9 +158,10 @@ def fit_2comp(cubename, rec_wide_vsep = True, guesses=None, **kwargs):
     # calculate the likelihood
     likelyhood = get_comp_AICc(spec_1comp, spec_2comp, p1=4, p2=8, mask=mask)
 
-    def spec_moment_guess(sp_r, window_hwidth=3.0, v_atpeak=None):
+    def spec_moment_guess(sp_r, window_hwidth=3.0, v_atpeak=None, iter_refine=False):
         # wrapper to make mmg.moment_guesses() competitable with specs
-        moms = mmg.window_moments(sp_r, window_hwidth=3.0, v_atpeak=gg1[0])
+        #moms = mmg.window_moments(sp_r, window_hwidth=window_hwidth, v_atpeak=v_atpeak, iter_refine=iter_refine)
+        moms = mmg.window_moments_spc(sp_r, window_hwidth=window_hwidth, v_atpeak=v_atpeak, iter_refine=iter_refine)
         gg = mmg.moment_guesses(np.array([moms[1]]), np.array([moms[2]]), ncomp=1, moment0=np.array([moms[0]]))
         return gg
 
@@ -175,7 +177,7 @@ def fit_2comp(cubename, rec_wide_vsep = True, guesses=None, **kwargs):
         # pixels)
 
         #gg2 = spec_moment_guess(sp_r, window_hwidth=3.0, v_atpeak=gg1[0])
-        gg2 = spec_moment_guess(sp_r, window_hwidth=3.5, v_atpeak=gg1[0])
+        gg2 = spec_moment_guess(sp_r, window_hwidth=3.5, v_atpeak=gg1[0], iter_refine=False)
 
         '''
         if not np.all(np.isfinite(gg2)):
