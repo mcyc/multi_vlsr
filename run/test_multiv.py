@@ -21,45 +21,118 @@ from astropy import units as u
 from pyspeckit.spectrum.units import SpectroscopicAxis, SpectroscopicAxes
 from pyspeckit.spectrum.models.ammonia_constants import freq_dict
 from pyspeckit.spectrum.models import ammonia_constants, ammonia
+import pyspeckit.spectrum.models.ammonia_constants as nh3con
+from pyspeckit.spectrum.units import SpectroscopicAxis as spaxis
 
-from astropy import wcs
+from astropy import wcs, constants
 from spectral_cube import SpectralCube
+from astropy.utils.console import ProgressBar
 
-import ammonia_hf_multiv as amhf
-
-#=======================================================================================================================
+import ammonia_multiv as ammv
 
 import multi_v_fit as mvf
 reload(mvf)
 
-def run():
+import master_fitter as mf
+reload(mf)
+
+#=======================================================================================================================
+
+
+def qm():
+    l1 = "oneone"
+    #kwarg = {'version':'lowC1_xlowC2', 'SNR1':'low', 'SNR2':'xlow'}
+    #kwarg = {'version': 'medC1_medC2', 'SNR1': 'med', 'SNR2': 'med'}
+    #kwarg = {'version': 'highC1_medC2', 'SNR1': 'high', 'SNR2': 'med'}
+    #kwarg = {'version': 'medC1_highC2', 'SNR1': 'med', 'SNR2': 'high'}
+    #run(l1, **kwarg)\
+    '''
+    kwarg = {'version': 'medC1_lowC2', 'SNR1': 'med', 'SNR2': 'low'}
+    run(l1, **kwarg)
+    '''
+
+    kwarg = {'version': 'lowC1_medC2', 'SNR1': 'low', 'SNR2': 'med'}
+    run(l1, **kwarg)
+    kwarg = {'version': 'medC1_medC2', 'SNR1': 'med', 'SNR2': 'med'}
+    run(l1, **kwarg)
+    kwarg = {'version': 'highC1_medC2', 'SNR1': 'high', 'SNR2': 'med'}
+    run(l1, **kwarg)
+    kwarg = {'version': 'medC1_highC2', 'SNR1': 'med', 'SNR2': 'high'}
+    run(l1, **kwarg)
+
+
+
+
+def do():
+    l1 = "oneone"
+    l2 = "twotwo"
+
+    kwarg = {'version':'lowC1_xxlowC2', 'SNR1':'low', 'SNR2':'xxlow'}
+    run(l1, **kwarg)
+    kwarg = {'version':'lowC1_xlowC2', 'SNR1':'low', 'SNR2':'xlow'}
+    run(l1, **kwarg)
+    kwarg = {'version':'lowC1_lowC2', 'SNR1':'low', 'SNR2':'low'}
+    run(l1, **kwarg)
+    kwarg = {'version':'medC1_medC2', 'SNR1':'med', 'SNR2':'med'}
+    run(l1, **kwarg)
+    kwarg = {'version':'medC1_lowC2', 'SNR1':'med', 'SNR2':'low'}
+    run(l1, **kwarg)
+    kwarg = {'version':'highC1_medC2', 'SNR1':'high', 'SNR2':'med'}
+    run(l1, **kwarg)
+    kwarg = {'version':'medC1_xlowC2', 'SNR1':'med', 'SNR2':'xlow'}
+    run(l1, **kwarg)
+    kwarg = {'version':'medC1_xxlowC2', 'SNR1':'med', 'SNR2':'xxlow'}
+    run(l1, **kwarg)
+
+
+
+def run(linename="oneone", version = "medC1_lowC2", SNR1="med", SNR2="low", **kwargs):
     #example_spec_fit()
 
     baseDir = "/Users/mcychen/Documents/Data/GAS_NH3"
-    paraDir = "mock_paraMaps"
-    cubeDir = "mock_rebase"
 
-    version = "_narrowMidDen"
+    paraDir = "{0}/mock_paraMaps/{1}".format(baseDir, version)
+    if not os.path.exists(paraDir):
+        os.makedirs(paraDir)
 
-    cubename = "{0}/{1}/mock_2vcomp{2}_cube.fits".format(baseDir, cubeDir, version)
-    realparaname = "{0}/{1}/mock_2vcomp{2}_trueparameter_maps.fits".format(baseDir, paraDir, version)
-    peakname = "{0}/{1}/mock_2vcomp{2}_peaktemps.fits".format(baseDir, cubeDir, version)
+    cubeDir = "{0}/mock_rebase/{1}".format(baseDir,  version)
+    if not os.path.exists(cubeDir):
+        os.makedirs(cubeDir)
 
-    if False:
+    if linename == "oneone":
+        line_root = "11"
+        tex1, tau1 = mock_textau_11(SNR=SNR1)
+        tex2, tau2 = mock_textau_11(SNR=SNR2)
+    elif linename == "twotwo":
+        line_root = "22"
+        tex1, tau1 = mock_textau_22(SNR=SNR1)
+        tex2, tau2 = mock_textau_22(SNR=SNR2)
+    else:
+        line_root = linename
+
+    cubename = "{0}/mock_NH3_{1}_2vcomp_{2}_cube.fits".format(cubeDir, line_root, version)
+    realparaname = "{0}/mock_NH3_{1}_2vcomp_{2}_trueparameter_maps.fits".format(paraDir, line_root, version)
+    peakname = "{0}/mock_NH3_{1}_2vcomp_{2}_peaktemps.fits".format(cubeDir, line_root, version)
+
+
+    if True:
         # generate a fake cube
-        #fname = cubename, paraname = realparaname)
-        #fake_cube(fname = None, paraname = realparaname)
-        fake_cube(peakname=peakname)
+        kwarg = {'tex1':tex1, 'tau1':tau1, 'tex2':tex2, 'tau2':tau2}
+        fake_cube(fname = cubename, paraname = realparaname, linename = linename, **kwarg)
 
-    paraname = "{0}/{1}/mock_2vcomp{2}_parameter_maps.fits".format(baseDir, paraDir, version)
-    modname = "{0}/{1}/mock_2vcomp{2}_modelcube.fits".format(baseDir, cubeDir, version)
+    paraname = "{0}/mock_NH3_{1}_2vcomp_{2}_parameter_maps.fits".format(paraDir, line_root, version)
+    modname = "{0}/mock_NH3_{1}_2vcomp_{2}_modelcube.fits".format(cubeDir, line_root, version)
 
-    if False:
+    if True:
         # fit the fake cube with 2 velocity component models
-        pcube = example_cube_fit(cubename = cubename, paraname = paraname, modname = modname)
-        return pcube
+        #pcube = example_cube_fit(cubename = cubename, paraname = paraname, modname = modname)
+        #pcube = mvf.cubefit_gen(cube11name=cubename, ncomp=2, paraname=paraname, modname=modname, multicore = 3,
+        #                    snr_min=1.0, linename=linename)
+        region = mf.Region(cubePath=cubename, paraNameRoot="mock_NH3_11", paraDir=paraDir)
+        mf.master_2comp_fit(region, snr_min=3, recover_wide = False)
 
-    chiname = "{0}/{1}/mock_2vcomp{2}_chisq.fits".format(baseDir, cubeDir, version)
+    '''
+    chiname = "{0}/mock_NH3_{1}_2vcomp{2}_chisq.fits".format(cubeDir, line_root, version)
     if False:
         cube = SpectralCube.read(cubename)
         model = fits.getdata(modname)
@@ -67,8 +140,82 @@ def run():
 
     if False:
         return plot_para_check(realparaname, paraname, chiname, peakname)
+    '''
 
-    return None
+    if False:
+        figDir = "{0}/figures".format(paraDir)
+        if not os.path.exists(figDir):
+            os.makedirs(figDir)
+        plot_vel_fit_accuracy(realparaname, paraname, saveFigDir=figDir, saveFigRoot="NH3_{0}".format(line_root))
+
+    #return region
+
+
+def plot_vel_fit_accuracy(name_realp, name_fitp, saveFigDir="",  saveFigRoot=""):
+
+    import matplotlib.pyplot as plt
+
+    para_rl, hdr_rl = fits.getdata(name_realp, header=True)
+    para_ft, hdr_ft = fits.getdata(name_fitp, header=True)
+
+
+    '''
+    # if the first component model fits the real second component better, swap it with the second component
+    # note: this may be an issue for cases where two components have a very similar velocity
+    swap = np.abs(para_ft[0] - para_rl[2]) < np.abs(para_ft[4] - para_rl[2])
+    # note: check to see if the following operation does "overide" parts of the information
+    para_ft[:4][:,swap], para_ft[4:8][:,swap]  = para_ft[4:8][:,swap], para_ft[:4][:,swap]
+    '''
+
+    # plot the 'real' error of the second component fit
+
+    if False:
+        # the fit error vs "real" error
+        plt.clf()
+        plt.scatter(para_ft[12], np.abs(para_ft[4] - para_rl[2]), s=3)
+        plt.xlabel("fits error")
+        plt.ylabel("real error")
+
+    if False:
+        # accuracy of the vlsr fit vs. vlsr seperation from the bright component
+        plt.clf()
+        plt.scatter(para_rl[2], para_ft[4] - para_rl[2], s=3)
+        plt.xlabel(r"$\Delta$v$_{lsr}$ between the two components (km s$^{-1}$)")
+        plt.ylabel(r"Fit and actual v$_{lsr}$ difference (km s$^{-1}$)")
+        plt.savefig("{0}/{1}_vlsrErr_vs_deltaV_scatter.pdf".format(saveFigDir, saveFigRoot))
+
+    if False:
+        # accuracy of the vlsr fit vs. vlsr seperation from the bright component
+        plt.clf()
+        plt.scatter(para_rl[3], para_ft[4] - para_rl[2], s=3)
+        plt.xlabel(r"Second Component $\sigma_{v}$ (km s$^{-1}$)")
+        plt.ylabel(r"Difference between fit and actual v$_{lsr}$ (km s$^{-1}$)")
+        plt.savefig("{0}/{1}_vlsrErr_vs_deltaSigma_scatter.pdf".format(saveFigDir, saveFigRoot))
+
+    if False:
+        # plot the histogram of the fit errors
+        plt.clf()
+        plt.hist((para_ft[0] - para_rl[0]).ravel(), 50, range=(-0.4,0.4), normed=False, histtype = "stepfilled", color="0.75")
+        plt.hist((para_ft[4] - para_rl[2]).ravel(), 50, range=(-0.4,0.4), normed=False, histtype = "step")
+        plt.legend(["rear component","front component"], frameon=False)
+        plt.ylabel("Number of pixels")
+        plt.xlabel(r"Difference between fit and actual v$_{lsr}$ (km s$^{-1}$)")
+        plt.savefig("{0}/{1}_vlsrErr_histo.pdf".format(saveFigDir, saveFigRoot))
+
+    if True:
+        # plot the histogram of the fit errors relative to the estimated errors
+        plt.clf()
+        diff1 = (para_ft[0] - para_rl[0])/para_ft[8]
+        diff2 = (para_ft[4] - para_rl[2])/para_ft[12]
+        plt.hist(diff1.ravel(), 50, range=(-5,5), normed=False, histtype = "stepfilled", color="0.75")
+        plt.hist(diff2.ravel(), 50, range=(-5,5), normed=False, histtype = "step")
+        plt.legend(["rear component","front component"], frameon=False)
+        plt.title("Accuracy in the 1,1 fits")
+        plt.ylabel("Number of pixels")
+        plt.xlabel(r"Difference between fit and actual v$_{lsr}$ over the estimated error")
+        plt.savefig("{0}/{1}_vlsrErrRelEst_histo.pdf".format(saveFigDir, saveFigRoot))
+
+    #plt.show()
 
 
 def plot_para_check(name_realp, name_fitp, name_chi, peaktname):
@@ -122,7 +269,7 @@ def plot_para_check(name_realp, name_fitp, name_chi, peaktname):
 
     if True:
         gmask = snr[1] > 3.0
-        plt.hist((para_rl[2] - para_ft[4])[gmask].ravel(), 50, range=(-0.2,0.2), normed=True, histtype = "step")
+        plt.hist((para_rl[2] - para_ft[4])[gmask].ravel(), 100, range=(-0.2,0.2), normed=True, histtype = "step")
         plt.hist((para_rl[0] - para_ft[0]).ravel(), 50, range=(-0.2,0.2), normed=True, histtype = "step")
 
 
@@ -181,184 +328,34 @@ def chi_sq_map(cube, model, expand=20):
     return chisq
 
 
-def example_cube_fit(cubename = None, paraname = None, modname = None):
-    # an example to generate a spectral cube with two velocity components at each pixels
 
-    # generate a fakecube if no cube is provided for the fit
-    if cubename == None:
-        cube =  fake_cube()
-    else:
-        cube = SpectralCube.read(cubename)
+def generate_xarr(linename):
+    # generate SpectroscopicAxis objects
+    # the -1.0 term in the end is to insure the channel is in the increasing order in frequency space, consistent
+    # with GAS data
+    channelwidth = (5.72 * u.kHz / (nh3con.freq_dict[linename] * u.Hz)) * constants.c * -1.0
 
-    # Create a pyspeckit cube
-    # the redefinition of xarr is a work-around way of making pyspeckit convention compatible with spectral_cube
-    # (see https://github.com/pyspeckit/pyspeckit/issues/86)
-    freq11 = freq_dict['oneone']*u.Hz
-    xarr = SpectroscopicAxis(cube.spectral_axis, refX=freq11, velocity_convention='radio')
-    pcube = pyspeckit.Cube(cube=cube, xarr=xarr)
-
-    # For convenience, convert the X-axis to km/s
-    # (WCSLIB automatically converts to m/s even if you give it km/s)
-    pcube.xarr.convert_to_unit(u.km/u.s)
-
-    if not 'nh3_2v_11' in pcube.specfit.Registry.multifitters:
-        # Use the multi-v model generator to build up a 2 velocity-component model function
-        fitter = amhf.nh3_multi_v_model_generator(n_comp = 2)
-        # Register the fitter - i.e., tell pyspeckit where it is and how to use it
-        pcube.specfit.Registry.add_fitter('nh3_2v_11', fitter, fitter.npars)
-        print "number of parameters is {0}".format(fitter.npars)
+    xarr = spaxis(np.arange(-500, 500) * channelwidth,
+                  unit='GHz',
+                  refX=nh3con.freq_dict[linename] / 1e9,
+                  velocity_convention='radio', refX_unit='GHz')
+    return xarr
 
 
-    # guess the parameter based on the moments [vel, width, tex, tau]
-    tex_guess = 10.0
-    tau_guess = 0.5
-
-    # set the fit parameter limits
-    Tbg = 2.8
-    sigmin = 0.04
-
-    # find the position of peak emission in the integrated spectrum over all the pixels
-    # this is used to approximate the velocity of the main hyperfine structures in the cube
-    idx_peak = cube.sum(axis=(1,2)).argmax()
-    v_atpeak = cube.spectral_axis[idx_peak].to(u.km/u.s).value
-    # define the half width of the window to moments
-    v_peak_hwidth = 3.0
-    vmax = v_atpeak + v_peak_hwidth
-    vmin = v_atpeak - v_peak_hwidth
-
-    # extract the spectrum within the window defined around the main hyperfine components and take moments
-    slab = cube.spectral_slab(vmin*u.km/u.s, vmax*u.km/u.s)
-
-    m1 = slab.moment1(axis=0).to(u.km/u.s).value
-    m2 = (np.abs(slab.moment2(axis=0))**0.5).to(u.km/u.s).value # (the second moment is in m^2/s^2, but we want km/s
-    # Due to the hyperfines, the NH3 moment overestimates linewidth
-    # The v-offset between the two closest main hyperfines is ~ 0.11, and between the brightest main hypefines  ~ 0.32)
-    # The following tries to correct for it in the guesses
-    #m2 = m2 - 0.32
-    #m2[m2<0] = sigmin + 0.01
-
-    '''
-    idx = np.arange(100)*10.0/100.0
-    vw = []
-    lw = []
-    la = []
-    cw = []
-    from scipy import stats
-    for i in idx:
-        v_atpeak = 0
-        v_peak_hwidth = i
-        vmax = v_atpeak + v_peak_hwidth
-        vmin = v_atpeak - v_peak_hwidth
-        slab = cube.spectral_slab(vmin*u.km/u.s, vmax*u.km/u.s)
-        vw.append(i)
-        method = "wSpecCube"
-        lw.append(slab.linewidth_sigma().value[0,0]*1e-3)
-        la.append(np.abs(slab.moment2().value[0,0])**0.5*1e-3)
-        cw.append(slab.moment1().value[0,0]*1e-3)
-
-        # the following method is rather meaningless...
-        #method = "wScipy"
-        #lw.append(stats.moment(slab[:,0,0].value, moment=2)*1e-3)
-        #cw.append(stats.moment(slab[:,0,0].value, moment=1)*1e-3)
 
 
-        #cw.append(slab.moment1().value[0,0])
-        #lw.append(np.abs(slab.moment2().value[0,0])**0.5*1e-3)
-        #lw.append(slab.moment2().value[0,0]*1e-6)
-
-    import matplotlib.pyplot as plt
-    vw = np.array(vw)
-    lw = np.array(lw)
-    cw = np.array(cw)
-    plt.plot(vw, lw, zorder = 10)
-    plt.plot(vw, cw, zorder = 15)
-    plt.plot(vw, la, zorder = 5, c = "0.75")
-    plt.axhline(y=0, c='0.5', zorder = 0)
-    plt.xlabel(r"Window half-width (km s$^{-1}$)")
-    plt.ylabel(r"Moment (km s$^{-1}$)")
-    plt.annotate(r'True NH$_3$ $\sigma_{v}$ is (0.1 km s$^{-1}$)', xy=(0.02, 0.7), textcoords = "axes fraction")
-    plt.legend(["Moment 2", "Moment 1"])
-    plt.savefig("/Users/mcychen/Documents/Data/GAS_NH3/mock_rebase/figures/moments_vs_windowwidthf_{0}.pdf".format(method))
-    plt.show()
-    '''
-
-    # extract the spectrum within the window defined around the main hyperfine components and take moments
-    slab = cube.spectral_slab(vmin*u.km/u.s, vmax*u.km/u.s)
-
-    # First, assemble the guesses:
-    # parameters are in the order of [vel, width, tex, tau]
-
-    # guess linewidth
-    gs_sig = 0.5*m2
-    gs_sig[gs_sig < sigmin] = sigmin + 0.001
-
-    # for 2 v-components, there are 8 parameters in total
-    guesses = np.zeros((8,)+pcube.cube.shape[1:])
-    guesses[0,:,:] = m1 - 0.25*m2       # v0 centriod
-    guesses[1,:,:] = gs_sig             # v0 width
-    guesses[2,:,:] = tex_guess          # v0 T_ex
-    guesses[3,:,:] = tau_guess          # v0 tau
-    guesses[4,:,:] = m1 + 0.25*m2       # v1 centriod
-    guesses[5,:,:] = gs_sig             # v1 width
-    guesses[6,:,:] = tex_guess          # v1 T_ex
-    guesses[7,:,:] = tau_guess/5.0      # v1 tau
-
-    # Do the fit!
-    pcube.fiteach(guesses=guesses, # pass in the guess array
-            #  tell it where to start the fitting (center pixel in this case)
-            #start_from_point=(1,1),
-            #use_neighbor_as_guess=True,
-            #[v,s,t,t,v,s,t,t]
-            limitedmax=[True,False,False,False,True,False,False,False],
-            maxpars=[vmax,0,0,0,vmax,0,0,0],
-            limitedmin=[True,True,True,True,True,True,True,True],
-            minpars=[vmin, sigmin, Tbg, 0, vmin, sigmin, Tbg, 0],
-            multicore=3,
-            fittype='nh3_2v_11',
-            )
-
-    '''
-    # re-order the fits, so the lower velocity components always comes first
-    r_mask = pcube.parcube[0] > pcube.parcube[4]
-    pcube.parcube[:4][r_mask], pcube.parcube[4:][r_mask] = pcube.parcube[4:][r_mask], pcube.parcube[:4][r_mask]
-    '''
-
-    fitcubefile = fits.PrimaryHDU(data=np.concatenate([pcube.parcube,pcube.errcube]), header=pcube.header)
-    fitcubefile.header.set('PLANE1','VELOCITY_0')
-    fitcubefile.header.set('PLANE2','SIGMA_0')
-    fitcubefile.header.set('PLANE3','TEX_0')
-    fitcubefile.header.set('PLANE4','TAU_0')
-    fitcubefile.header.set('PLANE5','VELOCITY_1')
-    fitcubefile.header.set('PLANE6','SIGMA_1')
-    fitcubefile.header.set('PLANE7','TEX_1')
-    fitcubefile.header.set('PLANE8','TAU_1')
-    fitcubefile.header.set('PLANE9','eVELOCITY_0')
-    fitcubefile.header.set('PLANE10','eSIGMA_0')
-    fitcubefile.header.set('PLANE11','eTEX_0')
-    fitcubefile.header.set('PLANE12','eTAU_0')
-    fitcubefile.header.set('PLANE13','eVELOCITY_1')
-    fitcubefile.header.set('PLANE14','eSIGMA_1')
-    fitcubefile.header.set('PLANE15','eTEX_1')
-    fitcubefile.header.set('PLANE16','eTAU_1')
-
-    fitcubefile.header.set('CDELT3',1)
-    fitcubefile.header.set('CTYPE3','FITPAR')
-    fitcubefile.header.set('CRVAL3',0)
-    fitcubefile.header.set('CRPIX3',1)
-
-    if paraname != None:
-        fitcubefile.writeto(paraname ,overwrite=True)
-
-    if modname != None:
-        model = SpectralCube(pcube.get_modelcube(), pcube.wcs, header=cube.header)
-        model.write(modname, overwrite=True)
-
-    return pcube
-
-
-def fake_cube(fname = None, paraname = None, peakname = None):
+def fake_cube(fname=None, paraname=None, linename="oneone", map_shape=(30,30), sigm1_ul=0.3, v1_maxoff=0.5, v1_extraoff=None, rms=0.1,
+              **kwargs):
     # Create a fake spectral ammonia (1-1) cube with GAS spectral resolution
+    # rms of 0.1 is roughly the GAS level
 
+    # note: the largest linewidth seen in GAS DR1 is ~1.4 in Orion A, the rest 3 regions all have sigma < 1.0 km/s
+    # the sigm1_ul and v1_maxoff default values used here are thus based on a naive guess on what the typical GAS
+    # values are based on these DR1, single component fit results
+
+    peakname = None
+
+    '''
     # Create a new WCS object so we can instantiate the SpectralCube
     mywcs = wcs.WCS(naxis=3)
 
@@ -372,14 +369,17 @@ def fake_cube(fname = None, paraname = None, peakname = None):
 
     # Set up a tangent projection (which is normally read from a file.)
     mywcs.wcs.crpix = [1,1,1]
-    mywcs.wcs.cdelt = np.array([-0.066667, 0.066667, spc_res*1e3])
+    pixwidth = 0.0024440485689343
+    mywcs.wcs.cdelt = np.array([-pixwidth, pixwidth, spc_res*1e3])
     mywcs.wcs.crval = [290.9250, 14.5092, spc_llim*1e3]
     mywcs.wcs.ctype = ["RA---TAN", "DEC--TAN", 'VELO']
     mywcs.wcs.cunit = ['deg', 'deg', 'm/s']
 
     # Create a synthetic X-dimension in km/s
     xarr = np.linspace(spc_llim, spc_ulim, int(n_samp) + 1, endpoint = True)
-    xarr = SpectroscopicAxis(xarr*u.km/u.s, velocity_convention='radio', refX=freq_dict['oneone']*u.Hz).as_unit(u.GHz)
+    xarr = SpectroscopicAxis(xarr*u.km/u.s, velocity_convention='radio', refX=freq_dict[linename]*u.Hz).as_unit(u.GHz)
+    '''
+    xarr = generate_xarr(linename)
 
     # First velocity component
     sigm0 = 0.1
@@ -387,47 +387,171 @@ def fake_cube(fname = None, paraname = None, peakname = None):
 
     # upper and lower limits of the second velocity component
     # the 2nd componet sigma and vlsr will be incremented in these ranges
-    sigm1_ul = 2.0
     sigm1_ll = sigm0
-    vlsr1_ul = vlsr0 + 2.0
+    vlsr1_ul = vlsr0 + v1_maxoff
     vlsr1_ll = vlsr0
 
+    if not v1_extraoff is None:
+        vlsr1_ul = vlsr1_ul + v1_extraoff
+        vlsr1_ll = vlsr1_ll + v1_extraoff
+
     # the grid dimension (sigma1, vlsr1)
-    nx, ny = (30, 30)
+    nx, ny = map_shape
 
     # now create the grid
     sigm1 = np.linspace(sigm1_ll, sigm1_ul, nx)
     vlsr1 = np.linspace(vlsr1_ll, vlsr1_ul, ny)
 
-    data = np.empty((int(n_samp) + 1, ny, nx))
+    #data = np.empty((int(n_samp) + 1, ny, nx))
+    data = np.zeros((xarr.shape[0], ny, nx))
     peakT = np.empty((2, ny, nx))
 
+    # rough estimate from Radex
+    # component one: assuming the excitation condition of Tkin = 10K,  n = 1e5 cm^-3, N = 3e14 cm^-2, "sigma" = 0.2
+    # component two: assuming the excitation condition of Tkin = 10K,  n = 1e4 cm^-3, N = 1e13 cm^-2, and a "sigma"
+    # that produces a peak signal of ~0.5 K
+
+    tex1 = 9.8
+    tau1 = 11.0
+    tex2 = 5.6
+    tau2 = 0.42
+
+    if linename == "twotwo":
+        tex1 = 8.9
+        tau1 = 3.9
+        tex2 = 5.6
+        tau2 = 0.42
+    else:
+        if linename != "oneone":
+            print "[WARNING]: assuming excitation conditions for 1-1 line if no further user inputs are specified"
+
+    if 'tex1' in kwargs:
+        tex1 = kwargs['tex1']
+    if 'tau1' in kwargs:
+        tau1 = kwargs['tau1']
+    if 'tex2' in kwargs:
+        tex2 = kwargs['tex2']
+    if 'tau2' in kwargs:
+        tau2 = kwargs['tau2']
+
+    print "kwargs: ".format(kwargs)
+    print tex1, tau1, tex2, tau2
+
+
+    sigm1_v, vlsr1_v = np.meshgrid(sigm1, vlsr1)
+    sigm0_v = np.ones(map_shape) * sigm0
+    vlsr0_v = np.ones(map_shape) * vlsr0
+
+    tex0_v = np.ones(map_shape) * tex1
+    tex1_v = np.ones(map_shape) * tex2
+
+    tau0_v = np.ones(map_shape) * tau1
+    tau1_v = np.ones(map_shape) * tau2
+
+    xmat, ymat = np.indices(map_shape)
+    for xx, yy in ProgressBar(zip(xmat.flatten(), ymat.flatten())):
+        data[:, yy, xx] = ammv.ammonia_multi_v(xarr, vlsr0_v[yy, xx], sigm0_v[yy, xx], tex0_v[yy, xx], tau0_v[yy, xx],
+                                               vlsr1_v[yy, xx], sigm1_v[yy, xx], tex1_v[yy, xx], tau1_v[yy, xx],
+                                               line_names=[linename])
+
+    # now add noise
+    data += np.random.randn(*data.shape) * rms
+
+    '''
     # ammonia.ammonia doens't take numpy array, so I'm just going to loop through the values....
     for i, sig in enumerate(sigm1):
         for j, v in enumerate(vlsr1):
-            c1 = ammonia.ammonia(xarr, trot=10, ntot=14.5, fortho=0.5, xoff_v=vlsr0, width=sigm0)
-            c2 = ammonia.ammonia(xarr, trot=20, ntot=14, fortho=0.5, xoff_v=v, width=sig)
-            spectrum = c1 + c2
+            #c1 = ammonia.ammonia(xarr, trot=10, ntot=14.5, fortho=0.5, xoff_v=vlsr0, width=sigm0)
+            #c2 = ammonia.ammonia(xarr, trot=20, ntot=14, fortho=0.5, xoff_v=v, width=sig)
+            #spectrum = c1 + c2
+            spectrum = ammv.ammonia_multi_v(xarr, vlsr0, sigm0, tex1, tau1, v, sig, tex2, tau2, line_names=[linename])
             data[:,j,i] = spectrum
-            peakT[0,j,i], peakT[1,j,i] = c1.max(), c2.max()
+            data[:,j,i] = spectrum
+            #peakT[0,j,i], peakT[1,j,i] = c1.max(), c2.max()
+    '''
 
     # now add noise
-    stddev = 0.15                # K km/s; typical of GAS NH3 (1-1) data
-    noise = np.random.normal(loc=0.0, scale=stddev, size=np.shape(data))
-    data = data + noise
+    #stddev = rms                # K km/s; typical of GAS NH3 (1-1) data
+    #noise = np.random.normal(loc=0.0, scale=stddev, size=np.shape(data))
+    #data = data + noise
 
-    cube = SpectralCube(data=data, wcs=mywcs)
+    '''
+    hdr = fits.Header()
+    beamsize = 0.008554 # GAS Beam size
+    hdr.set('BMAJ', beamsize)
+    hdr.set('BMIN', beamsize)
+    hdr.set('BPA',0)
+    '''
+
+    hdrkwds = {'BUNIT': 'K',
+               'INSTRUME': 'KFPA    ',
+               'BMAJ': 0.008554169991270138,
+               'BMIN': 0.008554169991270138,
+               'TELESCOP': 'GBT',
+               'WCSAXES': 3,
+               'CRPIX1': 2,
+               'CRPIX2': 2,
+               'CRPIX3': 501,
+               'CDELT1': -0.008554169991270138,
+               'CDELT2': 0.008554169991270138,
+               'CDELT3': 5720.0,
+               'CUNIT1': 'deg',
+               'CUNIT2': 'deg',
+               'CUNIT3': 'Hz',
+               'CTYPE1': 'RA---TAN',
+               'CTYPE2': 'DEC--TAN',
+               'CTYPE3': 'FREQ',
+               'CRVAL1': 0.0,
+               'CRVAL2': 0.0,
+               'LONPOLE': 180.0,
+               'LATPOLE': 0.0,
+               'EQUINOX': 2000.0,
+               'SPECSYS': 'LSRK',
+               'RADESYS': 'FK5',
+               'SSYSOBS': 'TOPOCENT'}
+
+
+    hdu = fits.PrimaryHDU(data)
+    for kk in hdrkwds:
+        hdu.header[kk] = hdrkwds[kk]
+
+    #hdu.header['TMAX'] = Tmax
+    #hdu.header['TMAX-1'] = Tmax_a
+    #hdu.header['TMAX-2'] = Tmax_b
+    #hdu.header['RMS'] = noise_rms
+    hdu.header['CRVAL3'] = nh3con.freq_dict[linename]
+    hdu.header['RESTFRQ'] = nh3con.freq_dict[linename]
+
+    if fname != None:
+        hdu.writeto(fname, overwrite=True)
+
+    '''
+    cube = SpectralCube(data=data, wcs=mywcs, header=hdr)
+    cube = cube.with_spectral_unit(xarr.unit, rest_value = freq_dict[linename]*u.Hz)
+    cube = cube.with_spectral_unit(u.km/u.s, velocity_convention='radio')
 
     if fname != None:
         cube.write(fname, format='fits', overwrite = True)
+    '''
 
     # the write the fake parameters into a cube
     if paraname != None:
         sigm1_v, vlsr1_v = np.meshgrid(sigm1, vlsr1)
         sigm0_v = np.ones(np.shape(sigm1_v))*sigm0
         vlsr0_v = np.ones(np.shape(sigm1_v))*vlsr0
-        data = np.array([vlsr0_v, sigm0_v, vlsr1_v, sigm1_v])
-        fitcubefile = fits.PrimaryHDU(data=data, header=cube.header)
+
+        tex0_v = np.ones(np.shape(sigm1_v))*tex1
+        tex1_v = np.ones(np.shape(sigm1_v))*tex2
+
+        tau0_v = np.ones(np.shape(sigm1_v))*tau1
+        tau1_v = np.ones(np.shape(sigm1_v))*tau2
+
+        data = np.array([vlsr0_v, sigm0_v, tex0_v, tau0_v, vlsr1_v, sigm1_v, tex1_v, tau1_v])
+        #fitcubefile = fits.PrimaryHDU(data=data, header=cube.header)
+        fitcubefile = fits.PrimaryHDU(data=data, header=hdu.header)
+
+        fitcubefile.header.set('CUNIT1', 'deg')
+        fitcubefile.header.set('CUNIT2', 'deg')
         fitcubefile.header.set('PLANE1','VELOCITY_0')
         fitcubefile.header.set('PLANE2','SIGMA_0')
         fitcubefile.header.set('PLANE3','VELOCITY_1')
@@ -440,7 +564,8 @@ def fake_cube(fname = None, paraname = None, peakname = None):
         fitcubefile.writeto(paraname ,overwrite=True)
 
     if peakname != None:
-        fitcubefile = fits.PrimaryHDU(data=peakT, header=cube.header)
+        #fitcubefile = fits.PrimaryHDU(data=peakT, header=cube.header)
+        fitcubefile = fits.PrimaryHDU(data=peakT, header=hdu.header)
         fitcubefile.header.set('PLANE1','PEAK_0')
         fitcubefile.header.set('PLANE2','PEAK_0')
         fitcubefile.header.set('CDELT3',1)
@@ -450,4 +575,94 @@ def fake_cube(fname = None, paraname = None, peakname = None):
         fitcubefile.header.set('NAXIS3',2)
         fitcubefile.writeto(peakname ,overwrite=True)
 
-    return cube
+    #return cube
+
+
+def mock_textau_11(SNR="low"):
+    # all the tex and tau are calculated based on Radex on-line (van der Tak)
+
+    if SNR == "xxlow":
+        # Tpeak ~0.08 K (below GAS rms noise of 0.15 K)
+        # assuming the excitation condition of Tkin = 10K,  n = 1e3 cm^-3, N = 1e13 cm^-2, "sigma" = 1.0
+        tex = 3.1
+        tau = 0.22
+
+    elif SNR == "xlow":
+        # Tpeak ~0.33 K
+        # assuming the excitation condition of Tkin = 10K,  n = 2e3 cm^-3, N = 1.5e13 cm^-2, "sigma" = 0.6
+        tex = 3.6
+        tau = 0.49
+
+    elif SNR == "low":
+        # Tpeak ~0.59 K
+        # assuming the excitation condition of Tkin = 10K,  n = 2e3 cm^-3, N = 1.5e13 cm^-2, "sigma" = 0.3
+        tex = 3.7
+        tau = 0.94
+
+    elif SNR == "med":
+        # Tpeak ~1.0 K
+        # assuming the excitation condition of Tkin = 10K,  n = 2e3 cm^-3, N = 2e13 cm^-2, "sigma" = 0.2
+        tex = 3.9
+        tau = 1.8
+
+    elif SNR == "high":
+        # Tpeak ~2.8 K
+        # assuming the excitation condition of Tkin = 10K,  n = 5e3 cm^-3, N = 5e13 cm^-2, "sigma" = 0.2
+        # note: this may cause problems with auto window guessing when self-absorption casues main hyperfine components
+        # to have lower antenna temperature than the satellites
+        tex = 5.7
+        tau = 3.1
+
+    elif SNR == "xhigh":
+        # Tpeak ~5.5 K
+        # assuming the excitation condition of Tkin = 10K,  n = 1e3 cm^-3, N = 5e13 cm^-2, "sigma" = 0.2
+        # note: this may cause problems with auto window guessing when self-absorption casues main hyperfine components
+        # to have lower antenna temperature than the satellites
+        tex = 8.3
+        tau = 8.5
+    else:
+        print "[ERROR] the passed in SNR value is not recognized!"
+        return None
+
+    # the Radex tau does not take hyperfines into consideration, and hence the factor of two output
+    return tex, tau*2.0
+
+
+
+def mock_textau_22(SNR="low"):
+    # all the tex and tau are calculated based on Radex on-line (van der Tak)
+
+    if SNR == "xxlow":
+        # Tpeak ~0.08 K (below GAS rms noise of 0.15 K)
+        # assuming the excitation condition of Tkin = 10K,  n = 1e3 cm^-3, N = 5e13 cm^-2, "sigma" = 0.2
+        tex = 3.2
+        tau = 0.18
+
+    elif SNR == "xlow":
+        # Tpeak ~0.16 K
+        # assuming the excitation condition of Tkin = 10K,  n = 2e3 cm^-3, N = 6e13 cm^-2, "sigma" = 0.2
+        tex = 3.6
+        tau = 0.19
+
+    elif SNR == "low":
+        # Tpeak ~0.47 K
+        tex = 5.7
+        tau = 0.17
+
+    elif SNR == "med":
+        # Tpeak ~1.0 K
+        # assuming the excitation condition of Tkin = 10K,  n = 1e4 cm^-3, N = 2e14 cm^-2, "sigma" = 0.2
+        tex = 5.8
+        tau = 0.40
+
+    elif SNR == "high":
+        # Tpeak ~5.9 K
+        # assuming the excitation condition of Tkin = 15K,  n = 1e4 cm^-3, N = 7e14 cm^-2, "sigma" = 0.2
+        tex = 9.0
+        tau = 3.1
+
+    else:
+        print "[ERROR] the passed in SNR value is not recognized!"
+        return None
+
+    return tex, tau
