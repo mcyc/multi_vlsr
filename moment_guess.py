@@ -92,7 +92,7 @@ def window_moments(spec, window_hwidth=3.0, v_atpeak=None):
         return None
 
 
-def window_moments_spc(spectrum, window_hwidth=3.0, v_atpeak=None):
+def window_moments_spc(spectrum, window_hwidth=3.0, v_atpeak=None, iter_refine=True):
     '''
     find moments within a given window (e.g., around the main hyperfine lines)
 
@@ -116,10 +116,22 @@ def window_moments_spc(spectrum, window_hwidth=3.0, v_atpeak=None):
     slice = spectrum.slice(vmin, vmax, unit=u.km/u.s)
     moments = slice.moments(unit=u.km/u.s)
 
+    if iter_refine:
+        m0, m1, m2 = moments[1], moments[2], moments[3]
+        # make the window smaller by making out channels outside a specific width around moment 1
+        # create a window 2 times the second moment
+        new_window_hw = m2*3.0
+        if new_window_hw > window_hwidth:
+            new_window_hw = window_hwidth
+        vmax = m1 + new_window_hw
+        vmin = m1 - new_window_hw
+        slice = spectrum.slice(vmin, vmax, unit=u.km / u.s)
+        moments = slice.moments(unit=u.km / u.s)
+
     return moments[1], moments[2], moments[3]
 
 
-def window_window_moments_spcube(maskcube, window_hwidth, v_atpeak=None):
+def window_window_moments_spcube(maskcube, window_hwidth, v_atpeak=None, iter_refine=True):
     if v_atpeak is None:
         # find the peak of the integrated spectrum if v_atpeak isn't provided
         tot_spec = np.nansum(maskcube._data[:,]*maskcube.get_mask_array(), axis=(1,2))
@@ -136,6 +148,18 @@ def window_window_moments_spcube(maskcube, window_hwidth, v_atpeak=None):
     m0 = slab.moment0(axis=0).value
     m1 = slab.moment1(axis=0).to(u.km/u.s).value
     m2 = (np.abs(slab.moment2(axis=0))**0.5).to(u.km/u.s).value
+
+    if False:
+    #if iter_refine:
+        # make the window smaller by making out channels outside a specific width around moment 1
+        # create a window 2 times the second moment
+        new_window_hw = m2*1.0
+        window_hwidth[new_window_hw > window_hwidth] = window_hwidth
+        mask = np.logical(slab < m1 + new_window_hw, slab > m1 - new_window_hw)
+        slab_masked = slab.with_mask(mask)
+        m0 = slab_masked.moment0(axis=0).value
+        m1 = slab_masked.moment1(axis=0).to(u.km / u.s).value
+        m2 = (np.abs(slab_masked.moment2(axis=0)) ** 0.5).to(u.km / u.s).value
 
     return m0, m1, m2
 
