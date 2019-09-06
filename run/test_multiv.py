@@ -86,8 +86,11 @@ def do():
 
 
 
-def run(linename="oneone", version = "medC1_lowC2", SNR1="med", SNR2="low", **kwargs):
+def run(linename="oneone", version = "medC1_lowC2", SNR1="med", SNR2="low", recover_wide=False,
+        v1_extraoff=None, makeMockCube=True):
     #example_spec_fit()
+
+    print("SNR1: {}, SNR2: {}.".format(SNR1, SNR2))
 
     baseDir = "/Users/mcychen/Documents/Data/GAS_NH3"
 
@@ -115,10 +118,12 @@ def run(linename="oneone", version = "medC1_lowC2", SNR1="med", SNR2="low", **kw
     peakname = "{0}/mock_NH3_{1}_2vcomp_{2}_peaktemps.fits".format(cubeDir, line_root, version)
 
 
-    if True:
+    if makeMockCube:
         # generate a fake cube
-        kwarg = {'tex1':tex1, 'tau1':tau1, 'tex2':tex2, 'tau2':tau2}
-        fake_cube(fname = cubename, paraname = realparaname, linename = linename, **kwarg)
+        print("tex1: {}, tau1: {}, tex2: {}, tau2: {}".format(tex1, tau1, tex2, tau2))
+        kwargs = {'tex1':tex1, 'tau1':tau1, 'tex2':tex2, 'tau2':tau2}
+        kwargs['v1_extraoff'] = v1_extraoff
+        fake_cube(fname = cubename, paraname = realparaname, linename = linename, **kwargs)
 
     paraname = "{0}/mock_NH3_{1}_2vcomp_{2}_parameter_maps.fits".format(paraDir, line_root, version)
     modname = "{0}/mock_NH3_{1}_2vcomp_{2}_modelcube.fits".format(cubeDir, line_root, version)
@@ -129,7 +134,7 @@ def run(linename="oneone", version = "medC1_lowC2", SNR1="med", SNR2="low", **kw
         #pcube = mvf.cubefit_gen(cube11name=cubename, ncomp=2, paraname=paraname, modname=modname, multicore = 3,
         #                    snr_min=1.0, linename=linename)
         region = mf.Region(cubePath=cubename, paraNameRoot="mock_NH3_11", paraDir=paraDir)
-        mf.master_2comp_fit(region, snr_min=3, recover_wide = False)
+        mf.master_2comp_fit(region, snr_min=3, recover_wide=recover_wide)
 
     '''
     chiname = "{0}/mock_NH3_{1}_2vcomp{2}_chisq.fits".format(cubeDir, line_root, version)
@@ -411,10 +416,10 @@ def fake_cube(fname=None, paraname=None, linename="oneone", map_shape=(30,30), s
     # component two: assuming the excitation condition of Tkin = 10K,  n = 1e4 cm^-3, N = 1e13 cm^-2, and a "sigma"
     # that produces a peak signal of ~0.5 K
 
-    tex1 = 9.8
-    tau1 = 11.0
-    tex2 = 5.6
-    tau2 = 0.42
+    tex1 = 6.0
+    tau1 = 2.0
+    tex2 = 3.5
+    tau2 = 0.4
 
     if linename == "twotwo":
         tex1 = 8.9
@@ -580,52 +585,54 @@ def fake_cube(fname=None, paraname=None, linename="oneone", map_shape=(30,30), s
 
 def mock_textau_11(SNR="low"):
     # all the tex and tau are calculated based on Radex on-line (van der Tak)
+    # note, the Tpeak reported here are half of those calculated by Radex, since Radex does not consider hyperfine structures
+    # and hence
 
     if SNR == "xxlow":
-        # Tpeak ~0.08 K (below GAS rms noise of 0.15 K)
+        # Tpeak ~0.13 K (below GAS rms noise of 0.1 K)
         # assuming the excitation condition of Tkin = 10K,  n = 1e3 cm^-3, N = 1e13 cm^-2, "sigma" = 1.0
-        tex = 3.1
-        tau = 0.22
+        tex = 3.56
+        tau = 0.39
 
     elif SNR == "xlow":
-        # Tpeak ~0.33 K
-        # assuming the excitation condition of Tkin = 10K,  n = 2e3 cm^-3, N = 1.5e13 cm^-2, "sigma" = 0.6
-        tex = 3.6
-        tau = 0.49
-
-    elif SNR == "low":
-        # Tpeak ~0.59 K
-        # assuming the excitation condition of Tkin = 10K,  n = 2e3 cm^-3, N = 1.5e13 cm^-2, "sigma" = 0.3
+        # Tpeak ~0.30 K
+        # assuming the excitation condition of Tkin = 10K,  n = 2e3 cm^-3, N = 3e13 cm^-2, "sigma" = 0.6
         tex = 3.7
         tau = 0.94
 
-    elif SNR == "med":
-        # Tpeak ~1.0 K
-        # assuming the excitation condition of Tkin = 10K,  n = 2e3 cm^-3, N = 2e13 cm^-2, "sigma" = 0.2
+    elif SNR == "low":
+        # Tpeak ~0.5 K
+        # assuming the excitation condition of Tkin = 10K,  n = 2e3 cm^-3, N = 3e13 cm^-2, "sigma" = 0.3
         tex = 3.9
         tau = 1.8
 
+    elif SNR == "med":
+        # Tpeak ~1.1 K
+        # assuming the excitation condition of Tkin = 10K,  n = 3e3 cm^-3, N = 5e13 cm^-2, "sigma" = 0.2
+        tex = 5.0
+        tau = 3.5
+
     elif SNR == "high":
-        # Tpeak ~2.8 K
-        # assuming the excitation condition of Tkin = 10K,  n = 5e3 cm^-3, N = 5e13 cm^-2, "sigma" = 0.2
+        # Tpeak ~2.06 K
+        # assuming the excitation condition of Tkin = 10K,  n = 5e3 cm^-3, N = 1e14 cm^-2, "sigma" = 0.15
         # note: this may cause problems with auto window guessing when self-absorption casues main hyperfine components
         # to have lower antenna temperature than the satellites
-        tex = 5.7
-        tau = 3.1
+        tex = 6.8
+        tau = 6.8
 
     elif SNR == "xhigh":
-        # Tpeak ~5.5 K
-        # assuming the excitation condition of Tkin = 10K,  n = 1e3 cm^-3, N = 5e13 cm^-2, "sigma" = 0.2
+        # Tpeak ~3.1 K
+        # assuming the excitation condition of Tkin = 10K,  n = 1e4 cm^-3, N = 1e14 cm^-2, "sigma" = 0.1
         # note: this may cause problems with auto window guessing when self-absorption casues main hyperfine components
         # to have lower antenna temperature than the satellites
-        tex = 8.3
-        tau = 8.5
+        tex = 9.0
+        tau = 7.8
     else:
         print "[ERROR] the passed in SNR value is not recognized!"
         return None
 
     # the Radex tau does not take hyperfines into consideration, and hence the factor of two output
-    return tex, tau*2.0
+    return tex, tau
 
 
 
