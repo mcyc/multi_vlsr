@@ -344,19 +344,22 @@ def save_map(map, header, savename, overwrite=True):
 def get_2comp_wide_guesses(reg):
 
     if not hasattr(reg, 'ucube_res_cnv'):
+        # fit the residual with the one component model if this has not already been done.
         fit_best_2comp_residual_cnv(reg)
 
+    # mask over where one component model is better than a no-signal (i.e., noise) model
     #rez_mod_cnv_1 = reg.ucube_res_cnv.pcubes['1'].get_modelcube()
     aic1v0_mask = reg.ucube_res_cnv.get_AICc_likelihood(1, 0) > 5
 
     hdr2D = cnvtool.get_celestial_hdr(reg.ucube.cube.header)
     hdr2D_cnv = cnvtool.get_celestial_hdr(reg.ucube_cnv.cube.header)
 
+    '''
     ff_mask = cnvtool.regrid_mask(aic1v0_mask, hdr2D_cnv, hdr2D, tightBin=False)
-
     funk = ff_mask.copy()
     funk = funk.astype(float)
     funk[funk == 0] = np.nan
+    '''
 
     data_cnv = np.append(reg.ucube_res_cnv.pcubes['1'].parcube, reg.ucube_res_cnv.pcubes['1'].errcube, axis=0)
     preguess = data_cnv.copy()
@@ -373,6 +376,10 @@ def get_2comp_wide_guesses(reg):
 
 
 def fit_best_2comp_residual_cnv(reg, window_hwidth=3.5, res_snr_cut=5, savefit=True):
+    # fit the residual of the best fitted model (note, this approach may not hold well if the two-slab model
+    # insufficiently at describing the observation. Luckily, however, this fit is only to provide initial guess for the
+    # final fit)
+    # the default window_hwidth = 3.5 is about half-way between the main hyperfine and the satellite
 
     # need a mechanism to make sure reg.ucube.pcubes['1'], reg.ucube.pcubes['2'] exists
 
@@ -396,8 +403,9 @@ def fit_best_2comp_residual_cnv(reg, window_hwidth=3.5, res_snr_cut=5, savefit=T
 
 
 
-def get_best_2comp_residual_cnv(reg, masked=True, window_hwidth=3.0, res_snr_cut=5):
-    # return convolved residual cube with 'excessive' residual above a peak SNR value of res_snr_cut masked
+def get_best_2comp_residual_cnv(reg, masked=True, window_hwidth=3.5, res_snr_cut=5):
+    # return convolved residual cube. If masked is True, only convolve over where 'excessive' residual
+    # above a peak SNR value of res_snr_cut masked
 
     # need a mechanism to make sure reg.ucube.pcubes['1'], reg.ucube.pcubes['2'] exists
 
@@ -407,7 +415,6 @@ def get_best_2comp_residual_cnv(reg, masked=True, window_hwidth=3.0, res_snr_cut
                             header=reg.ucube.pcubes['2'].header.copy())
 
     if masked:
-        #best_rms = UCube.get_rms(best_res)
         best_rms = UCube.get_rms(res_cube._data)
 
         # calculate the peak SNR value of the best-fit residual over the main hyperfine components
