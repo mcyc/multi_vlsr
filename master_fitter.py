@@ -311,7 +311,7 @@ def save_best_2comp_fit(reg):
     savename = "{}_final.fits".format(os.path.splitext(reg_final.ucube.paraPaths['2'])[0])
     UCube.save_model_fit(pcube_final, savename=savename, ncomp=2)
 
-    return None
+    #return None
 
     #hdr2D = cnvtool.get_celestial_hdr(reg.ucube.cube.header)
     hdr2D =reg.ucube.cube.wcs.celestial.to_header()

@@ -210,4 +210,8 @@ def fit_2comp(cubename, rec_wide_vsep = True, guesses=None, **kwargs):
     err1 = spec_1comp.specfit.modelerrs
     para2 = spec_2comp.specfit.modelpars
     err2 = spec_2comp.specfit.modelerrs
+
+    # close the fits hdulist
+    cube.hdulist.close()
+
     return para1, err1, para2, err2, likelyhood, rms

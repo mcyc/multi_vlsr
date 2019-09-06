@@ -88,7 +88,6 @@ def guess_from_cnvpara(data_cnv, header_cnv, header_target, mask=None):
         taumap[hightex] = texmap[hightex]*taumap[hightex]/tex_thin
 
         # note, tau values that are too low will be taken care of by refine_each_comp()
-
         return taumap, texmap
 
     def refine_each_comp(guess_comp, mask=None):
