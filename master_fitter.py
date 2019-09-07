@@ -393,7 +393,7 @@ def fit_best_2comp_residual_cnv(reg, window_hwidth=3.5, res_snr_cut=5, savefit=T
     '''
 
     # note: no further masking is applied to vmap, as we assume only pixels with good vlsr will be used
-    vmap = reg.ucube.pcubes['1'].parcube[0]
+    vmap = reg.ucube_cnv.pcubes['1'].parcube[0]
     moms_res_cnv = mmg.vmask_moments(cube_res_cnv, vmap=vmap, window_hwidth=window_hwidth)
 
     gg = mmg.moment_guesses(moms_res_cnv[1], moms_res_cnv[2], ncomp, moment0=moms_res_cnv[0])
@@ -432,9 +432,14 @@ def get_best_2comp_residual_cnv(reg, masked=True, window_hwidth=3.5, res_snr_cut
         '''
 
         # note: no further masking is applied to vmap, as we assume only pixels with good vlsr will be used
+        #vmap = reg.ucube.pcubes['1'].parcube[0]
+        #res_main_hf = mmg.vmask_moments(res_cube, vmap=vmap, window_hwidth=window_hwidth)
+        #res_main_hf_snr = np.nanmax(res_main_hf, axis=0) / best_rms
+
         vmap = reg.ucube.pcubes['1'].parcube[0]
-        res_main_hf = mmg.vmask_moments(res_cube, vmap=vmap, window_hwidth=window_hwidth)
-        res_main_hf_snr = np.nanmax(res_main_hf, axis=0) / best_rms
+        # make want to double check that masked cube always masks out nan values
+        res_main_hf = mmg.vmask_cube(res_cube, vmap, window_hwidth=window_hwidth)
+        res_main_hf_snr = res_main_hf.max(axis=0).value / best_rms
 
         # mask out residual with SNR values over the cut threshold
         mask_res = res_main_hf_snr > res_snr_cut
