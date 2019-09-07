@@ -386,8 +386,15 @@ def fit_best_2comp_residual_cnv(reg, window_hwidth=3.5, res_snr_cut=5, savefit=T
     cube_res_cnv = get_best_2comp_residual_cnv(reg, masked=True, window_hwidth=window_hwidth, res_snr_cut=res_snr_cut)
 
     ncomp = 1
+
+    '''
     moms_res_cnv = mmg.window_moments(cube_res_cnv, window_hwidth=window_hwidth,
                                       v_atpeak=np.nanmedian(reg.ucube.pcubes['1'].parcube[0]))
+    '''
+
+    # note: no further masking is applied to vmap, as we assume only pixels with good vlsr will be used
+    vmap = reg.ucube.pcubes['1'].parcube[0]
+    moms_res_cnv = mmg.vmask_moments(cube_res_cnv, vmap=vmap, window_hwidth=window_hwidth)
 
     gg = mmg.moment_guesses(moms_res_cnv[1], moms_res_cnv[2], ncomp, moment0=moms_res_cnv[0])
 
