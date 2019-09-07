@@ -419,9 +419,14 @@ def get_best_2comp_residual_cnv(reg, masked=True, window_hwidth=3.5, res_snr_cut
 
         # calculate the peak SNR value of the best-fit residual over the main hyperfine components
         # (note, peak SNR over ALL the hyperfine may pickup residuals due to hyperfine anomolies)
+        '''
         res_main_hf = mmg.get_window_slab(res_cube, window_hwidth=window_hwidth,
                                           v_atpeak=np.nanmedian(reg.ucube.pcubes['1'].parcube[0]))
+        '''
 
+        # note: no further masking is applied to vmap, as we assume only pixels with good vlsr will be used
+        vmap = reg.ucube.pcubes['1'].parcube[0]
+        res_main_hf = mmg.vmask_moments(res_cube, vmap=vmap, window_hwidth=window_hwidth)
         res_main_hf_snr = np.nanmax(res_main_hf, axis=0) / best_rms
 
         # mask out residual with SNR values over the cut threshold
