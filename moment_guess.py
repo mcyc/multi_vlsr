@@ -77,6 +77,23 @@ def get_window_slab(maskcube, window_hwidth=3.0, v_atpeak=None):
     return slab
 
 
+def vmask_moments(cube, vmap, window_hwidth=3.0):
+    # obtain moments with windows centered around the vlsr specified in the provided map
+
+    spax = cube.spectral_axis.value
+    spax_cube = np.ones(cube.shape) * spax[:, None, None]
+    v_up = vmap + window_hwidth
+    v_down = vmap - window_hwidth
+    mask = np.logical_and(spax_cube > v_down, spax_cube < v_up)
+
+    cubemasked = cube.with_mask(mask)
+
+    m0 = cubemasked.moment0(axis=0).value
+    m1 = cubemasked.moment1(axis=0).to(u.km/u.s).value
+    m2 = (np.abs(cubemasked.moment2(axis=0))**0.5).to(u.km/u.s).value
+
+    return m0, m1, m2
+
 
 
 def window_moments(spec, window_hwidth=3.0, v_atpeak=None):
