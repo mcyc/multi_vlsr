@@ -280,13 +280,7 @@ def super_run(linename = "oneone"):
     #special_run(region='L1448', linename="oneone")
     #special_run(region='L1448', linename="twotwo")
     #special_run(region='OrionB_NGC2023-2024')
-    '''
-    run(region='OrionA')
-    run(region='IC5146')
-    run(region='OrionB_NGC2068-2071')
-    run(region='Serpens_Aquila')
-    run(region='L1688')
-    '''
+
 
 def special_run(region='L1448', multicore=8, linename = "oneone"):
     # for rebase that does not have other first look properties
