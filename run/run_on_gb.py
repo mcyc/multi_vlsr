@@ -10,6 +10,7 @@ import aic
 import clean_map
 import time
 
+import master_fitter as mf
 
 #=======================================================================================================================
 '''
@@ -199,7 +200,7 @@ def run(region='L1448', multicore=8, root='all_rebase3', snr_min=5.0):
 
 
 def funk(region='NGC1333', linename="oneone"):
-    import master_fitter as mf
+
 
     # start timing
     start_time = time.time()
