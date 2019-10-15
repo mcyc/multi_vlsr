@@ -179,6 +179,21 @@ def make_dir(dirpath):
 
 #=======================================================================================================================
 
+def big_run(names = ['B1', 'L1455', 'IC348']):
+
+    rtime = []
+
+    for name in names:
+        start_time = time.time()
+        run(region=name)
+        elapsed_time = time.time() - start_time
+        rtime.append(elapsed_time)
+
+    for nn, tt in zip(names, rtime):
+        print('{} run time: {}'.format(nn, time.strftime("%H:%M:%S", time.gmtime(tt))))
+
+
+
 def run(region='L1448', multicore=8, root='all_rebase3', snr_min=5.0):
     # start timing
     start_time = time.time()
