@@ -73,6 +73,9 @@ def get_convolved_cube(reg, update=True, cnv_cubePath=None, edgetrim_width=5, pa
     if paraNameRoot is None:
         paraNameRoot = "{}_conv{}Xbeam".format(reg.paraNameRoot, int(np.rint(reg.cnv_factor)))
 
+    if paraDir is None:
+        paraDir = reg.paraDir
+
     reg.ucube_cnv = UCube.UCubePlus(cubefile=reg.cnv_cubePath, paraNameRoot=paraNameRoot,
                                      paraDir=paraDir, cnv_factor=reg.cnv_factor)
 
