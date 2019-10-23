@@ -45,7 +45,7 @@ class Region(object):
         # create directories if they don't exist
 
         make_dir(self.paraDir)
-        make_dir(self.modelDir)
+        #make_dir(self.modelDir)
         make_dir(self.cleanParaDir)
 
         self.root = root
@@ -178,6 +178,18 @@ def make_dir(dirpath):
 
 
 #=======================================================================================================================
+
+def clean_up_directories(names = ['B1', 'L1455', 'IC348']):
+    import os
+    import shutil
+
+    rootDir = "/lustre/pipeline/scratch/GAS/images"
+
+    for name in names:
+        #os.rename("path/to/current/file.foo", "path/to/new/destination/for/file.foo")
+        shutil.move("path/to/current/file.foo", "path/to/new/destination/for/file.foo")
+        #os.replace("path/to/current/file.foo", "path/to/new/destination/for/file.foo")
+
 
 def big_run(names = ['B1', 'L1455', 'IC348']):
 
