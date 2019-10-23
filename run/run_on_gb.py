@@ -46,7 +46,7 @@ class Region(object):
 
         make_dir(self.paraDir)
         #make_dir(self.modelDir)
-        make_dir(self.cleanParaDir)
+        #make_dir(self.cleanParaDir)
 
         self.root = root
         if rootPara is None:
