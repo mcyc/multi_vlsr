@@ -1,12 +1,12 @@
 __author__ = 'mcychen'
 
 '''
-This is a wrapper to run on the Green Bank server for the multi_vlsr package
+This is a wrapper to run on the Green Bank server using the mufasa pakcage
 '''
 import sys, os, errno, time
 import time
 
-import master_fitter as mf
+from mufasa import master_fitter as mf
 
 #=======================================================================================================================
 
@@ -63,7 +63,7 @@ def make_dir(dirpath):
 #=======================================================================================================================
 
 
-def verify_package():
+def verify_package(region='NGC1333', linename="oneone"):
     # start timing
     start_time = time.time()
 
@@ -71,7 +71,7 @@ def verify_package():
     reg = Region(region, root='DR1_rebase3', linename=linename)
     reg.OneOneFile = '{2}/{0}/DR1/{0}_NH3_{3}_{1}_trim.fits'.format(reg.region, reg.root, reg.cubeDir, reg.line_root)
 
-    paraNameRoot = '{0}_NH3_{1}_{2}_para'.format(reg.region, reg.line_root, reg.rootPara)
+    paraNameRoot = '{0}_NH3_{1}_{2}_para_VerFy'.format(reg.region, reg.line_root, reg.rootPara)
     uReg = mf.Region(cubePath=reg.OneOneFile, paraNameRoot=paraNameRoot, paraDir=reg.paraDir)
     uReg.master_2comp_fit(snr_min=3)
 
