@@ -82,3 +82,29 @@ def verify_package(region='NGC1333', linename="oneone"):
 
     return reg, uReg
 
+
+def verify_package_B5(linename="oneone"):
+    import pkg_resources
+    print("Using MUFASA version {}".format(pkg_resources.get_distribution("mufasa").version))
+
+    region = 'B5'
+
+    # start timing
+    start_time = time.time()
+
+    # for running on DR1 regions
+    reg = Region(region, linename=linename)
+    reg.cubeDir = "/lustre/pipeline/scratch/GAS/images/MChen_Others/B5"
+    reg.paraDir = "{0}/{1}/paraMaps_VerFy_MChen".format(reg.cubeDir, reg.region)
+
+    paraNameRoot = '{0}_NH3_{1}_{2}_para_VerFy'.format(reg.region, reg.line_root, reg.rootPara)
+    uReg = mf.Region(cubePath=reg.OneOneFile, paraNameRoot=paraNameRoot, paraDir=reg.paraDir)
+    uReg.master_2comp_fit(snr_min=3)
+
+    elapsed_time = time.time() - start_time
+    # print elapsed_time
+    print "total time ellapsed"
+    print time.strftime("%H:%M:%S", time.gmtime(elapsed_time))
+
+    return reg, uReg
+
