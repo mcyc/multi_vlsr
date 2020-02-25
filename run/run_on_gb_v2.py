@@ -94,7 +94,7 @@ def verify_package_B5(linename="oneone"):
 
     # for running on DR1 regions
     reg = Region(region, linename=linename)
-    reg.cubeDir = "/lustre/pipeline/scratch/GAS/images/MChen_Others/B5"
+    reg.cubeDir = "/lustre/pipeline/scratch/GAS/images/MChen_Others"
     reg.paraDir = "{0}/{1}/paraMaps_VerFy_MChen".format(reg.cubeDir, reg.region)
     reg.OneOneFile = '{2}/{0}/{0}_NH3_{3}_{1}.fits'.format(reg.region, reg.root, reg.cubeDir, reg.line_root)
 
