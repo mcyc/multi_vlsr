@@ -67,6 +67,9 @@ def tau_demo():
     f.savefig(savepath)
 
 
+
+
+
 def test():
     parapath = '/Users/mcychen/Documents/Data/GAS_NH3/DRMC_paraMaps/L1448/paraMaps_MChen/L1448_1vcomp_parameter_maps_base_all_rebase3.fits'
     n_comp = 1
@@ -93,7 +96,7 @@ def test():
 
 
 
-def mapPositions(data, yxList, ax=None, figsize=(6,4), stretch=None, vmid=None, clab=None, **kwargs):
+def mapPositions(data, yxList, ax=None, figsize=(6,4), stretch=None, vmid=None, clab=None, xoff=16, yoff=2, **kwargs):
 
     if ax is None:
         fig = plt.figure(figsize=figsize)
@@ -130,19 +133,26 @@ def mapPositions(data, yxList, ax=None, figsize=(6,4), stretch=None, vmid=None, 
 
     # show the positions
     for idx, (y,x) in enumerate(yxList):
-        #ra, dec = gc.pixel2world(x,y)
-        #gc.show_markers(ra, dec, edgecolor='red', facecolor='red', marker='x', s=50, alpha=0.75, zorder = 100)
-        #gc.add_label(ra + offset, dec + offset, '{0})'.format(ascii_lowercase[i]), zorder = 200, color='black')
-        ax.plot(x, y, marker='x', markersize=10, markeredgewidth=2, c='red') #markeredgewidth
-        ax.annotate(ascii_lowercase[idx] + ')', xy=(x-8, y+4), xycoords='data',
-                    horizontalalignment='center', zorder=50, size=10)
+
+
+        bbox_props = dict(boxstyle="circle,pad=0.15", fc="w", ec="b", lw=0, alpha=0.75)
+        '''
+        ax.annotate(ascii_lowercase[idx], xy=(aidx[1], aidx[0]), xytext=(aidx[1] + oy, aidx[0] + ox), xycoords='data',
+                    zorder=120, size=9, horizontalalignment='left', bbox=bbox_props,
+                    arrowprops=dict(arrowstyle='-'))
+        '''
+
+        ax.plot(x, y, marker='x', markersize=10, markeredgewidth=2, c='red', zorder=100) #markeredgewidth
+        ax.annotate(ascii_lowercase[idx] + ')', xy=(x,y), xytext=(x-xoff, y+yoff), xycoords='data',
+                    horizontalalignment='center', zorder=50, size=10, bbox=bbox_props,
+                    arrowprops=dict(arrowstyle='-'))
 
     if ax is None:
         return fig
 
 
 
-def mapPositions_Aplpy(mappath, yxList, savepath, figure=None, showMap = False, kwargs={}, cBarLab = None):
+def mapPositions_Aplpy(mappath, yxList, savepath, figure=None, showMap = False, offset = 60.0, cBarLab = None, **kwargs):
 
     # set default for the map kwargs
     #kwargs = {'vmin':0.7, 'vmax':2.5, 'cmap':"YlGnBu"}
@@ -160,7 +170,6 @@ def mapPositions_Aplpy(mappath, yxList, savepath, figure=None, showMap = False, 
 
     # specific the annotation offset in arcseconds, then convert it to degrees
     #offset = 12.0
-    offset = 60.0
     offset = offset/3600.0
 
     # show the positions
@@ -176,7 +185,8 @@ def mapPositions_Aplpy(mappath, yxList, savepath, figure=None, showMap = False, 
 
 
 
-def plotMultiSpec(parapath, n_comp, obspath, chipath, yxList, savepath, showSpec = False, vZoomLims = None, lhpath=None):
+def plotMultiSpec(parapath, n_comp, obspath, chipath, yxList, savepath=None, showSpec = False, vZoomLims = None, lhpath=None,
+                  figsize = (5, 6)):
     # plot the chi-squared map and its model for the two component fit
 
     para, hdr_para = fits.getdata(parapath, header=True)
@@ -215,9 +225,11 @@ def plotMultiSpec(parapath, n_comp, obspath, chipath, yxList, savepath, showSpec
         return models
 
     # plot spectra
-    #fsize = (5.5,7)
-    fsize = (5, 6)
-    n_subfig = 6
+    fsize = figsize
+
+    #n_subfig = 6
+    n_subfig = len(yxList)
+
     f, axarr = multiPlotTemp(numplots = n_subfig, ncols=1, figsize = fsize, polar = False, hspace=0.20, wspace=0.25,
                                 xlab=r'v$_{\mathrm{LSR}}$ (km s$^{-1}$)', ylab=r"T$_{\mathrm{MB}}$ (K)",labpad = 15)
 
@@ -239,7 +251,9 @@ def plotMultiSpec(parapath, n_comp, obspath, chipath, yxList, savepath, showSpec
         for mod in models:
             axarr[i].plot(xarr.value, mod, **kwargs)
 
-        axarr[i].annotate('{0})'.format(ascii_lowercase[i]), xy = (0.02, 0.75), xycoords='axes fraction')
+        axarr[i].annotate('{0})'.format(ascii_lowercase[i]), xy = (0.02, 0.7), xycoords='axes fraction')
+        #axarr[i].set_ylim((-0.3, np.max(spc) * 1.3))
+        axarr[i].set_ylim((np.max(spc)*-0.2), np.max(spc)*1.3)
 
 
         if lhpath is not None:
@@ -249,7 +263,7 @@ def plotMultiSpec(parapath, n_comp, obspath, chipath, yxList, savepath, showSpec
                               , horizontalalignment='right', zorder=50)
             '''
 
-            axarr[i].annotate("{0} {1}".format("$\ln{ \ K^2_1} = $", round(map_lh[y,x],0)), xy = (0.975, 0.7), xycoords='axes fraction'
+            axarr[i].annotate("{0} {1}".format("$\ln{ \ K^2_1} = $", round(map_lh[y,x],0)), xy = (0.975, 0.67), xycoords='axes fraction'
                               , horizontalalignment='right', zorder = 50)
 
 
@@ -262,7 +276,8 @@ def plotMultiSpec(parapath, n_comp, obspath, chipath, yxList, savepath, showSpec
         # remove all the x-labels except for the last subplot
         ax.xaxis.set_major_formatter(plt.NullFormatter())
 
-    f.savefig(savepath, bbox_inches='tight')
+    if not savepath is None:
+        f.savefig(savepath, bbox_inches='tight')
     if showSpec:
         f.show()
 

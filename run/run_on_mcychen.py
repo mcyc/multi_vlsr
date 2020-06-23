@@ -29,9 +29,18 @@ class Region(object):
         self.cleanParaDir = "{0}/clean_maps".format(self.paraDir)
         self.cubeFigDir = "{0}/{1}".format(self.cubeDir, "figures")
 
+
+        #region = Region(reg, linename=linename, root='DR1_rebase3')
+        #region.cubeDir = "{0}/{1}/{2}".format(region.rootDir, 'DR1_rebase3', region.region)
+        #region.OneOneFile = '{0}/{1}_NH3_{2}_{3}.fits'.format(region.cubeDir, region.region, region.line_root, region.rootPara)
+        #region.paraDir = "{0}/{1}/{2}/{3}".format(region.rootDir, 'DR1_paraMaps', region.region, 'paraMaps_MChen')
+        #region.cleanParaDir = "{0}/clean_maps".format(region.paraDir)
+        #region.cubeFigDir = "{0}/{1}".format(region.cubeDir, "figures")
+
+
         # create directories if they don't exist
         make_dir(self.cubeFigDir)
-        make_dir(self.cleanParaDir)
+        #make_dir(self.cleanParaDir)
 
         self.root = root
         if rootPara is None:
@@ -263,21 +272,76 @@ def make_dir(dirpath):
             raise
 
 ########################################################################################################################
-# user inputs
+# user inputs (updated to Chen et al. 2019 recipe)
+
+def deblend_NGC1333_4SCMS_DR1(vmin=5.2, vmax=9.5, linename="oneone", **kwargs):
+    reg = "NGC1333"
+    region = Region(reg, linename=linename, root='DR1_rebase3')
+    region.cubeDir = "{0}/{1}/{2}".format(region.rootDir, 'DR1_rebase3', region.region)
+    region.OneOneFile = '{0}/{1}_NH3_{2}_{3}.fits'.format(region.cubeDir, region.region, region.line_root, region.rootPara)
+    region.paraDir = "{0}/{1}/{2}/{3}".format(region.rootDir, 'DR1_paraMaps', region.region, 'paraMaps_MChen')
+    region.cleanParaDir = "{0}/clean_maps".format(region.paraDir)
+    region.cubeFigDir = "{0}/{1}".format(region.cubeDir, "figures")
+
+    #region.CleanParaFile_2comp="{}/{}_NH3_{}_{}_para_2vcomp.fits".format(region.paraDir, region.region, region.line_root, region.rootPara)
+    region.CleanParaFile_2comp="{}/{}_NH3_{}_{}_para_2vcomp_final.fits".format(region.paraDir, region.region,
+                                                                          region.line_root, region.rootPara)
+
+    #region.deblend_2comp(vmin, vmax, res_boost=1.0, forSCMS=True, fixsigma=False, **kwargs)
+    # note, spectral-deconvolution happens if forSCMS is set to be true
+    region.deblend_2comp(vmin, vmax, res_boost=1.0, forSCMS=False, fixsigma=True, **kwargs)
+
+
+def deblend_4SCMS(reg = 'HC2', vmin=4, vmax=7, **kwargs):
+    deblend(reg, vmin, vmax, res_boost=1.0, forSCMS=False, fixsigma=True, **kwargs)
+
 
 def master_deblend(tau_wgt=0.1):
 
-    '''
-    region = Region("L1448")
-    region.deblend_2comp(vmin=2.5, vmax=6.5, tau_wgt=tau_wgt)
-    '''
+    #deblend_4SCMS_DR1(reg='NGC1333', vmin=5.2, vmax=9.5, tau_wgt=tau_wgt, linename="oneone")
 
-    #deblend_DR1(reg='NGC1333', vmin=5.2, vmax=9.5, linename="oneone", tau_wgt=tau_wgt)
+    #deblend_4SCMS(reg='B1', vmin=5.3, vmax=8.1, tau_wgt=tau_wgt)
+    #deblend_4SCMS(reg='L1448', vmin=2.5, vmax=6.5, tau_wgt=tau_wgt)
+    #deblend_4SCMS(reg='L1455', vmin=3.7, vmax=6.7, tau_wgt=tau_wgt)
+    #deblend_4SCMS(reg='Cepheus_L1228', vmin=-9.0, vmax=-6.8, tau_wgt=tau_wgt)
+    #deblend_4SCMS(reg='Cepheus_L1251', vmin=-6.2, vmax=-2.8, tau_wgt=tau_wgt)
+    #deblend_4SCMS(reg='HC2', vmin=4.3, vmax=8.3, tau_wgt=tau_wgt)
+    #deblend_4SCMS(reg='OrionB_NGC2023-2024', vmin=7.7, vmax=13.3, tau_wgt=tau_wgt)
+    #deblend_4SCMS(reg='OrionB_NGC2068-2071', vmin=8.5, vmax=12.0, tau_wgt=tau_wgt)
 
-    #deblend(reg='B1', vmin=5.3, vmax=8.1, tau_wgt=tau_wgt)
-    #deblend(reg='L1448', vmin=2.5, vmax=6.5, tau_wgt=tau_wgt)
-    #deblend(reg='HC2', vmin=4.3, vmax=7.2, tau_wgt=tau_wgt)
-    deblend_4SCMS(reg='L1448', vmin=2.5, vmax=6.5, tau_wgt=tau_wgt)
+    deblend_4SCMS(reg='IC348', vmin=6.3, vmax=10.9, tau_wgt=tau_wgt)
+
+
+def deblend_B5(**kwargs):
+    # deblending specifically setup for
+    vmin= 9
+    vmax= 11.3
+    tau_wgt = 0.1
+    linename = "oneone"
+
+    reg = "B5"
+    region = Region(reg, linename=linename)
+    region.cubeDir = "/Users/mcychen/Documents/Data/GBT_NH3/Pineda"
+    region.OneOneFile = '{0}/{1}_GBT_NH3_11.fits'.format(region.cubeDir, reg)
+    region.paraDir = "{0}/{1}".format(region.cubeDir,'paraMaps')
+
+    region.CleanParaFile_2comp="{}/B5_NH3_11_all_rebase3_para_2vcomp_final.fits".format(region.paraDir)
+    region.deblend_2comp(vmin, vmax, res_boost=1.0, forSCMS=False, fixsigma=True, **kwargs)
+
+
+def deblend(reg = 'HC2', vmin=4, vmax=7, **kwargs):
+    region = Region(reg)
+
+    #
+    #B1_NH3_11_all_rebase3_para_2vcomp_final.fits
+    #
+    region.CleanParaFile_2comp="{}/{}_NH3_{}_{}_para_2vcomp_final.fits".format(region.paraDir, region.region,
+                                                                          region.line_root, region.rootPara)
+    region.deblend_2comp(vmin, vmax, **kwargs)
+
+
+########################################################################################################################
+# user inputs (needs update)
 
 
 def clean_reg(reg = 'L1448'):
@@ -287,12 +351,19 @@ def clean_reg(reg = 'L1448'):
     #region.clean_map()
     return None
 
-def deblend_4SCMS(reg = 'HC2', vmin=4, vmax=7, **kwargs):
-    deblend(reg, vmin, vmax, res_boost=2.0, forSCMS=True, **kwargs)
 
-def deblend(reg = 'HC2', vmin=4, vmax=7, **kwargs):
-    region = Region(reg)
-    region.deblend_2comp(vmin, vmax, **kwargs)
+
+def deblend_4SCMS_DR1(reg = 'NGC1333', vmin=5.2, vmax=9.3, linename = "oneone", **kwargs):
+    region = Region(reg, linename=linename, root='DR1_rebase3')
+    region.cubeDir = "{0}/{1}/{2}".format(region.rootDir, 'DR1_rebase3', region.region)
+    region.OneOneFile = '{0}/{1}_NH3_{2}_{3}.fits'.format(region.cubeDir, region.region, region.line_root, region.rootPara)
+    region.paraDir = "{0}/{1}/{2}/{3}".format(region.rootDir, 'DR1_paraMaps', region.region, 'paraMaps_MChen')
+    region.cleanParaDir = "{0}/clean_maps".format(region.paraDir)
+    region.cubeFigDir = "{0}/{1}".format(region.cubeDir, "figures")
+    region.deblend_2comp(vmin, vmax, res_boost=2.0, forSCMS=True, **kwargs)
+
+
+
 
 '''
 def deblend_tau_test(reg="L1448", vmin=3, vmax=6, tau_wgt = 0.25, **kwargs):

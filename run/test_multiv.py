@@ -39,6 +39,15 @@ reload(mf)
 #=======================================================================================================================
 
 
+def make_wide_v_sep_cube():
+    kwarg = {'version': 'lowC1_medC2', 'SNR1': 'low', 'SNR2': 'med'}
+    #kwarg = {'version': 'medC1_highC2', 'SNR1': 'med', 'SNR2': 'high'}
+    kwarg['mock_wide_v_sep'] = True
+    kwarg['makeMockCube'] = True
+    #kwarg['v1_extraoff'] = 1.75
+    kwarg['v1_extraoff'] = 1.5
+    run(linename="oneone", **kwarg)
+
 def qm():
     l1 = "oneone"
     #kwarg = {'version':'lowC1_xlowC2', 'SNR1':'low', 'SNR2':'xlow'}
@@ -87,20 +96,28 @@ def do():
 
 
 def run(linename="oneone", version = "medC1_lowC2", SNR1="med", SNR2="low", recover_wide=False,
-        v1_extraoff=None, makeMockCube=True):
+        v1_extraoff=None, makeMockCube=True, mock_wide_v_sep= True):
     #example_spec_fit()
 
     print("SNR1: {}, SNR2: {}.".format(SNR1, SNR2))
 
     baseDir = "/Users/mcychen/Documents/Data/GAS_NH3"
 
-    paraDir = "{0}/mock_paraMaps/{1}".format(baseDir, version)
-    if not os.path.exists(paraDir):
-        os.makedirs(paraDir)
 
-    cubeDir = "{0}/mock_rebase/{1}".format(baseDir,  version)
+
+
+    if mock_wide_v_sep:
+        paraDir = "{0}/mock_wideVSep_paraMaps/{1}".format(baseDir, version)
+        cubeDir = "{0}/mock_wideVSep_rebase/{1}".format(baseDir, version)
+    else:
+        paraDir = "{0}/mock_paraMaps/{1}".format(baseDir, version)
+        cubeDir = "{0}/mock_rebase/{1}".format(baseDir,  version)
+
     if not os.path.exists(cubeDir):
         os.makedirs(cubeDir)
+
+    if not os.path.exists(paraDir):
+        os.makedirs(paraDir)
 
     if linename == "oneone":
         line_root = "11"
@@ -128,7 +145,7 @@ def run(linename="oneone", version = "medC1_lowC2", SNR1="med", SNR2="low", reco
     paraname = "{0}/mock_NH3_{1}_2vcomp_{2}_parameter_maps.fits".format(paraDir, line_root, version)
     modname = "{0}/mock_NH3_{1}_2vcomp_{2}_modelcube.fits".format(cubeDir, line_root, version)
 
-    if True:
+    if False:
         # fit the fake cube with 2 velocity component models
         #pcube = example_cube_fit(cubename = cubename, paraname = paraname, modname = modname)
         #pcube = mvf.cubefit_gen(cube11name=cubename, ncomp=2, paraname=paraname, modname=modname, multicore = 3,
@@ -349,7 +366,7 @@ def generate_xarr(linename):
 
 
 
-def fake_cube(fname=None, paraname=None, linename="oneone", map_shape=(30,30), sigm1_ul=0.3, v1_maxoff=0.5, v1_extraoff=None, rms=0.1,
+def fake_cube(fname=None, paraname=None, linename="oneone", map_shape=(20,20), sigm1_ul=0.3, v1_maxoff=0.5, v1_extraoff=None, rms=0.1,
               **kwargs):
     # Create a fake spectral ammonia (1-1) cube with GAS spectral resolution
     # rms of 0.1 is roughly the GAS level
@@ -557,10 +574,17 @@ def fake_cube(fname=None, paraname=None, linename="oneone", map_shape=(30,30), s
 
         fitcubefile.header.set('CUNIT1', 'deg')
         fitcubefile.header.set('CUNIT2', 'deg')
+
         fitcubefile.header.set('PLANE1','VELOCITY_0')
         fitcubefile.header.set('PLANE2','SIGMA_0')
-        fitcubefile.header.set('PLANE3','VELOCITY_1')
-        fitcubefile.header.set('PLANE4','SIGMA_1')
+        fitcubefile.header.set('PLANE3', 'TEX_0')
+        fitcubefile.header.set('PLANE4', 'TAU_0')
+
+        fitcubefile.header.set('PLANE5','VELOCITY_1')
+        fitcubefile.header.set('PLANE6','SIGMA_1')
+        fitcubefile.header.set('PLANE7', 'TEX_1')
+        fitcubefile.header.set('PLANE8', 'TAU_1')
+
         fitcubefile.header.set('CDELT3',1)
         fitcubefile.header.set('CTYPE3','FITPAR')
         fitcubefile.header.set('CRVAL3',0)

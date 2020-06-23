@@ -19,6 +19,9 @@ import FITS_tools
 import ammonia_hf_multiv as amhf
 reload(amhf)
 
+import mufasa
+from mufasa import deblend_cube as dc
+
 #=======================================================================================================================
 
 def deblend_cube(paraFile, cubeRefFile, deblendFile, vmin=4.0, vmax=11.0, T_bg = 0.0, sigv_fixed = None,
@@ -56,7 +59,8 @@ def deblend_cube(paraFile, cubeRefFile, deblendFile, vmin=4.0, vmax=11.0, T_bg =
     cube = SpectralCube.read(cubeRefFile)
 
     kwargs = {'vmin':vmin, 'vmax':vmax, 'f_spcsamp':f_spcsamp, 'tau_wgt':tau_wgt}
-    mcube = deblend(para, specCubeRef=cube, **kwargs)
+    #mcube = deblend(para, specCubeRef=cube, **kwargs)
+    mcube = dc.deblend(para, specCubeRef=cube, **kwargs)
 
     if deblendFile != None:
         mcube.write(deblendFile, overwrite=True)

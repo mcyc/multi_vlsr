@@ -21,28 +21,48 @@ def do():
     #l2 = "twotwo"
 
     if False:
-        kwarg = {'version':'medC1_xlowC2', 'SNR1':'med', 'SNR2':'xlow'}
-        #testmv.run(l1, **kwarg)
-        run(l1, **kwarg)
+        kwargs = {'version': 'lowC1_xlowC2', 'SNR1': 'low', 'SNR2': 'xlow'}
+        # do a test on wide-v-sep case study
+        kwargs['v1_extraoff'] = 1.95
+        kwargs['recover_wide'] = True
+        kwargs['makeMockCube'] = True
 
+        testmv.run(l1, **kwargs)
+
+    if True:
+        kwargs = {'version': 'lowC1_lowC2', 'SNR1': 'low', 'SNR2': 'low'}
+        # do a test on wide-v-sep case study
+        kwargs['v1_extraoff'] = 1.95
+        kwargs['recover_wide'] = True
+        kwargs['makeMockCube'] = True
+
+        testmv.run(l1, **kwargs)
+
+
+    if False:
         kwarg = {'version':'lowC1_xlowC2', 'SNR1':'low', 'SNR2':'xlow'}
         #testmv.run(l1, **kwarg)
         run(l1, **kwarg)
 
-        kwarg = {'version':'lowC1_xxlowC2', 'SNR1':'low', 'SNR2':'xxlow'}
-        #testmv.run(l1, **kwarg)
-        run(l1, **kwarg)
-
+    if False:
         kwarg = {'version':'medC1_lowC2', 'SNR1':'med', 'SNR2':'low'}
         #testmv.run(l1, **kwarg)
         run(l1, **kwarg)
 
     if False:
+        kwarg = {'version':'medC1_xlowC2', 'SNR1':'med', 'SNR2':'xlow'}
+        #testmv.run(l1, **kwarg)
+        run(l1, **kwarg)
+
+    if False:
+        kwarg = {'version':'lowC1_xxlowC2', 'SNR1':'low', 'SNR2':'xxlow'}
+        #testmv.run(l1, **kwarg)
+        run(l1, **kwarg)
+
         kwarg = {'version':'medC1_xxlowC2', 'SNR1':'med', 'SNR2':'xxlow'}
         #testmv.run(l1, **kwarg)
         run(l1, **kwarg)
 
-    if True:
         kwarg = {'version':'lowC1_lowC2', 'SNR1':'low', 'SNR2':'low'}
         #testmv.run(l1, **kwarg)
         run(l1, **kwarg)
@@ -51,12 +71,12 @@ def do():
         testmv.run(l1, **kwarg)
         run(l1, **kwarg)
 
-    if True:
+    if False:
         kwarg = {'version':'highC1_lowC2', 'SNR1':'high', 'SNR2':'low'}
         testmv.run(l1, **kwarg)
         run(l1, **kwarg)
 
-    if True:
+    if False:
         kwarg = {'version':'highC1_medC2', 'SNR1':'high', 'SNR2':'med'}
         testmv.run(l1, **kwarg)
         run(l1, **kwarg)
@@ -64,7 +84,7 @@ def do():
 
 
 
-def run(linename="oneone", version = "medC1_lowC2", SNR1="med", SNR2="low", makeMockCube=False):
+def run(linename="oneone", version = "medC1_lowC2", SNR1="med", SNR2="low", makeMockCube=False, fit1comp=True):
 
     baseDir = "/Users/mcychen/Documents/Data/GAS_NH3"
 
@@ -99,21 +119,49 @@ def run(linename="oneone", version = "medC1_lowC2", SNR1="med", SNR2="low", make
         kwarg = {'tex1':tex1, 'tau1':tau1, 'tex2':tex2, 'tau2':tau2}
         testmv.fake_cube(fname = cubename, paraname = realparaname, linename = linename, **kwarg)
 
-    paraname = "{0}/mock_NH3_{1}_2vcomp_{2}_parameter_maps.fits".format(paraDir, line_root, version)
-    modname = "{0}/mock_NH3_{1}_2vcomp_{2}_modelcube.fits".format(cubeDir, line_root, version)
 
-    if True:
+    ncomp=2
+    paraname = "{0}/mock_NH3_{1}_{2}vcomp_{3}_parameter_maps.fits".format(paraDir, line_root, ncomp, version)
+    #modname = "{0}/mock_NH3_{1}_{2}vcomp_{3}_modelcube.fits".format(cubeDir, line_root, ncomp, version)
+
+    if fit1comp:
+        # perform the 1 comp first
+
+        ncomp=1
+        paraname = "{0}/mock_NH3_{1}_{2}vcomp_{3}_parameter_maps.fits".format(paraDir, line_root, ncomp, version)
+
+        kwargs = {'ncomp': ncomp, 'paraname': paraname, 'modname': None, 'chisqname': None, 'guesses': None,
+              'errmap11name': None, 'multicore': 5, 'mask_function': None, 'snr_min': 3.0, 'linename': "oneone",
+              'momedgetrim': False}
+        pcube = itf.cubefit(cubename, downsampfactor=2, **kwargs)
+
+
+        # now perform the 2 comp fit using the tau tex guess from the 1 comp fit
+        singCompRef = "{0}_cnv.fits".format(os.path.splitext(paraname)[0])
+
+        ncomp=2
+        paraname = "{0}/mock_NH3_{1}_{2}vcomp_{3}_parameter_maps.fits".format(paraDir, line_root, ncomp, version)
+
+        kwargs = {'ncomp': ncomp, 'paraname': paraname, 'modname': None, 'chisqname': None, 'guesses': None,
+              'errmap11name': None, 'multicore': 5, 'mask_function': None, 'snr_min': 3.0, 'linename': "oneone",
+              'momedgetrim': False}
+
+        pcube = itf.cubefit_wTauTexCnvRef(cubename, singCompRef, downsampfactor=2, **kwargs)
+
+    else:
     # run the fitting routine
         # supply the fitted parameter to the convovled cube
+
         if False:
             # if the convolved paramter already excited,
             conv_paraname = "{0}_cnv.fits".format(os.path.splitext(paraname)[0], "parameter_maps")
-            kwargs = {'ncomp':2, 'paraname':paraname, 'modname':None, 'chisqname':None, 'guesses':None, 'errmap11name':None,
-                  'multicore':3, 'mask_function':None, 'snr_min':3.0, 'linename':"oneone", 'conv_paraname':conv_paraname}
+            kwargs = {'ncomp':2, 'paraname':paraname, 'modname':None, 'chisqname':None, 'guesses':None,
+                      'errmap11name':None, 'multicore':5, 'mask_function':None, 'snr_min':3.0, 'linename':"oneone",
+                      'conv_paraname':conv_paraname, 'momedgetrim':False}
 
         else:
-            kwargs = {'ncomp':2, 'paraname':paraname, 'modname':None, 'chisqname':None, 'guesses':None, 'errmap11name':None,
-                  'multicore':3, 'mask_function':None, 'snr_min':3.0, 'linename':"oneone"}
+            kwargs = {'ncomp':2, 'paraname':paraname, 'modname':None, 'chisqname':None, 'guesses':None,
+                      'errmap11name':None, 'multicore':5, 'mask_function':None, 'snr_min':3.0, 'linename':"oneone", 'momedgetrim':False}
 
 
         # fit the fake cube with 2 velocity component models, iteratively
@@ -126,8 +174,10 @@ def run(linename="oneone", version = "medC1_lowC2", SNR1="med", SNR2="low", make
 
         if not os.path.exists(figDir):
             os.makedirs(figDir)
-        itername = "{0}_iter.fits".format(os.path.splitext(paraname)[0], "parameter_maps")
-        plot_vel_fit_accuracy(realparaname, paraname, itername, saveFigDir=figDir, saveFigRoot="NH3_{0}".format(line_root))
+        #itername = "{0}_iter.fits".format(os.path.splitext(paraname)[0], "parameter_maps")
+        #plot_vel_fit_accuracy(realparaname, paraname, itername, saveFigDir=figDir, saveFigRoot="NH3_{0}".format(line_root))
+        plot_vel_fit_accuracy(realparaname, paraname, paraname, saveFigDir=figDir, saveFigRoot="NH3_{0}".format(line_root))
+
 
     return None
 
