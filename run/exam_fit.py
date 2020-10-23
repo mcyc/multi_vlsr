@@ -20,6 +20,39 @@ sys.path.insert(1, os.path.join(sys.path[0], '..'))
 import ammonia_multiv as ammv
 reload(ammv)
 
+from collections import OrderedDict
+
+#======================================================================================================================#
+
+def write_roman(num):
+
+    roman = OrderedDict()
+    roman[1000] = "m"
+    roman[900] = "cm"
+    roman[500] = "d"
+    roman[400] = "cd"
+    roman[100] = "c"
+    roman[90] = "xc"
+    roman[50] = "l"
+    roman[40] = "xl"
+    roman[10] = "x"
+    roman[9] = "ix"
+    roman[5] = "v"
+    roman[4] = "iv"
+    roman[1] = "i"
+
+    def roman_num(num):
+        for r in roman.keys():
+            x, y = divmod(num, r)
+            yield roman[r] * x
+            num -= (r * x)
+            if num <= 0:
+                break
+
+    return "".join([a for a in roman_num(num)])
+
+#======================================================================================================================#
+
 
 def tau_demo():
     from pyspeckit.spectrum.models.ammonia_constants import freq_dict
@@ -96,7 +129,8 @@ def test():
 
 
 
-def mapPositions(data, yxList, ax=None, figsize=(6,4), stretch=None, vmid=None, clab=None, xoff=16, yoff=2, **kwargs):
+def mapPositions(data, yxList, ax=None, figsize=(6,4), stretch=None, vmid=None, clab=None, xoff=16, yoff=2,
+                 anno_letters=True, **kwargs):
 
     if ax is None:
         fig = plt.figure(figsize=figsize)
@@ -143,9 +177,16 @@ def mapPositions(data, yxList, ax=None, figsize=(6,4), stretch=None, vmid=None, 
         '''
 
         ax.plot(x, y, marker='x', markersize=10, markeredgewidth=2, c='red', zorder=100) #markeredgewidth
-        ax.annotate(ascii_lowercase[idx] + ')', xy=(x,y), xytext=(x-xoff, y+yoff), xycoords='data',
-                    horizontalalignment='center', zorder=50, size=10, bbox=bbox_props,
-                    arrowprops=dict(arrowstyle='-'))
+
+        if anno_letters:
+            ax.annotate(ascii_lowercase[idx] + ')', xy=(x,y), xytext=(x-xoff, y+yoff), xycoords='data',
+                        horizontalalignment='center', zorder=50, size=10, bbox=bbox_props,
+                        arrowprops=dict(arrowstyle='-'))
+        else:
+            ax.annotate(write_roman(idx+1) + ')', xy=(x,y), xytext=(x-xoff, y+yoff), xycoords='data',
+                        horizontalalignment='center', zorder=50, size=10, bbox=bbox_props,
+                        arrowprops=dict(arrowstyle='-'))
+
 
     if ax is None:
         return fig
@@ -185,8 +226,8 @@ def mapPositions_Aplpy(mappath, yxList, savepath, figure=None, showMap = False, 
 
 
 
-def plotMultiSpec(parapath, n_comp, obspath, chipath, yxList, savepath=None, showSpec = False, vZoomLims = None, lhpath=None,
-                  figsize = (5, 6)):
+def plotMultiSpec(parapath, n_comp, obspath, chipath, yxList, savepath=None, showSpec = False, vZoomLims = None,
+                  lhpath=None, figsize = (5, 6), anno_letters=True):
     # plot the chi-squared map and its model for the two component fit
 
     para, hdr_para = fits.getdata(parapath, header=True)
@@ -251,7 +292,11 @@ def plotMultiSpec(parapath, n_comp, obspath, chipath, yxList, savepath=None, sho
         for mod in models:
             axarr[i].plot(xarr.value, mod, **kwargs)
 
-        axarr[i].annotate('{0})'.format(ascii_lowercase[i]), xy = (0.02, 0.7), xycoords='axes fraction')
+        if anno_letters:
+            axarr[i].annotate('{0})'.format(ascii_lowercase[i]), xy = (0.02, 0.7), xycoords='axes fraction')
+        else:
+            axarr[i].annotate('{0})'.format(write_roman(i+1)), xy=(0.02, 0.7), xycoords='axes fraction')
+
         #axarr[i].set_ylim((-0.3, np.max(spc) * 1.3))
         axarr[i].set_ylim((np.max(spc)*-0.2), np.max(spc)*1.3)
 
